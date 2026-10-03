@@ -76,60 +76,84 @@ mb_rain_total     = 0.0
 mb_drain_total    = 0.0
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  3. ASYNC PHYSICS LOOP
+#  3. PHYSICS LOOP  — runs CPU batch in a thread so HTTP stays responsive
 # ═══════════════════════════════════════════════════════════════════════════════
+import time as _time
+
+def _physics_batch() -> dict:
+    """
+    Synchronous physics batch.  Runs in a thread-pool worker so Numba can
+    release the GIL and the asyncio event-loop stays free for HTTP requests.
+    Returns mass-balance numbers to merge back on the main thread.
+    """
+    simulator.dt = 1.0   # Always do 1s steps so we can check wall_budget frequently
+
+    wall_budget = 0.15          # seconds of real time we're allowed to use
+    tick_start  = _time.perf_counter()
+    mb_rain = mb_drain = 0.0
+    n_cells = state.grid_shape[0] * state.grid_shape[1]
+    area    = state.dx ** 2
+
+    while _time.perf_counter() - tick_start < wall_budget:
+        vol_before = float(state.water_depth.sum()) * area
+        try:
+            simulator.step()
+        except Exception:
+            import traceback; traceback.print_exc()
+            break
+        vol_after  = float(state.water_depth.sum()) * area
+        rain_vol   = state.rainfall_rate * area * n_cells * simulator.dt
+        mb_rain   += rain_vol
+        mb_drain  += max(0.0, vol_before - vol_after + rain_vol)
+
+        if sim_speed < 25:      # at low speed, one step per tick is fine
+            break
+
+    return {"mb_rain": mb_rain, "mb_drain": mb_drain}
+
+
 async def physics_loop():
     global is_running, sim_speed, rain_stop_at
     global snapshots, _last_snap_time
     global mb_rain_total, mb_drain_total
-    import time as _time
 
     while True:
         if is_running and not time_skip_running:
-            # ── auto-stop rain after duration ───────────────────────────────
+            # auto-stop rain
             if rain_stop_at is not None and state.time >= rain_stop_at:
                 state.rainfall_rate = 0.0
                 rain_stop_at = None
 
-            # ── step physics ─────────────────────────────────────────────────
-            # Cap compute time per tick — higher at extreme speeds to move faster
-            max_wall = 0.15 if sim_speed >= 2000 else (0.08 if sim_speed >= 100 else 0.04)
-            tick_start = _time.time()
+            # run physics in thread (Numba releases GIL → true parallelism)
+            result = await asyncio.to_thread(_physics_batch)
+            mb_rain_total  += result["mb_rain"]
+            mb_drain_total += result["mb_drain"]
 
-            for _ in range(sim_speed):
-                if _time.time() - tick_start > max_wall:
-                    break
-                try:
-                    vol_before = float(state.water_depth.sum()) * state.dx**2
-                    simulator.step()
-                    vol_after  = float(state.water_depth.sum()) * state.dx**2
-                    mb_rain_total  += state.rainfall_rate * state.dx**2 * state.grid_shape[0] * state.grid_shape[1] * simulator.dt
-                    mb_drain_total += max(0.0, vol_before - vol_after + state.rainfall_rate * state.dx**2 * state.grid_shape[0] * state.grid_shape[1] * simulator.dt)
-                except Exception as e:
-                    import traceback
-                    traceback.print_exc()
-                    is_running = False
-                    break
-
-            # ── snapshot ─────────────────────────────────────────────────────
+            # snapshot
             if state.time - _last_snap_time >= SNAPSHOT_INTERVAL:
                 snap = {
-                    "time":         round(state.time, 1),
-                    "label":        _fmt_time(state.time),
-                    "depth":        state.water_depth.copy(),
-                    "node_vols":    {k: v.volume for k, v in state.nodes.items()},
-                    "rainfall":     state.rainfall_rate,
-                    "mb_rain":      mb_rain_total,
-                    "mb_drain":     mb_drain_total,
+                    "time":      round(state.time, 1),
+                    "label":     _fmt_time(state.time),
+                    "depth":     state.water_depth.copy(),
+                    "node_vols": {k: v.volume for k, v in state.nodes.items()},
+                    "rainfall":  state.rainfall_rate,
+                    "mb_rain":   mb_rain_total,
+                    "mb_drain":  mb_drain_total,
                 }
                 snapshots.append(snap)
                 if len(snapshots) > MAX_SNAPSHOTS:
                     snapshots.pop(0)
                 _last_snap_time = state.time
+        else:
+            await asyncio.sleep(0.02)
 
-        # At high speed: sleep only 5ms so we loop ~200x/sec instead of 20x/sec.
-        # At low speed (1×–25×): 20ms is enough — saves CPU.
-        await asyncio.sleep(0.005 if sim_speed >= 100 else 0.02)
+        # yield briefly so HTTP handlers can respond between batches
+        await asyncio.sleep(0)
+
+
+
+        # Sleep short at high speed so we get called ~200x/sec; longer at low speed
+        await asyncio.sleep(0.005 if sim_speed >= 25 else 0.02)
 
 
 def _fmt_time(t: float) -> str:
@@ -174,7 +198,23 @@ def get_terrain():
         "main_blockage_id": MAIN_BLOCKAGE_PIPE_ID,
     }
 
-# ── Per-frame state (polled at ~10 fps by frontend) ──────────────────────────
+# ── Network summary (lightweight — no grid data) ──────────────────────────────
+@app.get("/api/network")
+def get_network():
+    return {
+        "node_count": len(state.nodes),
+        "pipe_count":  len(state.pipes),
+        "main_blockage_id": MAIN_BLOCKAGE_PIPE_ID,
+        "nodes": [{"id": n.id, "x": n.x, "y": n.y, "z": round(n.z_invert,2),
+                   "is_outlet": n.is_outlet}
+                  for n in state.nodes.values()],
+        "pipes": [{"id": p.id, "in": p.node_in, "out": p.node_out,
+                   "diameter": p.diameter, "length": round(p.length,1),
+                   "blockage": round(p.blockage*100,1)}
+                  for p in state.pipes],
+    }
+
+
 @app.get("/api/state")
 def get_state():
     depth = state.water_depth
@@ -271,6 +311,21 @@ def set_pipe_blockage(pipe_id: int, req: BlockageRequest):
             p.blockage = max(0.0, min(1.0, req.blockage))
             return {"ok": True}
     return {"error": "not found"}, 404
+
+class BulkBlockageRequest(BaseModel):
+    pipe_ids: list[int]
+    blockage: float
+
+@app.post("/api/pipes/bulk_blockage")
+def set_bulk_blockage(req: BulkBlockageRequest):
+    block_val = max(0.0, min(1.0, req.blockage))
+    updated = 0
+    pipe_set = set(req.pipe_ids)
+    for p in state.pipes:
+        if p.id in pipe_set:
+            p.blockage = block_val
+            updated += 1
+    return {"ok": True, "updated": updated}
 
 # ── Configure Scenario ────────────────────────────────────────────────────────
 class ScenarioRequest(BaseModel):

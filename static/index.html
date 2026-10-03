@@ -61,6 +61,58 @@ button:hover { filter:brightness(1.15); }
     justify-content:center; align-items:center; flex-direction:column;
     z-index:999; font-size:20px; font-weight:bold;
 }
+
+/* ── Pipe Inspector Panel ─────────────────────────────────────────── */
+#pipe-inspector {
+    display: none;
+    position: absolute;
+    background: rgba(10,18,30,0.92);
+    backdrop-filter: blur(10px);
+    color: #dfe6ed;
+    border-radius: 10px;
+    border: 1px solid rgba(93,173,226,0.4);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(93,173,226,0.15);
+    padding: 14px 16px;
+    width: 220px;
+    z-index: 500;
+    pointer-events: all;
+    font-family: 'Segoe UI', sans-serif;
+}
+#pipe-inspector h3 {
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    color: #5dade2;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#pipe-inspector h3 button {
+    width: auto; padding: 2px 8px; font-size: 11px; margin: 0;
+    background: rgba(255,255,255,0.08); color: #aaa; border-radius: 4px;
+    font-weight: 400; letter-spacing: 0;
+}
+#pipe-inspector h3 button:hover { background: rgba(255,255,255,0.16); color: #fff; }
+.pi-row { font-size: 11px; color: #85929e; margin-bottom: 5px; display: flex; justify-content: space-between; }
+.pi-row span { color: #eaecee; font-weight: 600; }
+.pi-fill-bar {
+    width: 100%; height: 8px; border-radius: 4px;
+    background: rgba(255,255,255,0.08);
+    margin: 6px 0 10px;
+    overflow: hidden;
+}
+.pi-fill-inner {
+    height: 100%; border-radius: 4px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+#pipe-inspector label { font-size: 11px; color: #85929e; display: block; margin-bottom: 4px; }
+#pi-blockage-val { color: #eaecee; font-weight: 700; }
+#pi-slider { width: 100%; height: 4px; accent-color: #e74c3c; margin: 4px 0 8px; }
+.pi-btn-row { display: flex; gap: 6px; margin-top: 4px; }
+.pi-btn-row button { flex: 1; padding: 6px 0; font-size: 11px; margin-top: 0; border-radius: 6px; }
+#pi-btn-clear  { background: #27ae60; }
+#pi-btn-full   { background: #c0392b; }
 </style>
 </head>
 <body>
@@ -70,6 +122,23 @@ button:hover { filter:brightness(1.15); }
     <div>Fast-Forwarding (Offline Physics)...</div>
     <div id="skip-progress" style="margin-top:10px; color:#5dade2; margin-bottom: 20px;">0%</div>
     <button id="btn-cancel-skip" style="width:150px; background:#e74c3c;">🛑 Cancel</button>
+</div>
+
+<!-- Pipe Inspector Panel -->
+<div id="pipe-inspector">
+    <h3>🔵 Pipe Inspector <button id="pi-close">✕</button></h3>
+    <div class="pi-row">Pipe ID <span id="pi-id">—</span></div>
+    <div class="pi-row">Connects <span id="pi-nodes">—</span></div>
+    <div class="pi-row">Diameter <span id="pi-diam">—</span></div>
+    <div class="pi-row">Flow Rate <span id="pi-flow">—</span></div>
+    <div class="pi-row">Blockage <span id="pi-block-pct">—</span></div>
+    <div class="pi-fill-bar"><div class="pi-fill-inner" id="pi-fill"></div></div>
+    <label>Set Blockage — <span id="pi-blockage-val">0%</span></label>
+    <input type="range" id="pi-slider" min="0" max="100" value="0">
+    <div class="pi-btn-row">
+        <button id="pi-btn-clear">✅ Clear</button>
+        <button id="pi-btn-full">🚫 Full Block</button>
+    </div>
 </div>
 
 <div id="ui">
@@ -91,8 +160,22 @@ button:hover { filter:brightness(1.15); }
 
     <label>Rainfall (mm/hr) — <span id="val-rain">0</span></label>
     <input type="range" id="slider-rain" min="0" max="1000" value="0">
-    <label>Main Blockage — <span id="val-block">95%</span></label>
-    <input type="range" id="slider-block" min="0" max="100" value="95">
+    <hr class="divider">
+    <label>Bulk Pipe Controls</label>
+    <div style="display:flex; gap:6px; margin-bottom:6px;">
+        <select id="sel-bulk-region" style="flex:2; margin-bottom:0;">
+            <option value="all">All Pipes</option>
+            <option value="east">East Half</option>
+            <option value="west">West Half</option>
+            <option value="north">North Half</option>
+            <option value="south">South Half</option>
+        </select>
+    </div>
+    <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+        <input type="range" id="slider-bulk" min="0" max="100" value="0" style="flex:2; margin:0;">
+        <span id="val-bulk" style="flex:1; text-align:right; font-size:11px; font-weight:bold; color:#eaecee;">0%</span>
+    </div>
+    <button id="btn-bulk-apply" style="background:#d35400; padding:6px; font-size:11px; margin-bottom:10px;">Apply to Selected Region</button>
 
     <hr class="divider">
     <div class="btn-group">
@@ -163,7 +246,7 @@ button:hover { filter:brightness(1.15); }
     <button id="btn-reset" style="margin-top:16px; background:#c0392b;">&#x1F504; Reset Simulation</button>
 </div>
 
-<div id="hint">Drag: rotate | Right-drag: pan | Scroll: zoom</div>
+<div id="hint">Drag: pan | Scroll: zoom | Click a pipe to inspect &amp; configure</div>
 
 <script type="importmap">
 {"imports":{
@@ -185,8 +268,8 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xc9dff0);   // soft daylight sky
-scene.fog = new THREE.FogExp2(0xc9dff0, 0.0010);
+scene.background = new THREE.Color(0x1a1a24);   // dark mode background
+scene.fog = new THREE.FogExp2(0x1a1a24, 0.0010);
 
 const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.5, 5000);
 camera.position.set(330, 420, 180.1);   // slightly offset Z prevents random rotation flip
@@ -223,7 +306,7 @@ let gridHelper = null;
 let buildingMeshes = [];   // refs to InstancedMeshes so X-Ray can hide them
 
 // ─── LOAD TERRAIN ────────────────────────────────────────────────────
-fetch('/api/terrain').then(r=>r.json()).then(d=>{
+fetch('/api/terrain?t=' + Date.now()).then(r=>r.json()).then(d=>{
     ny = d.shape[0]; nx = d.shape[1];
     MAIN_BLOCK_ID = d.main_blockage_id;
     terrainElev = new Float32Array(ny*nx);
@@ -259,10 +342,18 @@ function buildTerrain(d) {
     elevColors = new Float32Array(ny*nx*3);
     
     let minE=1e9, maxE=-1e9;
-    for(let i=0; i<ny*nx; i++){
-        if(terrainElev[i]<minE) minE=terrainElev[i];
-        if(terrainElev[i]>maxE) maxE=terrainElev[i];
+    for(let r=0; r<ny; r++){
+        for(let c=0; c<nx; c++){
+            const i = r*nx + c;
+            const isInside = d.border_mask ? d.border_mask[r][c] : true;
+            if(isInside) {
+                if(terrainElev[i]<minE) minE=terrainElev[i];
+                if(terrainElev[i]>maxE) maxE=terrainElev[i];
+            }
+        }
     }
+    // Prevent divide by zero if flat
+    if(maxE === minE) maxE = minE + 1.0;
     
     for(let r=0; r<ny; r++){
         for(let c=0; c<nx; c++){
@@ -285,9 +376,12 @@ function buildTerrain(d) {
             }
             origColors.set([col.r, col.g, col.b], i*3);
             
-            const t = (terrainElev[i]-minE)/(maxE-minE);
+            // Limit t to [0, 1] in case an outside cell is higher/lower than the barangay min/max
+            let t = (terrainElev[i]-minE)/(maxE-minE);
+            t = Math.max(0, Math.min(1, t));
+            
             if(!isInside) col.setHex(0x8a9a70);
-            else col.setHSL((1-t)*0.3, 1.0, 0.5);
+            else col.setHSL((1-t)*0.33, 1.0, 0.5); // 0.33 is green, 0.16 is yellow, 0.0 is red
             elevColors.set([col.r, col.g, col.b], i*3);
         }
     }
@@ -468,29 +562,102 @@ function buildRain() {
     scene.add(rainMesh);
 }
 
+// ─── PIPE INTERACTION STATE ────────────────────────────────────────
+let selectedPipeId = null;
+let pipeMeshMap    = {};   // pipe_id → { mesh, data }
+let nodeMeshMap    = {};   // node_id → mesh
+let pipeClickables = [];   // array of pipe meshes for raycasting
+
+// Color helper: blockage % → hex color
+function blockageColor(pct) {
+    if (pct >= 80) return 0xe74c3c;   // red
+    if (pct >= 50) return 0xe67e22;   // orange
+    if (pct >= 20) return 0xf1c40f;   // yellow
+    return 0x2ecc71;                   // green
+}
+
 function buildPipes(nodes, pipes) {
-    const nodeMap = {};
-    const nGeo = new THREE.SphereGeometry(1.5);
-    const nMat = new THREE.MeshStandardMaterial({color:0xd35400});
+    // ── Nodes (manholes) ──────────────────────────────────────────────
+    const nGeo = new THREE.SphereGeometry(1.8, 8, 8);
     nodes.forEach(n => {
-        nodeMap[n.id] = n;
+        const nMat = new THREE.MeshStandardMaterial({
+            color: n.is_outlet ? 0x3498db : 0xd35400,
+            emissive: n.is_outlet ? 0x1a5276 : 0x0,
+            emissiveIntensity: n.is_outlet ? 0.4 : 0.0,
+        });
         const m = new THREE.Mesh(nGeo, nMat);
-        m.position.set(n.x, n.z, n.y);
+        const nodeY = terrainElev[n.y * nx + n.x] - 1.0;   // sit just below surface
+        m.position.set(n.x, nodeY, n.y);
+        m.userData = { isDrainNode: true, nodeId: n.id, isOutlet: n.is_outlet };
         scene.add(m);
+        nodeMeshMap[n.id] = m;
     });
-    
-    const pMat = new THREE.MeshStandardMaterial({color:0x2c3e50});
+
+    // ── Pipes (cylinders, click-to-select) ───────────────────────────
+    const nodeMap = {};
+    nodes.forEach(n => nodeMap[n.id] = n);
+
     pipes.forEach(p => {
         const n1 = nodeMap[p.in], n2 = nodeMap[p.out];
-        const v1 = new THREE.Vector3(n1.x, n1.z, n1.y);
-        const v2 = new THREE.Vector3(n2.x, n2.z, n2.y);
+
+        // Use actual terrain elevation at the node's grid cell.
+        // Push pipes deep enough (6m) to avoid shallow valleys.
+        const PIPE_DEPTH = 6.0;
+        const y1 = terrainElev[Math.floor(n1.y) * nx + Math.floor(n1.x)] - PIPE_DEPTH;
+        const y2 = terrainElev[Math.floor(n2.y) * nx + Math.floor(n2.x)] - PIPE_DEPTH;
+
+        // Aggressively skip if ANY point along the pipe path comes near the surface.
+        // Sample at 20 evenly-spaced points to catch sharp valleys between nodes.
+        const PIPE_MARGIN = 1.0;
+        let aboveGround = false;
+        for (let i = 1; i < 20; i++) {
+            const t = i / 20.0;
+            const sx = Math.round(n1.x + t * (n2.x - n1.x));
+            const sy = Math.round(n1.y + t * (n2.y - n1.y));
+            const sc = Math.max(0, Math.min(nx - 1, sx));
+            const sr = Math.max(0, Math.min(ny - 1, sy));
+            const surfY  = terrainElev[sr * nx + sc];
+            const pipeY  = y1 + t * (y2 - y1);
+            if (pipeY > surfY - PIPE_MARGIN) { aboveGround = true; break; }
+        }
+        if (aboveGround) return;
+
+
+        const v1 = new THREE.Vector3(n1.x, y1, n1.y);
+        const v2 = new THREE.Vector3(n2.x, y2, n2.y);
         const dist = v1.distanceTo(v2);
-        const cyl = new THREE.CylinderGeometry(p.diameter/2, p.diameter/2, dist, 8);
-        cyl.rotateX(Math.PI/2);
-        const m = new THREE.Mesh(cyl, pMat);
-        m.position.copy(v1).lerp(v2, 0.5);
-        m.lookAt(v2);
-        scene.add(m);
+
+        const cyl = new THREE.CylinderGeometry(
+            Math.max(p.diameter / 2, 0.3),
+            Math.max(p.diameter / 2, 0.3),
+            dist, 8, 1, false
+        );
+        cyl.rotateX(Math.PI / 2);
+
+        const pMat = new THREE.MeshStandardMaterial({
+            color:            blockageColor(p.blockage * 100),
+            roughness:        0.5,
+            metalness:        0.3,
+            emissive:         0x000000,
+            emissiveIntensity: 0.0,
+        });
+
+        const mesh = new THREE.Mesh(cyl, pMat);
+        mesh.position.copy(v1).lerp(v2, 0.5);
+        mesh.lookAt(v2);
+
+        mesh.userData = {
+            isPipe: true,
+            pipeId: p.id,
+            nodeIn: p.in,
+            nodeOut: p.out,
+            diameter: p.diameter,
+        };
+        mesh.castShadow = false;
+        scene.add(mesh);
+
+        pipeMeshMap[p.id] = { mesh, data: p };
+        pipeClickables.push(mesh);
     });
 }
 
@@ -596,9 +763,6 @@ async function pollState() {
         currentRain = d.rainfall_mmhr;
         document.getElementById('val-rain').textContent = Math.round(currentRain);
         document.getElementById('slider-rain').value = currentRain;
-        
-        document.getElementById('val-block').textContent = d.telemetry.blockage.toFixed(0) + '%';
-        document.getElementById('slider-block').value = d.telemetry.blockage;
 
         // Snapshots dropdown
         const sel = document.getElementById('sel-snapshot');
@@ -633,11 +797,163 @@ async function pollState() {
             const waterChk = document.getElementById('chk-water');
             waterMesh.visible = anyWet && (!waterChk || waterChk.checked);
         }
+
+        // ── Live pipe color update ───────────────────────────────────────
+        if (d.pipes) {
+            d.pipes.forEach(p => {
+                const entry = pipeMeshMap[p.id];
+                if (!entry) return;
+                const col = new THREE.Color(blockageColor(p.blockage));
+                // Selected pipe glows white-ish; others follow blockage color
+                if (selectedPipeId === p.id) {
+                    entry.mesh.material.color.set(0xffffff);
+                    entry.mesh.material.emissiveIntensity = 0.5;
+                } else {
+                    entry.mesh.material.color.copy(col);
+                    entry.mesh.material.emissiveIntensity = 0.0;
+                }
+                entry.mesh.material.emissive.copy(col);
+                // Update inspector panel if this pipe is selected
+                if (selectedPipeId === p.id) {
+                    document.getElementById('pi-block-pct').textContent = p.blockage.toFixed(1) + '%';
+                    document.getElementById('pi-flow').textContent = p.flow >= 0
+                        ? `${p.flow.toFixed(4)} m³/s`
+                        : `⬆ ${Math.abs(p.flow).toFixed(4)} m³/s (rev)`;
+                    // Update fill bar
+                    const fill = document.getElementById('pi-fill');
+                    fill.style.width = p.blockage + '%';
+                    fill.style.background = p.blockage >= 80 ? '#e74c3c'
+                                          : p.blockage >= 50 ? '#e67e22'
+                                          : p.blockage >= 20 ? '#f1c40f'
+                                          : '#2ecc71';
+                    // Keep slider in sync only if user isn't dragging
+                    if (!piSliderDragging) {
+                        document.getElementById('pi-slider').value = p.blockage;
+                        document.getElementById('pi-blockage-val').textContent = p.blockage.toFixed(0) + '%';
+                    }
+                }
+            });
+        }
         
     } catch(e) { /* server briefly unavailable */ }
     setTimeout(pollState, 50);   // 20 fps polling — smooth real-time water
 }
 setTimeout(pollState, 800);
+
+// ─── PIPE INSPECTOR LOGIC ──────────────────────────────────────────────
+const piPanel    = document.getElementById('pipe-inspector');
+const piSlider   = document.getElementById('pi-slider');
+let piSliderDragging = false;
+let _terrainData = null;   // stored from /api/terrain call for raycasting
+
+// Raycaster setup
+const raycaster = new THREE.Raycaster();
+raycaster.params.Line = { threshold: 2 };
+const pointer = new THREE.Vector2();
+
+// Store terrain data when it loads (for pipe inspector coordinate display)
+const _origFetch = window._terrainFetchHook;
+
+function selectPipe(pipeId) {
+    // Deselect previous
+    if (selectedPipeId !== null && pipeMeshMap[selectedPipeId]) {
+        pipeMeshMap[selectedPipeId].mesh.material.emissiveIntensity = 0.0;
+    }
+    selectedPipeId = pipeId;
+    if (pipeId === null) {
+        piPanel.style.display = 'none';
+        return;
+    }
+    const entry = pipeMeshMap[pipeId];
+    if (!entry) return;
+
+    const p = entry.data;
+    document.getElementById('pi-id').textContent     = `#${p.id}`;
+    document.getElementById('pi-nodes').textContent  = `${p.in} → ${p.out}`;
+    document.getElementById('pi-diam').textContent   = `${p.diameter} m`;
+    document.getElementById('pi-block-pct').textContent = (p.blockage * 100).toFixed(1) + '%';
+    document.getElementById('pi-flow').textContent   = '—';
+    piSlider.value = p.blockage * 100;
+    document.getElementById('pi-blockage-val').textContent = (p.blockage * 100).toFixed(0) + '%';
+
+    // Highlight selected
+    entry.mesh.material.color.set(0xffffff);
+    entry.mesh.material.emissiveIntensity = 0.5;
+}
+
+function showInspectorAt(screenX, screenY) {
+    const panel = piPanel;
+    panel.style.display = 'block';
+    // Clamp so panel doesn't go off-screen
+    const pw = 224, ph = 240;
+    let lx = screenX + 14, ly = screenY - ph / 2;
+    if (lx + pw > window.innerWidth)  lx = screenX - pw - 14;
+    if (ly < 8)                        ly = 8;
+    if (ly + ph > window.innerHeight)  ly = window.innerHeight - ph - 8;
+    panel.style.left = lx + 'px';
+    panel.style.top  = ly + 'px';
+}
+
+// Click to select pipe
+renderer.domElement.addEventListener('click', e => {
+    // Ignore clicks on the UI panels
+    if (e.target !== renderer.domElement) return;
+
+    pointer.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+    pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+
+    const hits = raycaster.intersectObjects(pipeClickables, false);
+    if (hits.length > 0) {
+        const hit = hits[0];
+        const pid = hit.object.userData.pipeId;
+        selectPipe(pid);
+        showInspectorAt(e.clientX, e.clientY);
+        e.stopPropagation();
+    } else {
+        // Click on empty space — deselect
+        selectPipe(null);
+    }
+});
+
+// Inspector controls
+document.getElementById('pi-close').onclick = () => selectPipe(null);
+
+piSlider.addEventListener('mousedown', () => { piSliderDragging = true; });
+piSlider.addEventListener('mouseup',   () => { piSliderDragging = false; });
+piSlider.addEventListener('touchend',  () => { piSliderDragging = false; });
+
+piSlider.oninput = e => {
+    const v = parseFloat(e.target.value);
+    document.getElementById('pi-blockage-val').textContent = v.toFixed(0) + '%';
+    if (selectedPipeId !== null) {
+        fetch(`/api/pipe/${selectedPipeId}/blockage`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ blockage: v / 100.0 })
+        });
+    }
+};
+
+document.getElementById('pi-btn-clear').onclick = () => {
+    if (selectedPipeId === null) return;
+    piSlider.value = 0;
+    document.getElementById('pi-blockage-val').textContent = '0%';
+    fetch(`/api/pipe/${selectedPipeId}/blockage`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ blockage: 0.0 })
+    });
+};
+
+document.getElementById('pi-btn-full').onclick = () => {
+    if (selectedPipeId === null) return;
+    piSlider.value = 100;
+    document.getElementById('pi-blockage-val').textContent = '100%';
+    fetch(`/api/pipe/${selectedPipeId}/blockage`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ blockage: 1.0 })
+    });
+};
 
 // ─── BARANGAY BORDER LINE ─────────────────────────────────────────────
 function drawBorderLine(d) {
@@ -699,11 +1015,55 @@ document.getElementById('slider-rain').oninput = e => {
     document.getElementById('sel-scenario').value = 'none';
 };
 
-document.getElementById('slider-block').oninput = e => {
+document.getElementById('slider-bulk').oninput = e => {
     const v = e.target.value;
-    document.getElementById('val-block').textContent = v + '%';
-    fetch(`/api/pipe/${MAIN_BLOCK_ID}/blockage`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({blockage: parseFloat(v)/100.0})});
-    document.getElementById('sel-scenario').value = 'none';
+    document.getElementById('val-bulk').textContent = v + '%';
+};
+
+document.getElementById('btn-bulk-apply').onclick = () => {
+    const region = document.getElementById('sel-bulk-region').value;
+    const blockVal = parseFloat(document.getElementById('slider-bulk').value) / 100.0;
+    const pipeIds = [];
+    
+    // nx = 660, ny = 360
+    Object.values(pipeMeshMap).forEach(entry => {
+        const p = entry.data;
+        const nIn = nodeMeshMap[p.in];
+        const nOut = nodeMeshMap[p.out];
+        if (!nIn || !nOut) return;
+        
+        // Midpoint of pipe (X = col, Z = row)
+        const cx = (nIn.position.x + nOut.position.x) / 2.0;
+        const cy = (nIn.position.z + nOut.position.z) / 2.0;
+        
+        let match = false;
+        if (region === 'all') match = true;
+        else if (region === 'east') match = cx > 330;
+        else if (region === 'west') match = cx <= 330;
+        else if (region === 'north') match = cy < 180;
+        else if (region === 'south') match = cy >= 180;
+        
+        if (match) pipeIds.push(p.id);
+    });
+    
+    if (pipeIds.length > 0) {
+        fetch('/api/pipes/bulk_blockage', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ pipe_ids: pipeIds, blockage: blockVal })
+        });
+        document.getElementById('sel-scenario').value = 'none';
+        
+        // Brief visual flash on button
+        const btn = document.getElementById('btn-bulk-apply');
+        const oldText = btn.textContent;
+        btn.textContent = 'Applied to ' + pipeIds.length + ' Pipes ✓';
+        btn.style.background = '#2ecc71';
+        setTimeout(() => {
+            btn.textContent = oldText;
+            btn.style.background = '#d35400';
+        }, 1500);
+    }
 };
 
 // Scenarios
@@ -750,7 +1110,7 @@ document.getElementById('btn-view').onclick = () => {
         controls.enableRotate = true;
         controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
         document.getElementById('btn-view').textContent = '🗺 Switch to 2D View';
-        document.getElementById('hint').textContent = 'Drag: rotate | Right-drag: pan | Scroll: zoom';
+        document.getElementById('hint').textContent = 'Drag: rotate | Right-drag: pan | Scroll: zoom | Click pipe to configure';
     } else {
         // ── 2D mode: top-down, pan-only ──────────────────────────────
         camera.position.set(330, 420, 180.1);
@@ -758,7 +1118,7 @@ document.getElementById('btn-view').onclick = () => {
         controls.enableRotate = false;
         controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
         document.getElementById('btn-view').textContent = '📐 Switch to 3D View';
-        document.getElementById('hint').textContent = 'Drag: pan | Scroll: zoom';
+        document.getElementById('hint').textContent = 'Drag: pan | Scroll: zoom | Click a pipe to inspect & configure';
     }
 };
 
@@ -827,8 +1187,16 @@ document.getElementById('chk-border').onchange = e => {
 };
 
 document.getElementById('chk-pipes').onchange = e => {
+    const visible = e.target.checked;
+    // Toggle node spheres
     scene.children.filter(o => o.isMesh && o.userData && o.userData.isDrainNode)
-        .forEach(o => o.visible = e.target.checked);
+        .forEach(o => o.visible = visible);
+    // Toggle pipe cylinders
+    Object.values(pipeMeshMap).forEach(entry => {
+        entry.mesh.visible = visible;
+    });
+    // Close inspector if hidden
+    if (!visible && selectedPipeId !== null) selectPipe(null);
 };
 
 </script>

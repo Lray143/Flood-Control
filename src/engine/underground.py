@@ -133,16 +133,34 @@ def step_underground_network(state, dt: float):
         else:
             Q = -Q_manning   # reverse (backwater flow)
 
-        # Limit forward flow: can't drain more than the upstream node has
-        if Q > 0:
-            max_fwd = n_in.volume / dt
-            Q = min(Q, max_fwd)
-        elif Q < 0:
-            # Reverse flow limited by downstream node volume
-            max_rev = n_out.volume / dt
-            Q = max(Q, -max_rev)
-
+        # We don't cap Q here yet, because multiple pipes might drain the same node.
+        # We'll cap them proportionally in a second pass.
         pipe.current_flow = Q
+
+    # ── 1.5 Cap outflows proportionally so we don't drain more than exists ────
+    node_outflows = {nid: 0.0 for nid in nodes.keys()}
+    
+    # Sum up all proposed volume leaving each node
+    for pipe in state.pipes:
+        if pipe.current_flow > 0:
+            node_outflows[pipe.node_in] += pipe.current_flow * dt
+        elif pipe.current_flow < 0:
+            node_outflows[pipe.node_out] += (-pipe.current_flow) * dt
+            
+    # Calculate scale factor per node
+    node_scale = {}
+    for nid, out_vol in node_outflows.items():
+        if out_vol > nodes[nid].volume:
+            node_scale[nid] = nodes[nid].volume / out_vol
+        else:
+            node_scale[nid] = 1.0
+            
+    # Apply scale factor to pipe flows
+    for pipe in state.pipes:
+        if pipe.current_flow > 0:
+            pipe.current_flow *= node_scale[pipe.node_in]
+        elif pipe.current_flow < 0:
+            pipe.current_flow *= node_scale[pipe.node_out]
 
     # ── 2. Transfer volumes ───────────────────────────────────────────────────
     for pipe in state.pipes:

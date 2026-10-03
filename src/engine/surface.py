@@ -114,30 +114,80 @@ def step_surface_water(state: SimulationState, dt: float):
         dx
     )
 
-    # ── 4. Drain Inlet Coupling ────────────────────────────────────────────────
-    # We still do this in standard python because it involves dicts and object state.
-    # It's only a few hundred nodes so it's very fast.
-    z = state.elevation
-    for (ix, iy), node_id in state.inlet_mapping.items():
-        node = state.nodes[node_id]
-        cell_h = new_h[iy, ix]
-        if cell_h <= 0:
-            continue
-
-        surface_head = z[iy, ix] + cell_h
-        if node.head >= surface_head:
-            # Surcharge backflow
-            excess = node.head - surface_head
-            backflow_rate = INLET_CD * INLET_AREA * np.sqrt(2.0 * G * excess + 1e-9)
-            backflow_vol  = min(backflow_rate * dt, node.volume * 0.5)
-            new_h[iy, ix] += backflow_vol / (dx * dx)
-            node.volume    -= backflow_vol
+    # ── 4. Drain Inlet Coupling (fully vectorised) ─────────────────────────────
+    # Build index structures once and cache. Key trick: map every inlet cell to
+    # a contiguous 0-based node index so all 237k-cell operations are numpy-only.
+    # Only the 108-node volume read/write uses a Python loop (negligible cost).
+    if not hasattr(state, '_inlet_nidx') or state._inlet_nidx is None:
+        if state.inlet_mapping:
+            pairs = list(state.inlet_mapping.items())
+            state._inlet_ix   = np.array([p[0][0] for p in pairs], dtype=np.int32)
+            state._inlet_iy   = np.array([p[0][1] for p in pairs], dtype=np.int32)
+            # Contiguous node index (0..N-1) instead of arbitrary node_id
+            nid_list          = sorted(state.nodes.keys())
+            nid_to_idx        = {nid: i for i, nid in enumerate(nid_list)}
+            state._inlet_nidx = np.array([nid_to_idx[p[1]] for p in pairs], dtype=np.int32)
+            state._node_ids   = nid_list   # ordered list of node_ids
+            state._node_zinv  = np.array([state.nodes[nid].z_invert for nid in nid_list])
+            state._node_area  = np.array([state.nodes[nid].area     for nid in nid_list])
         else:
-            # Normal inflow
-            driving_h = cell_h
-            q_in      = INLET_CD * INLET_AREA * np.sqrt(2.0 * G * driving_h)
-            vol_in    = min(q_in * dt, cell_h * dx * dx)
-            new_h[iy, ix] -= vol_in / (dx * dx)
-            node.volume    += vol_in
+            state._inlet_ix   = np.array([], dtype=np.int32)
+            state._inlet_iy   = np.array([], dtype=np.int32)
+            state._inlet_nidx = np.array([], dtype=np.int32)
+            state._node_ids   = []
+
+    if len(state._inlet_ix) > 0:
+        num_nodes = len(state._node_ids)
+
+        # Read node state (108 iterations — negligible)
+        node_vols  = np.array([state.nodes[nid].volume for nid in state._node_ids])
+        node_heads = state._node_zinv + node_vols / state._node_area
+
+        ix   = state._inlet_ix
+        iy   = state._inlet_iy
+        nidx = state._inlet_nidx
+
+        cell_h         = new_h[iy, ix]
+        surf_head      = state.elevation[iy, ix] + cell_h
+        cell_node_head = node_heads[nidx]   # pure numpy fancy index
+        cell_node_vol  = node_vols[nidx]
+
+        # ── Surcharge backflow ────────────────────────────────────────────────
+        # Node head > surface: water pushed UP onto street
+        back_mask  = cell_node_head >= surf_head
+        excess     = np.where(back_mask, cell_node_head - surf_head, 0.0)
+        back_vol_t = np.where(back_mask,
+                              INLET_CD * INLET_AREA * np.sqrt(2.0 * G * excess + 1e-9) * dt,
+                              0.0)
+
+        # CRITICAL: multiple cells share the same node. Cap total backflow per
+        # node to node_vol * 0.5 — otherwise we create water from nothing.
+        node_back_want = np.zeros(num_nodes)
+        np.add.at(node_back_want, nidx, back_vol_t)
+        node_back_limit = node_vols * 0.5
+        # Scale-down factor per node (1.0 if node can supply all, <1 if not)
+        back_scale_node = np.where(node_back_want > 1e-12,
+                                   np.minimum(node_back_limit, node_back_want) / (node_back_want + 1e-12),
+                                   0.0)
+        back_vol = back_vol_t * back_scale_node[nidx]   # apply per-cell scale
+
+        # ── Normal inflow ─────────────────────────────────────────────────────
+        # Surface water drains into the node
+        fwd_mask = (~back_mask) & (cell_h > 0)
+        fwd_vol  = np.where(fwd_mask,
+                            np.minimum(INLET_CD * INLET_AREA * np.sqrt(2.0 * G * cell_h + 1e-9) * dt,
+                                       cell_h * dx * dx),
+                            0.0)
+
+        # ── Apply to surface ──────────────────────────────────────────────────
+        np.add.at(new_h, (iy, ix), (back_vol - fwd_vol) / (dx * dx))
+        new_h = np.maximum(new_h, 0.0)
+
+        # ── Apply to nodes (108 iterations) ───────────────────────────────────
+        vol_delta = fwd_vol - back_vol
+        node_delta = np.zeros(num_nodes)
+        np.add.at(node_delta, nidx, vol_delta)
+        for i, nid in enumerate(state._node_ids):
+            state.nodes[nid].volume = max(0.0, node_vols[i] + node_delta[i])
 
     state.water_depth = new_h
