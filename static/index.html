@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Flood Control Simulation</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { overflow:hidden; font-family:'Segoe UI',sans-serif; background:#87ceeb; }
+
+#ui {
+    position:absolute; top:16px; right:16px;
+    background:rgba(10,18,30,0.88); backdrop-filter:blur(8px);
+    color:#dfe6ed; padding:14px 12px; border-radius:12px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.6); width:220px;
+    border:1px solid rgba(255,255,255,0.07);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+}
+#ui h2 { font-size:14px; letter-spacing:2px; color:#5dade2; text-transform:uppercase; margin-bottom:14px; }
+.row { font-size:12px; color:#85929e; margin-bottom:6px; display:flex; justify-content:space-between; }
+.row span { color:#eaecee; font-weight:600; }
+.divider { border:none; border-top:1px solid rgba(255,255,255,0.08); margin:12px 0; }
+
+input[type=range] { width:100%; height:4px; margin:6px 0 12px; accent-color:#5dade2; }
+label { font-size:11px; color:#85929e; display:block; margin-bottom:4px; }
+select { width:100%; background:rgba(0,0,0,0.3); color:#fff; border:1px solid #333; padding:4px; border-radius:4px; margin-bottom:12px; font-size:12px; }
+
+button {
+    display:block; width:100%; padding:9px 0; margin-top:7px;
+    border:none; border-radius:7px; cursor:pointer;
+    font-size:12px; font-weight:700; letter-spacing:0.5px;
+    transition:filter 0.15s; color:#fff;
+}
+button:hover { filter:brightness(1.15); }
+.btn-group { display:flex; gap:6px; margin-bottom:6px; }
+
+#btn-play  { background:#27ae60; }
+#btn-play.paused { background:#e74c3c; }
+#btn-speed { background:#2c3e50; }
+#btn-skip-hr  { background:#b9770e; flex:1; }
+#btn-skip-day { background:#9c640c; flex:1; }
+#btn-skip-6hr { background:#b9770e; flex:1; }
+#btn-skip-mo  { background:#7d5400; flex:1; }
+#btn-skip-custom { background:#b9770e; }
+#btn-rewind { background:#8e44ad; }
+#btn-reset { background:#c0392b; }
+#btn-view  { background:#2980b9; }
+#btn-elev  { background:#784212; }
+#btn-glass { background:#145a32; }
+
+#hint { position:absolute; bottom:14px; left:16px; color:rgba(255,255,255,0.7); font-size:11px; text-shadow:0 1px 2px #000; }
+#btn-grid  { background:#34495e; color:#fff; }
+#btn-grid.active { background:#2ecc71; }
+#loading {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    color:#fff; font-size:22px; font-weight:600; text-shadow:0 2px 8px rgba(0,0,0,0.6);
+}
+#skip-overlay {
+    position:absolute; top:0;left:0;right:0;bottom:0;
+    background:rgba(0,0,0,0.8); color:#fff; display:none;
+    justify-content:center; align-items:center; flex-direction:column;
+    z-index:999; font-size:20px; font-weight:bold;
+}
+</style>
+</head>
+<body>
+
+<div id="loading">Building Simulation...</div>
+<div id="skip-overlay">
+    <div>Fast-Forwarding (Offline Physics)...</div>
+    <div id="skip-progress" style="margin-top:10px; color:#5dade2; margin-bottom: 20px;">0%</div>
+    <button id="btn-cancel-skip" style="width:150px; background:#e74c3c;">🛑 Cancel</button>
+</div>
+
+<div id="ui">
+    <h2>🌧 Flood Control</h2>
+    <div class="row"><span>Sim Time</span> <span id="s-time">0.0 s</span></div>
+    <div class="row"><span>Flooded Cells</span> <span id="s-flood">0</span></div>
+    <div class="row"><span>Max Depth</span> <span id="s-depth">0.00 m</span></div>
+    <div class="row"><span>Total Volume</span> <span id="s-vol">0 m³</span></div>
+    <div class="row"><span>Mass Bal. Error</span> <span id="s-err" style="color:#2ecc71">0.00%</span></div>
+
+    <hr class="divider">
+    <label>Scenario Presets</label>
+    <select id="sel-scenario">
+        <option value="none">-- Custom (Manual) --</option>
+        <option value="s1">Heavy Rain (100mm/h, 6h, 95% blocked)</option>
+        <option value="s2">Typhoon (250mm/h, 12h, 100% blocked)</option>
+        <option value="s3">Light Rain (20mm/h, 24h, 50% blocked)</option>
+    </select>
+
+    <label>Rainfall (mm/hr) — <span id="val-rain">0</span></label>
+    <input type="range" id="slider-rain" min="0" max="1000" value="0">
+    <label>Main Blockage — <span id="val-block">95%</span></label>
+    <input type="range" id="slider-block" min="0" max="100" value="95">
+
+    <hr class="divider">
+    <div class="btn-group">
+        <button id="btn-play" style="flex:2">▶ Play</button>
+        <button id="btn-speed" style="flex:1">⏩ 1×</button>
+    </div>
+    
+    <!-- Offline Time Skip (Hidden by user request) -->
+    <!--
+    <label style="margin-top:10px;">Offline Time Skip (Fast compute):</label>
+    <div class="btn-group">
+        <button id="btn-skip-6hr" style="flex:1; font-size:10px;">⏭+6Hr</button>
+        <button id="btn-skip-hr"  style="flex:1; font-size:10px;">⏭+1Day</button>
+        <button id="btn-skip-day" style="flex:1; font-size:10px;">⏭+1Wk</button>
+        <button id="btn-skip-mo"  style="flex:1; font-size:10px;">⏭+1Mo</button>
+    </div>
+    <div class="btn-group" style="margin-top:4px;">
+        <input id="inp-skip-custom" type="number" min="1" value="3"
+               style="flex:2; background:rgba(0,0,0,0.3); color:#fff; border:1px solid #444;
+                      border-radius:5px; padding:5px 6px; font-size:12px; text-align:center;">
+        <select id="sel-skip-unit" style="flex:2; margin-bottom:0;">
+            <option value="3600">Hours</option>
+            <option value="86400" selected>Days</option>
+            <option value="604800">Weeks</option>
+        </select>
+        <button id="btn-skip-custom" style="flex:1; font-size:10px; margin-top:0;">⏭Go</button>
+    </div>
+    -->
+
+    <hr class="divider">
+    <label>Rewind to Snapshot:</label>
+    <div class="btn-group">
+        <select id="sel-snapshot" style="flex:3; margin-bottom:0;"></select>
+        <button id="btn-rewind" style="flex:1; margin-top:0;">Go</button>
+    </div>
+
+    <hr class="divider">
+    <button id="btn-view">📐 Switch to 3D View</button>
+    <button id="btn-grid" class="active"># Hide Grid</button>
+    <button id="btn-elev">&#9968; Toggle Elevation Map</button>
+    <button id="btn-glass">&#128065; X-Ray Ground</button>
+
+    <hr class="divider">
+    <label>🗂 Layer Visibility</label>
+    <div style="display:flex; flex-direction:column; gap:5px; margin-top:4px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+            <input type="checkbox" id="chk-buildings" checked style="width:14px;height:14px;">
+            🏠 Buildings
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+            <input type="checkbox" id="chk-roads" checked style="width:14px;height:14px;">
+            🛣 Road Overlay
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+            <input type="checkbox" id="chk-water" checked style="width:14px;height:14px;">
+            💧 Water
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+            <input type="checkbox" id="chk-border" checked style="width:14px;height:14px;">
+            🔴 Barangay Border
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+            <input type="checkbox" id="chk-pipes" checked style="width:14px;height:14px;">
+            🔵 Drain Nodes
+        </label>
+    </div>
+
+    <button id="btn-reset" style="margin-top:16px; background:#c0392b;">&#x1F504; Reset Simulation</button>
+</div>
+
+<div id="hint">Drag: rotate | Right-drag: pan | Scroll: zoom</div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.165.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.165.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ─── RENDERER ────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xc9dff0);   // soft daylight sky
+scene.fog = new THREE.FogExp2(0xc9dff0, 0.0010);
+
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.5, 5000);
+camera.position.set(330, 420, 180.1);   // slightly offset Z prevents random rotation flip
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(330, 8, 180);     // center of 660x360 grid
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI / 2;
+controls.enableRotate = false;        // start in 2D — no rotation
+controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+controls.update();
+
+// ─── LIGHTS ──────────────────────────────────────────────────────────
+scene.add(new THREE.HemisphereLight(0xc8e8ff, 0x8aaf70, 0.7));
+const sun = new THREE.DirectionalLight(0xfff5e0, 1.4);
+sun.position.set(330, 500, -100);
+sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.camera.left = -350; sun.shadow.camera.right = 350;
+sun.shadow.camera.top = 200; sun.shadow.camera.bottom = -200;
+scene.add(sun);
+sun.target.position.set(330, 0, 180);
+scene.add(sun.target);
+scene.add(new THREE.DirectionalLight(0x8888ff, 0.3)).position.set(-80, 100, -80);
+
+// ─── GLOBALS ─────────────────────────────────────────────────────────
+let nx=0, ny=0, terrainElev=null;
+let terrainMesh, waterMesh, rainMesh;
+let origColors, elevColors;
+let is2DView=true, showElev=false, glassMode=false;
+let playing=false, simSpeed=1, currentRain=0, MAIN_BLOCK_ID=0;
+let waterDepthTex, waterDepthData;
+let gridHelper = null;
+let buildingMeshes = [];   // refs to InstancedMeshes so X-Ray can hide them
+
+// ─── LOAD TERRAIN ────────────────────────────────────────────────────
+fetch('/api/terrain').then(r=>r.json()).then(d=>{
+    ny = d.shape[0]; nx = d.shape[1];
+    MAIN_BLOCK_ID = d.main_blockage_id;
+    terrainElev = new Float32Array(ny*nx);
+    for(let i=0; i<ny*nx; i++) terrainElev[i] = d.elevation[Math.floor(i/nx)][i%nx];
+
+    buildTerrain(d);
+    buildWater();
+    buildRain();
+    buildGrid();
+    buildPipes(d.nodes, d.pipes);
+    buildBuildings(d);
+    drawBorderLine(d);
+    document.getElementById('loading').style.display='none';
+});
+
+// ─── BUILDERS ────────────────────────────────────────────────────────
+function buildGrid() {
+    // GridHelper at Y=0 — we'll use depthTest:false so it always renders on top
+    gridHelper = new THREE.GridHelper(Math.max(660,360), 66, 0xffffff, 0xffffff);
+    gridHelper.position.set(330, 0, 180);
+    gridHelper.material.opacity = 0.18;
+    gridHelper.material.transparent = true;
+    gridHelper.material.depthTest = false;   // Always draw on top of terrain
+    gridHelper.renderOrder = 2;
+    gridHelper.visible = true;               // Visible by default in 2D
+    scene.add(gridHelper);
+}
+
+function buildTerrain(d) {
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(ny*nx*3);
+    origColors = new Float32Array(ny*nx*3);
+    elevColors = new Float32Array(ny*nx*3);
+    
+    let minE=1e9, maxE=-1e9;
+    for(let i=0; i<ny*nx; i++){
+        if(terrainElev[i]<minE) minE=terrainElev[i];
+        if(terrainElev[i]>maxE) maxE=terrainElev[i];
+    }
+    
+    for(let r=0; r<ny; r++){
+        for(let c=0; c<nx; c++){
+            const i = r*nx + c;
+            pos[i*3] = c;
+            pos[i*3+1] = terrainElev[i];
+            pos[i*3+2] = r;
+            
+            const isRoad = d.road_mask[r][c];
+            const isInside = d.border_mask ? d.border_mask[r][c] : true;
+            
+            const col = new THREE.Color();
+            if(!isInside){
+                // Earthy ground color outside the barangay boundary (not ocean)
+                col.setHex(0x8a9a70);
+            } else if(isRoad){
+                col.setHex(0x7a8794);
+            } else {
+                col.setHSL(0.28, 0.35, 0.42 + Math.random()*0.06);
+            }
+            origColors.set([col.r, col.g, col.b], i*3);
+            
+            const t = (terrainElev[i]-minE)/(maxE-minE);
+            if(!isInside) col.setHex(0x8a9a70);
+            else col.setHSL((1-t)*0.3, 1.0, 0.5);
+            elevColors.set([col.r, col.g, col.b], i*3);
+        }
+    }
+    
+    const indices = [];
+    for(let r=0; r<ny-1; r++){
+        for(let c=0; c<nx-1; c++){
+            const a = r*nx+c, b = r*nx+(c+1), c1 = (r+1)*nx+c, d1 = (r+1)*nx+(c+1);
+            indices.push(a, c1, b);
+            indices.push(b, c1, d1);
+        }
+    }
+    
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setIndex(indices);
+    geo.setAttribute('color', new THREE.BufferAttribute(origColors, 3));
+    geo.computeVertexNormals();
+
+    // ── Procedural detail texture for close-up ground quality ────────────────
+    const sz = 512;
+    const cvs = document.createElement('canvas');
+    cvs.width = cvs.height = sz;
+    const ctx2d = cvs.getContext('2d');
+
+    // White base
+    ctx2d.fillStyle = '#ffffff';
+    ctx2d.fillRect(0, 0, sz, sz);
+
+    // Organic noise — random blobs of slight light/dark variation
+    const rng = (a,b) => Math.random()*(b-a)+a;
+    for(let i = 0; i < 8000; i++){
+        const v = Math.floor(rng(185, 245));
+        ctx2d.fillStyle = `rgb(${v},${v},${v})`;
+        ctx2d.beginPath();
+        ctx2d.arc(rng(0,sz), rng(0,sz), rng(0.5, 3.5), 0, Math.PI*2);
+        ctx2d.fill();
+    }
+    // Subtle grass blade strokes
+    for(let i = 0; i < 1500; i++){
+        const x = rng(0, sz), y = rng(0, sz);
+        const v = Math.floor(rng(160, 220));
+        ctx2d.strokeStyle = `rgba(${v},${v},${v},0.4)`;
+        ctx2d.lineWidth = rng(0.3, 1.2);
+        ctx2d.beginPath();
+        ctx2d.moveTo(x, y);
+        ctx2d.lineTo(x + rng(-6,6), y + rng(-8, 0));
+        ctx2d.stroke();
+    }
+
+    const detailTex = new THREE.CanvasTexture(cvs);
+    detailTex.wrapS = detailTex.wrapT = THREE.RepeatWrapping;
+    detailTex.repeat.set(nx / 5, ny / 5);   // one texture tile every 5 grid cells (25m)
+    detailTex.anisotropy = renderer.capabilities.getMaxAnisotropy();  // sharp at angle
+
+    const mat = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        map: detailTex,          // detail texture multiplies with vertex color
+        roughness: 0.95,
+        metalness: 0.0,
+        transparent: true,
+        opacity: 1.0
+    });
+    terrainMesh = new THREE.Mesh(geo, mat);
+    terrainMesh.receiveShadow = true;
+    scene.add(terrainMesh);
+}
+
+function buildWater() {
+    waterDepthData = new Float32Array(nx*ny);
+    waterDepthTex = new THREE.DataTexture(waterDepthData, nx, ny, THREE.RedFormat, THREE.FloatType);
+    waterDepthTex.magFilter = THREE.NearestFilter;
+    waterDepthTex.minFilter = THREE.NearestFilter;
+    waterDepthTex.needsUpdate = true;
+
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(ny*nx*3);
+    const uvs = new Float32Array(ny*nx*2);
+    for(let r=0; r<ny; r++){
+        for(let c=0; c<nx; c++){
+            const i = r*nx + c;
+            pos[i*3] = c;
+            pos[i*3+1] = terrainElev[i];
+            pos[i*3+2] = r;
+            uvs[i*2] = c / (nx-1);
+            uvs[i*2+1] = r / (ny-1);
+        }
+    }
+    
+    const indices = [];
+    for(let r=0; r<ny-1; r++){
+        for(let c=0; c<nx-1; c++){
+            const a = r*nx+c, b = r*nx+(c+1), c1 = (r+1)*nx+c, d1 = (r+1)*nx+(c+1);
+            indices.push(a, c1, b);
+            indices.push(b, c1, d1);
+        }
+    }
+    
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geo.setIndex(indices);
+    
+    const wUni = {
+        uTime: {value:0},
+        uDepthTex: {value: waterDepthTex},
+        uDeep: {value: new THREE.Color(0x0d47a1)},
+        uShallow: {value: new THREE.Color(0x29b6f6)},
+        uFoam: {value: new THREE.Color(0xdff2ff)},
+    };
+    window.wUni = wUni;
+
+    const mat = new THREE.ShaderMaterial({
+        uniforms: wUni, transparent: true, side: THREE.FrontSide,
+        polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+        vertexShader: `
+            varying vec3 vWorld;
+            varying vec2 vUv;
+            void main(){
+                vUv = uv;
+                vec4 wp = modelMatrix * vec4(position, 1.0);
+                vWorld = wp.xyz;
+                gl_Position = projectionMatrix * viewMatrix * wp;
+            }
+        `,
+        fragmentShader: `
+            uniform float uTime;
+            uniform sampler2D uDepthTex;
+            uniform vec3 uDeep, uShallow, uFoam;
+            varying vec3 vWorld;
+            varying vec2 vUv;
+            void main(){
+                float d = texture2D(uDepthTex, vUv).r;
+                if(d < 0.04) discard; 
+                
+                float wave = (sin(vWorld.x*0.8+uTime*2.5)+sin(vWorld.z*0.7-uTime*1.8)+sin((vWorld.x+vWorld.z)*0.5+uTime*1.2))/3.0;
+                vec3 col = mix(uDeep, uShallow, (wave+1.0)*0.4);
+                if(wave > 0.75) col = mix(col, uFoam, (wave-0.75)*4.0);
+                gl_FragColor = vec4(col, 0.85);
+            }
+        `
+    });
+    waterMesh = new THREE.Mesh(geo, mat);
+    scene.add(waterMesh);
+}
+
+function buildRain() {
+    const geo = new THREE.BufferGeometry();
+    const count = 15000;
+    const pos = new Float32Array(count*3);
+    for(let i=0; i<count*3; i++) pos[i] = Math.random();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    
+    const mat = new THREE.ShaderMaterial({
+        uniforms: {
+            uTime: {value:0}, uRain: {value:0},
+            uScale: {value: new THREE.Vector3(nx, 100, ny)}
+        },
+        transparent: true, depthWrite: false,
+        vertexShader: `
+            uniform float uTime;
+            uniform vec3 uScale;
+            void main(){
+                vec3 p = position;
+                p.y = fract(p.y - uTime*0.8);
+                p *= uScale;
+                gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(p, 1.0);
+                gl_PointSize = 2.0;
+            }
+        `,
+        fragmentShader: `
+            uniform float uRain;
+            void main(){
+                if(uRain < 0.01) discard;
+                gl_FragColor = vec4(0.8, 0.9, 1.0, 0.4 * min(1.0, uRain/100.0));
+            }
+        `
+    });
+    rainMesh = new THREE.Points(geo, mat);
+    scene.add(rainMesh);
+}
+
+function buildPipes(nodes, pipes) {
+    const nodeMap = {};
+    const nGeo = new THREE.SphereGeometry(1.5);
+    const nMat = new THREE.MeshStandardMaterial({color:0xd35400});
+    nodes.forEach(n => {
+        nodeMap[n.id] = n;
+        const m = new THREE.Mesh(nGeo, nMat);
+        m.position.set(n.x, n.z, n.y);
+        scene.add(m);
+    });
+    
+    const pMat = new THREE.MeshStandardMaterial({color:0x2c3e50});
+    pipes.forEach(p => {
+        const n1 = nodeMap[p.in], n2 = nodeMap[p.out];
+        const v1 = new THREE.Vector3(n1.x, n1.z, n1.y);
+        const v2 = new THREE.Vector3(n2.x, n2.z, n2.y);
+        const dist = v1.distanceTo(v2);
+        const cyl = new THREE.CylinderGeometry(p.diameter/2, p.diameter/2, dist, 8);
+        cyl.rotateX(Math.PI/2);
+        const m = new THREE.Mesh(cyl, pMat);
+        m.position.copy(v1).lerp(v2, 0.5);
+        m.lookAt(v2);
+        scene.add(m);
+    });
+}
+
+function buildBuildings(d) {
+    // Filter buildings inside boundary
+    const validBuildings = d.buildings.filter(b => {
+        if(d.border_mask && b.y < d.border_mask.length && b.x < d.border_mask[0].length){
+            return d.border_mask[b.y][b.x];
+        }
+        return true;
+    });
+
+    // 1. Box InstancedMesh for main structures
+    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    boxGeo.translate(0, 0.5, 0); // origin at bottom
+    const boxMat = new THREE.MeshStandardMaterial({roughness: 0.8});
+    const boxInstanced = new THREE.InstancedMesh(boxGeo, boxMat, validBuildings.length);
+    boxInstanced.castShadow = true;
+    boxInstanced.receiveShadow = true;
+
+    // 2. Cone InstancedMesh for pitched roofs
+    const pitchedBuildings = validBuildings.filter(b => b.roof_type !== 'flat');
+    const coneGeo = new THREE.ConeGeometry(1, 1, 4);
+    coneGeo.rotateY(Math.PI/4);
+    coneGeo.translate(0, 0.5, 0); // origin at bottom of cone
+    const coneMat = new THREE.MeshStandardMaterial({roughness: 0.9});
+    const coneInstanced = new THREE.InstancedMesh(coneGeo, coneMat, pitchedBuildings.length);
+    coneInstanced.castShadow = true;
+
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+
+    validBuildings.forEach((b, i) => {
+        const h = b.height;
+        const w = b.width;
+        const b_elev = terrainElev[b.y * nx + b.x];
+        
+        dummy.position.set(b.x, b_elev, b.y);
+        dummy.scale.set(w, h, w);
+        dummy.updateMatrix();
+        
+        boxInstanced.setMatrixAt(i, dummy.matrix);
+        color.setStyle(b.color);
+        boxInstanced.setColorAt(i, color);
+    });
+
+    let roofIdx = 0;
+    pitchedBuildings.forEach((b) => {
+        const h = b.height;
+        const w = b.width;
+        const b_elev = terrainElev[b.y * nx + b.x];
+        
+        // Roof is scaled w/1.2 wide, 3 tall. positioned at h.
+        dummy.position.set(b.x, b_elev + h, b.y);
+        dummy.scale.set(w/1.2, 3, w/1.2);
+        dummy.updateMatrix();
+        
+        coneInstanced.setMatrixAt(roofIdx, dummy.matrix);
+        color.setStyle(b.roof_color);
+        coneInstanced.setColorAt(roofIdx, color);
+        roofIdx++;
+    });
+
+    scene.add(boxInstanced);
+    buildingMeshes.push(boxInstanced);
+    if(pitchedBuildings.length > 0) {
+        scene.add(coneInstanced);
+        buildingMeshes.push(coneInstanced);
+    }
+}
+
+// ─── POLLING & SYNC ──────────────────────────────────────────────────
+async function pollState() {
+    try {
+        const res = await fetch('/api/state');
+        const d = await res.json();
+        
+        document.getElementById('s-time').textContent = d.time_label;
+        document.getElementById('s-flood').textContent = d.telemetry.flooded_cells;
+        document.getElementById('s-depth').textContent = d.telemetry.max_depth.toFixed(2) + ' m';
+        document.getElementById('s-vol').textContent = d.telemetry.total_vol_m3.toFixed(1) + ' m³';
+        
+        const errSpan = document.getElementById('s-err');
+        errSpan.textContent = d.telemetry.mb_error_pct.toFixed(2) + '%';
+        errSpan.style.color = d.telemetry.mb_error_pct > 1.0 ? '#e74c3c' : '#2ecc71';
+
+        // Update Button States
+        playing = d.running;
+        const pBtn = document.getElementById('btn-play');
+        pBtn.textContent = playing ? '⏸ Pause' : '▶ Play';
+        pBtn.className = playing ? 'paused' : '';
+
+        // Update Skip Overlay
+        const overlay = document.getElementById('skip-overlay');
+        if (d.skip_progress !== null) {
+            overlay.style.display = 'flex';
+            document.getElementById('skip-progress').textContent = (d.skip_progress * 100).toFixed(1) + '%';
+        } else {
+            overlay.style.display = 'none';
+        }
+
+        // Update Sliders if not dragging
+        currentRain = d.rainfall_mmhr;
+        document.getElementById('val-rain').textContent = Math.round(currentRain);
+        document.getElementById('slider-rain').value = currentRain;
+        
+        document.getElementById('val-block').textContent = d.telemetry.blockage.toFixed(0) + '%';
+        document.getElementById('slider-block').value = d.telemetry.blockage;
+
+        // Snapshots dropdown
+        const sel = document.getElementById('sel-snapshot');
+        const currentOpts = Array.from(sel.options).map(o=>o.value);
+        if (d.snapshots.length === 0) {
+            sel.innerHTML = '<option value="">-- No Snapshots Yet --</option>';
+        } else {
+            if (currentOpts.join() !== d.snapshots.map(s=>s.time).join()) {
+                sel.innerHTML = d.snapshots.map(s => `<option value="${s.time}">${s.label}</option>`).join('');
+                sel.value = d.snapshots[d.snapshots.length-1].time;
+            }
+        }
+
+        // Apply Water Depth — update geometry + DataTexture
+        if (waterMesh && d.water_depth) {
+            const VISUAL_SCALE = 1.0;
+            const pos = waterMesh.geometry.attributes.position.array;
+            const flatDepth = d.water_depth;
+            let anyWet = false;
+            for(let r=0; r<ny; r++){
+                for(let c=0; c<nx; c++){
+                    const i = r*nx + c;
+                    const val = flatDepth[r][c];
+                    if(val > 0) anyWet = true;
+                    waterDepthData[i] = val;
+                    pos[i*3+1] = terrainElev[i] + (val * VISUAL_SCALE);
+                }
+            }
+            waterDepthTex.needsUpdate = true;
+            waterMesh.geometry.attributes.position.needsUpdate = true;
+            // Respect the layer-visibility checkbox — don't override user's choice
+            const waterChk = document.getElementById('chk-water');
+            waterMesh.visible = anyWet && (!waterChk || waterChk.checked);
+        }
+        
+    } catch(e) { /* server briefly unavailable */ }
+    setTimeout(pollState, 50);   // 20 fps polling — smooth real-time water
+}
+setTimeout(pollState, 800);
+
+// ─── BARANGAY BORDER LINE ─────────────────────────────────────────────
+function drawBorderLine(d) {
+    if(!d.border_mask) return;
+    const points = [];
+    // Trace the border by finding edge cells
+    for(let r=1; r<ny-1; r++){
+        for(let c=1; c<nx-1; c++){
+            const inside = d.border_mask[r][c];
+            const neighbors = [
+                d.border_mask[r-1][c], d.border_mask[r+1][c],
+                d.border_mask[r][c-1], d.border_mask[r][c+1]
+            ];
+            if(inside && neighbors.includes(false)){
+                const elev = terrainElev[r*nx+c] + 1.0;
+                points.push(new THREE.Vector3(c, elev, r));
+            }
+        }
+    }
+    if(points.length === 0) return;
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    const mat = new THREE.PointsMaterial({ color: 0xff3300, size: 1.5, sizeAttenuation: false });
+    scene.add(new THREE.Points(geo, mat));
+}
+
+
+// ─── RENDER LOOP ─────────────────────────────────────────────────────
+const clock = new THREE.Clock();
+function animate() {
+    requestAnimationFrame(animate);
+    const dt = clock.getDelta();
+    controls.update();
+    
+    if (window.wUni) window.wUni.uTime.value += dt;
+    if (rainMesh) {
+        rainMesh.material.uniforms.uTime.value += dt;
+        rainMesh.material.uniforms.uRain.value = currentRain;
+    }
+    
+    renderer.render(scene, camera);
+}
+animate();
+
+// ─── UI HANDLERS ─────────────────────────────────────────────────────
+document.getElementById('btn-play').onclick = () => fetch('/api/control', {method:'POST'});
+
+document.getElementById('btn-speed').onclick = () => {
+    const steps = [1, 5, 25, 100, 500, 1000, 2000, 5000, 10000];
+    const idx = steps.indexOf(simSpeed);
+    simSpeed = steps[(idx+1) % steps.length];
+    document.getElementById('btn-speed').textContent = `⏩ ${simSpeed}×`;
+    fetch('/api/speed', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({multiplier: simSpeed})});
+};
+
+document.getElementById('slider-rain').oninput = e => {
+    const v = e.target.value;
+    document.getElementById('val-rain').textContent = v;
+    fetch('/api/rainfall', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mm_per_hr: parseFloat(v)})});
+    document.getElementById('sel-scenario').value = 'none';
+};
+
+document.getElementById('slider-block').oninput = e => {
+    const v = e.target.value;
+    document.getElementById('val-block').textContent = v + '%';
+    fetch(`/api/pipe/${MAIN_BLOCK_ID}/blockage`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({blockage: parseFloat(v)/100.0})});
+    document.getElementById('sel-scenario').value = 'none';
+};
+
+// Scenarios
+document.getElementById('sel-scenario').onchange = e => {
+    const v = e.target.value;
+    if(v === 'none') return;
+    let payload = {};
+    if(v === 's1') payload = { rainfall_mm_hr: 100, duration_sim_hours: 6, pipe_blockage_pct: 95, reset_first: true };
+    if(v === 's2') payload = { rainfall_mm_hr: 250, duration_sim_hours: 12, pipe_blockage_pct: 100, reset_first: true };
+    if(v === 's3') payload = { rainfall_mm_hr: 20, duration_sim_hours: 24, pipe_blockage_pct: 50, reset_first: true };
+    fetch('/api/scenario', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+};
+
+// Time Skips — helper
+async function doSkip(seconds) {
+    const res = await fetch('/api/state');
+    const d = await res.json();
+    fetch('/api/timeskip', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({target_sim_seconds: d.time + seconds})
+    });
+}
+
+// (Time Skip buttons hidden — handlers removed to prevent null reference errors)
+
+
+// Rewind
+document.getElementById('btn-rewind').onclick = () => {
+    const t = parseFloat(document.getElementById('sel-snapshot').value);
+    if(isNaN(t)) return;
+    fetch('/api/rewind', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({time: t})});
+};
+
+document.getElementById('btn-reset').onclick = () => fetch('/api/reset', {method:'POST'});
+
+// View Toggles
+document.getElementById('btn-view').onclick = () => {
+    is2DView = !is2DView;
+    if(!is2DView){
+        // ── 3D mode: allow orbit rotation ────────────────────────────
+        camera.position.set(330, 350, 600);
+        controls.target.set(330, 0, 180);
+        controls.enableRotate = true;
+        controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+        document.getElementById('btn-view').textContent = '🗺 Switch to 2D View';
+        document.getElementById('hint').textContent = 'Drag: rotate | Right-drag: pan | Scroll: zoom';
+    } else {
+        // ── 2D mode: top-down, pan-only ──────────────────────────────
+        camera.position.set(330, 420, 180.1);
+        controls.target.set(330, 0, 180);
+        controls.enableRotate = false;
+        controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+        document.getElementById('btn-view').textContent = '📐 Switch to 3D View';
+        document.getElementById('hint').textContent = 'Drag: pan | Scroll: zoom';
+    }
+};
+
+document.getElementById('btn-grid').onclick = () => {
+    if(gridHelper) {
+        gridHelper.visible = !gridHelper.visible;
+        document.getElementById('btn-grid').classList.toggle('active', gridHelper.visible);
+        document.getElementById('btn-grid').textContent = gridHelper.visible ? '# Hide Grid' : '# Show Grid';
+    }
+};
+
+document.getElementById('btn-elev').onclick = () => {
+    showElev = !showElev;
+    if(terrainMesh) terrainMesh.geometry.setAttribute('color', new THREE.BufferAttribute(showElev ? elevColors : origColors, 3));
+};
+
+document.getElementById('btn-glass').onclick = () => {
+    glassMode = !glassMode;
+    // Terrain: semi-transparent in X-Ray
+    if(terrainMesh) {
+        terrainMesh.material.transparent = glassMode;
+        terrainMesh.material.opacity = glassMode ? 0.25 : 1.0;
+        terrainMesh.material.depthWrite = !glassMode;
+    }
+    // Buildings: completely hidden in X-Ray so pipes are clearly visible
+    buildingMeshes.forEach(m => { m.visible = !glassMode; });
+    document.getElementById('btn-glass').textContent = glassMode ? '👁 X-Ray: ON' : '👁 X-Ray Ground';
+    document.getElementById('btn-glass').style.background = glassMode ? '#117a65' : '#145a32';
+};
+
+// ─── LAYER VISIBILITY ─────────────────────────────────────────────────
+document.getElementById('chk-buildings').onchange = e => {
+    buildingMeshes.forEach(m => m.visible = e.target.checked);
+};
+
+document.getElementById('chk-roads').onchange = e => {
+    if(!terrainMesh) return;
+    const col = terrainMesh.geometry.attributes.color.array;
+    const src = showElev ? elevColors : origColors;
+    if(e.target.checked){
+        // Restore original colors (roads go grey again)
+        for(let i = 0; i < col.length; i++) col[i] = src[i];
+    } else {
+        // Hide roads: copy base colors first, then overwrite road cells with grass color
+        for(let i = 0; i < col.length; i++) col[i] = src[i];
+        // roadCells is populated during buildTerrain from road_mask
+        if(window.roadCells){
+            window.roadCells.forEach(idx => {
+                // Sample a nearby non-road color — use elevColors which has smooth terrain
+                const v = (showElev ? elevColors : origColors);
+                col[idx*3]   = v[idx*3];
+                col[idx*3+1] = v[idx*3+1];
+                col[idx*3+2] = v[idx*3+2];
+            });
+        }
+    }
+    terrainMesh.geometry.attributes.color.needsUpdate = true;
+};
+
+document.getElementById('chk-water').onchange = e => {
+    if(waterMesh) waterMesh.visible = e.target.checked;
+};
+
+document.getElementById('chk-border').onchange = e => {
+    scene.children.filter(o => o.isPoints).forEach(o => o.visible = e.target.checked);
+};
+
+document.getElementById('chk-pipes').onchange = e => {
+    scene.children.filter(o => o.isMesh && o.userData && o.userData.isDrainNode)
+        .forEach(o => o.visible = e.target.checked);
+};
+
+</script>
+</body>
+</html>
