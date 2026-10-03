@@ -24,14 +24,16 @@ class Simulator:
         self.state = state
         self.dt = dt          # "logical" timestep per call to step()
 
-    def step(self):
+    def step(self, max_stable_dt=0.5):
         """
         Advance the simulation by self.dt seconds.
-        Sub-steps internally to stay within the CFL limit.
+        Sub-steps internally to stay within the CFL limit, but max_stable_dt 
+        can be increased at high fast-forward speeds because we implemented absolute 
+        volume caps in both surface and underground physics (unconditional stability).
         """
         remaining = self.dt
         while remaining > 1e-6:
-            sub_dt = min(remaining, MAX_STABLE_DT)
+            sub_dt = min(remaining, max_stable_dt)
 
             # 1. Surface: rainfall + infiltration + Manning diffusive flow + inlet drainage
             step_surface_water(self.state, sub_dt)

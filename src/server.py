@@ -75,18 +75,26 @@ _last_snap_time    = -9999.0
 mb_rain_total     = 0.0
 mb_drain_total    = 0.0
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  3. PHYSICS LOOP  — runs CPU batch in a thread so HTTP stays responsive
-# ═══════════════════════════════════════════════════════════════════════════════
 import time as _time
+
+# Thread-safe reset flag
+reset_requested = False
 
 def _physics_batch() -> dict:
     """
-    Synchronous physics batch.  Runs in a thread-pool worker so Numba can
-    release the GIL and the asyncio event-loop stays free for HTTP requests.
-    Returns mass-balance numbers to merge back on the main thread.
+    Synchronous physics batch. Runs in a thread-pool worker.
     """
-    simulator.dt = 1.0   # Always do 1s steps so we can check wall_budget frequently
+    # Dynamic stability threshold for TRUE fast-forward speed
+    if sim_speed >= 10000:
+        max_dt = 10.0
+    elif sim_speed >= 1000:
+        max_dt = 5.0
+    elif sim_speed >= 100:
+        max_dt = 2.0
+    else:
+        max_dt = 0.5
+        
+    simulator.dt = 1.0   # 1s logical chunks for wall_budget checking
 
     wall_budget = 0.15          # seconds of real time we're allowed to use
     tick_start  = _time.perf_counter()
@@ -95,9 +103,12 @@ def _physics_batch() -> dict:
     area    = state.dx ** 2
 
     while _time.perf_counter() - tick_start < wall_budget:
+        if reset_requested:
+            break
+            
         vol_before = float(state.water_depth.sum()) * area
         try:
-            simulator.step()
+            simulator.step(max_stable_dt=max_dt)
         except Exception:
             import traceback; traceback.print_exc()
             break
@@ -115,9 +126,18 @@ def _physics_batch() -> dict:
 async def physics_loop():
     global is_running, sim_speed, rain_stop_at
     global snapshots, _last_snap_time
-    global mb_rain_total, mb_drain_total
+    global mb_rain_total, mb_drain_total, reset_requested
 
     while True:
+        if reset_requested:
+            state.water_depth[:] = 0.0
+            state.time = 0.0
+            for node in state.nodes.values(): node.volume = 0.0
+            for pipe in state.pipes: pipe.current_flow = 0.0
+            mb_rain_total = 0.0; mb_drain_total = 0.0
+            snapshots.clear()
+            reset_requested = False
+            
         if is_running and not time_skip_running:
             # auto-stop rain
             if rain_stop_at is not None and state.time >= rain_stop_at:
@@ -126,8 +146,9 @@ async def physics_loop():
 
             # run physics in thread (Numba releases GIL → true parallelism)
             result = await asyncio.to_thread(_physics_batch)
-            mb_rain_total  += result["mb_rain"]
-            mb_drain_total += result["mb_drain"]
+            if not reset_requested:
+                mb_rain_total  += result["mb_rain"]
+                mb_drain_total += result["mb_drain"]
 
             # snapshot
             if state.time - _last_snap_time >= SNAPSHOT_INTERVAL:
@@ -336,14 +357,9 @@ class ScenarioRequest(BaseModel):
 
 @app.post("/api/scenario")
 def apply_scenario(req: ScenarioRequest):
-    global rain_stop_at, mb_rain_total, mb_drain_total
+    global rain_stop_at, reset_requested
     if req.reset_first:
-        state.water_depth[:] = 0.0
-        state.time = 0.0
-        for node in state.nodes.values(): node.volume = 0.0
-        for pipe in state.pipes: pipe.current_flow = 0.0
-        mb_rain_total = 0.0; mb_drain_total = 0.0
-        snapshots.clear()
+        reset_requested = True
 
     state.rainfall_rate = req.rainfall_mm_hr / 1_000 / 3600
     rain_stop_at = state.time + req.duration_sim_hours * 3600
