@@ -5,7 +5,6 @@
 > Computational Science Research Project — University of Caloocan City, 2026
 > Study Area: **Barangay 168, Caloocan City, Philippines**
 > Adviser: Prof. Edrick Mendoza Estorel
-> Student: Marc Josef P. Salenga
 
 A real-time 3D/2D flood simulation using actual SRTM elevation data, OpenStreetMap road networks, and a diffusive-wave physics engine — all running locally in your browser.
 
