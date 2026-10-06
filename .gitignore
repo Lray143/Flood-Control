@@ -3,6 +3,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Numba JIT cache (machine-specific, never commit)
+*.nbc
+*.nbi
+
+# Generated output files
+flood_heatmap_snapshot.png
+
+
 # C extensions
 *.so
 

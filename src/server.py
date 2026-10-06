@@ -348,6 +348,33 @@ def set_bulk_blockage(req: BulkBlockageRequest):
             updated += 1
     return {"ok": True, "updated": updated}
 
+# ── Pipe Diameter ─────────────────────────────────────────────────────────────
+class DiameterRequest(BaseModel):
+    diameter: float   # metres (0.1 – 5.0)
+
+@app.post("/api/pipe/{pipe_id}/diameter")
+def set_pipe_diameter(pipe_id: int, req: DiameterRequest):
+    for p in state.pipes:
+        if p.id == pipe_id:
+            p.set_diameter(max(0.1, min(5.0, req.diameter)))
+            return {"ok": True, "diameter": p.diameter}
+    return {"error": "not found"}, 404
+
+class BulkDiameterRequest(BaseModel):
+    pipe_ids: list[int]
+    diameter: float   # metres
+
+@app.post("/api/pipes/bulk_diameter")
+def set_bulk_diameter(req: BulkDiameterRequest):
+    diam_val = max(0.1, min(5.0, req.diameter))
+    updated = 0
+    pipe_set = set(req.pipe_ids)
+    for p in state.pipes:
+        if p.id in pipe_set:
+            p.set_diameter(diam_val)
+            updated += 1
+    return {"ok": True, "updated": updated}
+
 # ── Configure Scenario ────────────────────────────────────────────────────────
 class ScenarioRequest(BaseModel):
     rainfall_mm_hr:       float   = 100.0

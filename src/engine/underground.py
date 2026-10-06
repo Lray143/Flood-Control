@@ -74,6 +74,13 @@ class Pipe:
         self.blockage     = 0.0   # 0 = clear, 1 = 100% blocked
         self.current_flow = 0.0   # m³/s  (+ = forward, - = reverse)
 
+    def set_diameter(self, new_diameter: float):
+        """Update pipe diameter and recalculate all derived hydraulic properties."""
+        self.diameter  = max(0.1, float(new_diameter))  # minimum 10cm pipe
+        self.area      = math.pi * (self.diameter / 2) ** 2
+        self.perimeter = math.pi * self.diameter
+        self.R         = self.area / self.perimeter
+
     @property
     def effective_area(self) -> float:
         """Blockage physically reduces the open cross-section."""

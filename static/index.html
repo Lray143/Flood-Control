@@ -139,6 +139,13 @@ button:hover { filter:brightness(1.15); }
         <button id="pi-btn-clear">✅ Clear</button>
         <button id="pi-btn-full">🚫 Full Block</button>
     </div>
+    <label style="margin-top:8px;">Set Diameter (m)</label>
+    <div style="display:flex; gap:6px; align-items:center; margin-top:4px;">
+        <input type="number" id="pi-diam-input" min="0.1" max="5.0" step="0.1" value="0.9"
+               style="flex:2; background:rgba(0,0,0,0.4); color:#fff; border:1px solid #555;
+                      border-radius:5px; padding:4px 6px; font-size:12px;">
+        <button id="pi-btn-set-diam" style="flex:1; padding:4px; font-size:11px; background:#1a5276;">Set</button>
+    </div>
 </div>
 
 <div id="ui">
@@ -171,11 +178,19 @@ button:hover { filter:brightness(1.15); }
             <option value="south">South Half</option>
         </select>
     </div>
+    <label style="font-size:10px; color:#aaa; margin-bottom:2px;">Blockage %</label>
     <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
         <input type="range" id="slider-bulk" min="0" max="100" value="0" style="flex:2; margin:0;">
         <span id="val-bulk" style="flex:1; text-align:right; font-size:11px; font-weight:bold; color:#eaecee;">0%</span>
     </div>
     <button id="btn-bulk-apply" style="background:#d35400; padding:6px; font-size:11px; margin-bottom:10px;">Apply to Selected Region</button>
+
+    <label style="font-size:10px; color:#aaa; margin-bottom:2px;">Pipe Diameter (m)</label>
+    <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+        <input type="range" id="slider-bulk-diam" min="0.3" max="3.0" step="0.1" value="0.9" style="flex:2; margin:0;">
+        <span id="val-bulk-diam" style="flex:1; text-align:right; font-size:11px; font-weight:bold; color:#eaecee;">0.9m</span>
+    </div>
+    <button id="btn-bulk-diam-apply" style="background:#1a5276; padding:6px; font-size:11px; margin-bottom:10px;">Set Diameter in Region</button>
 
     <hr class="divider">
     <div class="btn-group">
@@ -299,6 +314,8 @@ scene.add(new THREE.DirectionalLight(0x8888ff, 0.3)).position.set(-80, 100, -80)
 let nx=0, ny=0, terrainElev=null;
 let terrainMesh, waterMesh, rainMesh;
 let origColors, elevColors;
+window.roadCells  = [];              // flat vertex indices of road cells
+window.grassColors = null;           // Float32Array — grass colour for every vertex
 let is2DView=true, showElev=false, glassMode=false;
 let playing=false, simSpeed=1, currentRain=0, MAIN_BLOCK_ID=0;
 let waterDepthTex, waterDepthData;
@@ -340,6 +357,9 @@ function buildTerrain(d) {
     const pos = new Float32Array(ny*nx*3);
     origColors = new Float32Array(ny*nx*3);
     elevColors = new Float32Array(ny*nx*3);
+    window.roadCells  = [];
+    window.grassColors = new Float32Array(ny*nx*3);
+    window.roadColors  = null;   // filled after origColors is complete (see below)
     
     let minE=1e9, maxE=-1e9;
     for(let r=0; r<ny; r++){
@@ -367,7 +387,6 @@ function buildTerrain(d) {
             
             const col = new THREE.Color();
             if(!isInside){
-                // Earthy ground color outside the barangay boundary (not ocean)
                 col.setHex(0x8a9a70);
             } else if(isRoad){
                 col.setHex(0x7a8794);
@@ -375,17 +394,32 @@ function buildTerrain(d) {
                 col.setHSL(0.28, 0.35, 0.42 + Math.random()*0.06);
             }
             origColors.set([col.r, col.g, col.b], i*3);
+
+            // Track road cell indices so the checkbox can hide/show them
+            if(isRoad && isInside) window.roadCells.push(i);
+            // Store a grass color for every cell (used to paint over roads when hidden)
+            const grassCol = new THREE.Color();
+            if(!isInside) grassCol.setHex(0x8a9a70);
+            else grassCol.setHSL(0.28, 0.35, 0.42);
+            window.grassColors[i*3]   = grassCol.r;
+            window.grassColors[i*3+1] = grassCol.g;
+            window.grassColors[i*3+2] = grassCol.b;
             
             // Limit t to [0, 1] in case an outside cell is higher/lower than the barangay min/max
             let t = (terrainElev[i]-minE)/(maxE-minE);
             t = Math.max(0, Math.min(1, t));
             
             if(!isInside) col.setHex(0x8a9a70);
-            else col.setHSL((1-t)*0.33, 1.0, 0.5); // 0.33 is green, 0.16 is yellow, 0.0 is red
+            else col.setHSL((1-t)*0.33, 1.0, 0.5);
             elevColors.set([col.r, col.g, col.b], i*3);
         }
     }
     
+    // Snapshot the road colours BEFORE Three.js takes ownership of origColors as the
+    // live GPU buffer. Writing to terrainMesh.geometry.attributes.color.array later
+    // mutates origColors in place, so we need this independent copy to restore from.
+    window.roadColors = new Float32Array(origColors);
+
     const indices = [];
     for(let r=0; r<ny-1; r++){
         for(let c=0; c<nx-1; c++){
@@ -394,7 +428,7 @@ function buildTerrain(d) {
             indices.push(b, c1, d1);
         }
     }
-    
+
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setIndex(indices);
     geo.setAttribute('color', new THREE.BufferAttribute(origColors, 3));
@@ -661,6 +695,37 @@ function buildPipes(nodes, pipes) {
     });
 }
 
+// Rebuild a pipe's cylinder geometry to reflect a new diameter immediately.
+// Three.js CylinderGeometry is immutable — we must dispose the old one and
+// replace it with a new one at the same position/orientation.
+function updatePipeDiameter(pipeId, newDiameter) {
+    const entry = pipeMeshMap[pipeId];
+    if (!entry) return;
+    const { mesh } = entry;
+
+    const r = Math.max(newDiameter / 2, 0.3);
+
+    // Recover the pipe length: the cylinder was placed between two nodes.
+    // After rotateX(PI/2) + lookAt(), the original cylinder height equals
+    // the distance between the two node positions, which we stored in userData.
+    const nIn  = nodeMeshMap[entry.data.in];
+    const nOut = nodeMeshMap[entry.data.out];
+    let dist = 1.0;
+    if (nIn && nOut) {
+        dist = nIn.position.distanceTo(nOut.position);
+    }
+
+    const newGeo = new THREE.CylinderGeometry(r, r, dist, 8, 1, false);
+    newGeo.rotateX(Math.PI / 2);
+
+    mesh.geometry.dispose();          // free GPU memory
+    mesh.geometry = newGeo;
+
+    // Keep userData in sync
+    mesh.userData.diameter = newDiameter;
+    entry.data.diameter    = newDiameter;
+}
+
 function buildBuildings(d) {
     // Filter buildings inside boundary
     const validBuildings = d.buildings.filter(b => {
@@ -875,6 +940,7 @@ function selectPipe(pipeId) {
     document.getElementById('pi-flow').textContent   = '—';
     piSlider.value = p.blockage * 100;
     document.getElementById('pi-blockage-val').textContent = (p.blockage * 100).toFixed(0) + '%';
+    document.getElementById('pi-diam-input').value = p.diameter.toFixed(1);
 
     // Highlight selected
     entry.mesh.material.color.set(0xffffff);
@@ -1066,6 +1132,69 @@ document.getElementById('btn-bulk-apply').onclick = () => {
     }
 };
 
+// Bulk Diameter slider display
+document.getElementById('slider-bulk-diam').oninput = e => {
+    document.getElementById('val-bulk-diam').textContent = parseFloat(e.target.value).toFixed(1) + 'm';
+};
+
+// Bulk Diameter Apply button
+document.getElementById('btn-bulk-diam-apply').onclick = () => {
+    const region = document.getElementById('sel-bulk-region').value;
+    const diamVal = parseFloat(document.getElementById('slider-bulk-diam').value);
+    const pipeIds = [];
+
+    Object.values(pipeMeshMap).forEach(entry => {
+        const p = entry.data;
+        const nIn = nodeMeshMap[p.in];
+        const nOut = nodeMeshMap[p.out];
+        if (!nIn || !nOut) return;
+        const cx = (nIn.position.x + nOut.position.x) / 2.0;
+        const cy = (nIn.position.z + nOut.position.z) / 2.0;
+        let match = false;
+        if (region === 'all') match = true;
+        else if (region === 'east') match = cx > 330;
+        else if (region === 'west') match = cx <= 330;
+        else if (region === 'north') match = cy < 180;
+        else if (region === 'south') match = cy >= 180;
+        if (match) pipeIds.push(p.id);
+    });
+
+    if (pipeIds.length > 0) {
+        fetch('/api/pipes/bulk_diameter', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ pipe_ids: pipeIds, diameter: diamVal })
+        }).then(() => {
+            // Immediately rebuild geometry for every affected pipe
+            pipeIds.forEach(id => updatePipeDiameter(id, diamVal));
+        });
+        const btn = document.getElementById('btn-bulk-diam-apply');
+        const oldText = btn.textContent;
+        btn.textContent = 'Set on ' + pipeIds.length + ' Pipes ✓';
+        btn.style.background = '#2ecc71';
+        setTimeout(() => {
+            btn.textContent = oldText;
+            btn.style.background = '#1a5276';
+        }, 1500);
+    }
+};
+
+// Single-pipe diameter Set button (in inspector)
+document.getElementById('pi-btn-set-diam').onclick = () => {
+    if (selectedPipeId === null) return;
+    const d = parseFloat(document.getElementById('pi-diam-input').value);
+    if (isNaN(d) || d < 0.1) return;
+    fetch(`/api/pipe/${selectedPipeId}/diameter`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ diameter: d })
+    }).then(() => {
+        // Immediately rebuild geometry and update inspector readout
+        updatePipeDiameter(selectedPipeId, d);
+        document.getElementById('pi-diam').textContent = `${d.toFixed(2)} m`;
+    });
+};
+
 // Scenarios
 document.getElementById('sel-scenario').onchange = e => {
     const v = e.target.value;
@@ -1155,25 +1284,23 @@ document.getElementById('chk-buildings').onchange = e => {
 };
 
 document.getElementById('chk-roads').onchange = e => {
-    if(!terrainMesh) return;
+    if (!terrainMesh || !window.roadCells.length || !window.roadColors) return;
     const col = terrainMesh.geometry.attributes.color.array;
-    const src = showElev ? elevColors : origColors;
-    if(e.target.checked){
-        // Restore original colors (roads go grey again)
-        for(let i = 0; i < col.length; i++) col[i] = src[i];
+
+    if (e.target.checked) {
+        // Restore road cells from the immutable snapshot (origColors is mutable/shared)
+        window.roadCells.forEach(idx => {
+            col[idx*3]   = window.roadColors[idx*3];
+            col[idx*3+1] = window.roadColors[idx*3+1];
+            col[idx*3+2] = window.roadColors[idx*3+2];
+        });
     } else {
-        // Hide roads: copy base colors first, then overwrite road cells with grass color
-        for(let i = 0; i < col.length; i++) col[i] = src[i];
-        // roadCells is populated during buildTerrain from road_mask
-        if(window.roadCells){
-            window.roadCells.forEach(idx => {
-                // Sample a nearby non-road color — use elevColors which has smooth terrain
-                const v = (showElev ? elevColors : origColors);
-                col[idx*3]   = v[idx*3];
-                col[idx*3+1] = v[idx*3+1];
-                col[idx*3+2] = v[idx*3+2];
-            });
-        }
+        // Paint road cells with grass colour so roads disappear
+        window.roadCells.forEach(idx => {
+            col[idx*3]   = window.grassColors[idx*3];
+            col[idx*3+1] = window.grassColors[idx*3+1];
+            col[idx*3+2] = window.grassColors[idx*3+2];
+        });
     }
     terrainMesh.geometry.attributes.color.needsUpdate = true;
 };

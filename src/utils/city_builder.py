@@ -20,7 +20,7 @@ def build_procedural_city(nx=660, ny=360, dx=5.0):
         from scipy.ndimage import zoom as scipy_zoom, gaussian_filter
         import os
 
-        dem_path = os.path.join(os.path.dirname(__file__), '..', '..', 'barangay168_dem.tif')
+        dem_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'barangay168_dem.tif')
         if os.path.exists(dem_path):
             with rasterio.open(dem_path) as ds:
                 raw = ds.read(1).astype(np.float64)
@@ -97,7 +97,7 @@ def build_procedural_city(nx=660, ny=360, dx=5.0):
     use_real_roads = False
     try:
         import json, os
-        osm_path = os.path.join(os.path.dirname(__file__), '..', '..', 'roads_osm.json')
+        osm_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'roads_osm.json')
         if os.path.exists(osm_path):
             with open(osm_path) as f:
                 osm = json.load(f)
@@ -159,7 +159,7 @@ def build_procedural_city(nx=660, ny=360, dx=5.0):
     try:
         import json, os
         from matplotlib.path import Path
-        geojson_path = os.path.join(os.path.dirname(__file__), '..', '..', 'brgy168.geojson')
+        geojson_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'brgy168.geojson')
         if os.path.exists(geojson_path):
             with open(geojson_path, 'r') as f:
                 gj = json.load(f)
@@ -268,7 +268,7 @@ def build_procedural_city(nx=660, ny=360, dx=5.0):
         from collections import Counter as _Counter
         from scipy.spatial import cKDTree as _KDTree
 
-        osm_path = _os.path.join(_os.path.dirname(__file__), '..', '..', 'roads_osm.json')
+        osm_path = _os.path.join(_os.path.dirname(__file__), '..', '..', 'data', 'roads_osm.json')
         with open(osm_path) as f:
             osm = _json.load(f)
 
@@ -437,17 +437,26 @@ def build_procedural_city(nx=660, ny=360, dx=5.0):
             pipes.append(p); pipe_id += 1
         MAIN_BLOCKAGE = 6
 
-    # ── 4f. Inlet mapping: every cell -> nearest manhole (KD-tree) ───────────
+    # ── 4f. Inlet mapping: every cell -> nearest INTERIOR manhole (KD-tree) ──
+    # IMPORTANT: Outlet nodes (blue circles) are pipe exits into rivers/canals.
+    # They have NO street grates. Surface water must only drain into orange
+    # interior manholes. Outlet nodes only receive water via the pipe network.
     try:
         from scipy.spatial import cKDTree as _KDT2
-        node_coords = np.array([[n.x, n.y] for n in nodes_list], dtype=np.float32)
-        kd2 = _KDT2(node_coords)
+        # Build KD-tree using ONLY non-outlet (interior manhole) nodes
+        interior_nodes = [n for n in nodes_list if not n.is_outlet]
+        if not interior_nodes:
+            interior_nodes = nodes_list  # fallback: use all if no interior found
+        interior_coords = np.array([[n.x, n.y] for n in interior_nodes], dtype=np.float32)
+        interior_ids    = [n.id for n in interior_nodes]
+        kd2 = _KDT2(interior_coords)
         MAX_INLET_DIST = 60   # cells = 300 m
         all_rc = np.array([[c, r] for r in range(ny) for c in range(nx)], dtype=np.float32)
         dists2, idxs2 = kd2.query(all_rc)
         for idx_flat, (c, r) in enumerate([(c, r) for r in range(ny) for c in range(nx)]):
             if dists2[idx_flat] <= MAX_INLET_DIST:
-                inlet_mapping[(c, r)] = int(idxs2[idx_flat])
+                # Map to the real node ID (not the interior_nodes array index)
+                inlet_mapping[(c, r)] = interior_ids[int(idxs2[idx_flat])]
     except Exception as e:
         print(f"[city_builder] inlet_mapping KD fallback: {e}")
         for r in range(ny):
