@@ -401,7 +401,11 @@ def get_state():
         _state_json_bytes    = _json.dumps(payload).encode()
         _state_json_sim_time = state.time
         _state_json_wall_time = _time.monotonic()
-    return Response(content=_state_json_bytes, media_type="application/json")
+    return Response(
+        content=_state_json_bytes,
+        media_type="application/json",
+        headers={"X-Sim-Time": str(_state_json_sim_time)},
+    )
 
 
 # ── Play / Pause ──────────────────────────────────────────────────────────────

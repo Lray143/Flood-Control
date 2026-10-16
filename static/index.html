@@ -497,7 +497,6 @@ scene.add(zoneLabelsGroup);
 let zoneLabelSprites = {};
 let mapLabelsGroup = new THREE.Group();
 scene.add(mapLabelsGroup);
-let _lastTableUpdate = 0;
 
 // ─── LOAD TERRAIN ────────────────────────────────────────────────────
 fetch('/api/terrain?t=' + Date.now()).then(r=>r.json()).then(d=>{
@@ -734,6 +733,7 @@ function buildWater() {
     }
     
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.attributes.position.setUsage(THREE.DynamicDrawUsage); // hint GPU: this buffer updates frequently
     geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
     geo.setIndex(indices);
     
@@ -1185,192 +1185,192 @@ function buildTrees(trees) {
 }
 
 // ─── POLLING & SYNC ──────────────────────────────────────────────────
+let _lastSimTime = -1;       // sim time of last parsed response
+let _lastParsed  = null;     // last fully-parsed state object
+let _lastTableUpdate = 0;
+
 async function pollState() {
+    let nextPoll = 200;      // default: 200ms (no new data)
     try {
         const res = await fetch('/api/state');
-        const d = await res.json();
-        
-        document.getElementById('s-time').textContent = d.time_label;
-        document.getElementById('s-flood').textContent = d.telemetry.flooded_cells;
-        document.getElementById('s-depth').textContent = d.telemetry.max_depth.toFixed(2) + ' m';
-        document.getElementById('s-vol').textContent = d.telemetry.total_vol_m3.toFixed(1) + ' m³';
-        
-        const errSpan = document.getElementById('s-err');
-        errSpan.textContent = d.telemetry.mb_error_pct.toFixed(2) + '%';
-        errSpan.style.color = d.telemetry.mb_error_pct > 1.0 ? '#e74c3c' : '#2ecc71';
+        const simTimeStr = res.headers.get('X-Sim-Time');
+        const simTime = simTimeStr !== null ? parseFloat(simTimeStr) : -1;
 
-        // Update Button States
-        playing = d.running;
-        const pBtn = document.getElementById('btn-play');
-        pBtn.textContent = playing ? '⏸ Pause' : '▶ Play';
-        pBtn.className = playing ? 'paused' : '';
+        if (simTime !== _lastSimTime || _lastParsed === null) {
+            // ── New sim tick: parse the full JSON ──────────────────────────
+            const d = await res.json();
+            _lastParsed  = d;
+            _lastSimTime = simTime;
+            nextPoll = 50;   // got fresh data → poll faster
 
-        // Update Skip Overlay
-        const overlay = document.getElementById('skip-overlay');
-        if (d.skip_progress !== null) {
-            overlay.style.display = 'flex';
-            document.getElementById('skip-progress').textContent = (d.skip_progress * 100).toFixed(1) + '%';
-        } else {
-            overlay.style.display = 'none';
-        }
+            document.getElementById('s-time').textContent = d.time_label;
+            document.getElementById('s-flood').textContent = d.telemetry.flooded_cells;
+            document.getElementById('s-depth').textContent = d.telemetry.max_depth.toFixed(2) + ' m';
+            document.getElementById('s-vol').textContent = d.telemetry.total_vol_m3.toFixed(1) + ' m³';
 
-        // Update Sliders if not dragging
-        currentRain = d.rainfall_mmhr;
-        document.getElementById('val-rain').textContent = Math.round(currentRain);
-        document.getElementById('slider-rain').value = currentRain;
+            const errSpan = document.getElementById('s-err');
+            errSpan.textContent = d.telemetry.mb_error_pct.toFixed(2) + '%';
+            errSpan.style.color = d.telemetry.mb_error_pct > 1.0 ? '#e74c3c' : '#2ecc71';
 
-        // Snapshots dropdown
-        const sel = document.getElementById('sel-snapshot');
-        const currentOpts = Array.from(sel.options).map(o=>o.value);
-        if (d.snapshots.length === 0) {
-            sel.innerHTML = '<option value="">-- No Snapshots Yet --</option>';
-        } else {
-            if (currentOpts.join() !== d.snapshots.map(s=>s.time).join()) {
-                sel.innerHTML = d.snapshots.map(s => `<option value="${s.time}">${s.label}</option>`).join('');
-                sel.value = d.snapshots[d.snapshots.length-1].time;
+            // Button state
+            playing = d.running;
+            const pBtn = document.getElementById('btn-play');
+            pBtn.textContent = playing ? '⏸ Pause' : '▶ Play';
+            pBtn.className = playing ? 'paused' : '';
+
+            // Skip overlay
+            const overlay = document.getElementById('skip-overlay');
+            if (d.skip_progress !== null) {
+                overlay.style.display = 'flex';
+                document.getElementById('skip-progress').textContent = (d.skip_progress * 100).toFixed(1) + '%';
+            } else {
+                overlay.style.display = 'none';
             }
-        }
 
-        // Apply Water Depth — update geometry + DataTexture (flat 1D array)
-        if (waterMesh && d.water_depth) {
-            const pos = waterMesh.geometry.attributes.position.array;
-            const flatDepth = d.water_depth;
-            const total = nx * ny;
-            let anyWet = false;
-            for (let i = 0; i < total; i++) {
-                const val = flatDepth[i];
-                if (val > 0) anyWet = true;
-                waterDepthData[i] = val;
-                pos[i * 3 + 1] = terrainElev[i] + val;
-            }
-            waterDepthTex.needsUpdate = true;
-            waterMesh.geometry.attributes.position.needsUpdate = true;
-            // Respect the layer-visibility checkbox — don't override user's choice
-            const waterChk = document.getElementById('chk-water');
-            waterMesh.visible = anyWet && (!waterChk || waterChk.checked);
-        }
+            // Rain slider
+            currentRain = d.rainfall_mmhr;
+            document.getElementById('val-rain').textContent = Math.round(currentRain);
+            document.getElementById('slider-rain').value = currentRain;
 
-        // ── Live pipe color update ───────────────────────────────────────
-        if (d.pipes) {
-            d.pipes.forEach(p => {
-                const entry = pipeMeshMap[p.id];
-                if (!entry) return;
-                const col = new THREE.Color(blockageColor(p.blockage));
-                // Selected pipe glows white-ish; others follow blockage color
-                if (selectedPipeId === p.id) {
-                    entry.mesh.material.color.set(0xffffff);
-                    entry.mesh.material.emissiveIntensity = 0.5;
-                } else {
-                    entry.mesh.material.color.copy(col);
-                    entry.mesh.material.emissiveIntensity = 0.0;
+            // Snapshots dropdown
+            const sel = document.getElementById('sel-snapshot');
+            const currentOpts = Array.from(sel.options).map(o=>o.value);
+            if (d.snapshots.length === 0) {
+                sel.innerHTML = '<option value="">-- No Snapshots Yet --</option>';
+            } else {
+                if (currentOpts.join() !== d.snapshots.map(s=>s.time).join()) {
+                    sel.innerHTML = d.snapshots.map(s => `<option value="${s.time}">${s.label}</option>`).join('');
+                    sel.value = d.snapshots[d.snapshots.length-1].time;
                 }
-                entry.mesh.material.emissive.copy(col);
-                // Update inspector panel if this pipe is selected
-                if (selectedPipeId === p.id) {
-                    document.getElementById('pi-block-pct').textContent = p.blockage.toFixed(1) + '%';
-                    document.getElementById('pi-flow').textContent = p.flow >= 0
-                        ? `${p.flow.toFixed(4)} m³/s`
-                        : `⬆ ${Math.abs(p.flow).toFixed(4)} m³/s (rev)`;
-                    // Update fill bar
-                    const fill = document.getElementById('pi-fill');
-                    fill.style.width = p.blockage + '%';
-                    fill.style.background = p.blockage >= 80 ? '#e74c3c'
-                                          : p.blockage >= 50 ? '#e67e22'
-                                          : p.blockage >= 20 ? '#f1c40f'
-                                          : '#2ecc71';
-                    // Keep slider in sync only if user isn't dragging
-                    if (!piSliderDragging) {
-                        document.getElementById('pi-slider').value = p.blockage;
-                        document.getElementById('pi-blockage-val').textContent = p.blockage.toFixed(0) + '%';
-                    }
-                }
-            });
-        }
-
-        // ── Barangay SitRep Dashboard Update ─────────────────────────────
-        if (d.sitrep) {
-            const s = d.sitrep;
-            const kpiRainDur = document.getElementById('kpi-rain-dur');
-            const kpiRainRate = document.getElementById('kpi-rain-rate');
-            const kpiBrgyPct = document.getElementById('kpi-brgy-pct');
-            const kpiBrgyCells = document.getElementById('kpi-brgy-cells');
-            const kpiFloodedCount = document.getElementById('kpi-flooded-count');
-            const kpiPeakDepth = document.getElementById('kpi-peak-depth');
-            const kpiPeakFt = document.getElementById('kpi-peak-ft');
-
-            if (kpiRainDur) kpiRainDur.textContent = s.rain_duration_label;
-            if (kpiRainRate) kpiRainRate.textContent = Math.round(d.rainfall_mmhr) + ' mm/hr';
-            if (kpiBrgyPct) {
-                kpiBrgyPct.textContent = s.brgy_flooded_pct.toFixed(1) + '%';
-                kpiBrgyPct.style.color = s.brgy_flooded_pct > 30 ? '#ff6b6b' : (s.brgy_flooded_pct > 10 ? '#f1c40f' : '#ffffff');
             }
-            if (kpiBrgyCells) kpiBrgyCells.textContent = s.brgy_flooded_cells.toLocaleString() + ' cells';
-            if (kpiFloodedCount) kpiFloodedCount.textContent = `${s.flooded_zones_count} / ${s.total_zones_count}`;
-            if (kpiPeakDepth) kpiPeakDepth.textContent = s.highest_peak_depth.toFixed(2) + ' m';
-            if (kpiPeakFt) kpiPeakFt.textContent = (s.highest_peak_depth * 3.28084).toFixed(1) + ' ft';
 
-            // Worst-hit area alert box
-            const worstEl = document.getElementById('worst-name');
-            const worstBadge = document.getElementById('worst-badge');
-            const worstBox = document.getElementById('worst-box');
-            if (worstEl && worstBadge) {
-                if (s.highest_peak_depth > 0.05) {
-                    worstEl.textContent = s.worst_zone;
-                    const matchZ = s.zones ? s.zones.find(z => z.name === s.worst_zone) : null;
-                    if (worstBox && matchZ) {
-                        worstBox.title = matchZ.name;
-                    }
-                    if (s.highest_peak_depth >= 0.80) {
-                        worstBadge.className = 'badge badge-CRITICAL';
-                        worstBadge.textContent = 'CRITICAL';
-                    } else if (s.highest_peak_depth >= 0.30) {
-                        worstBadge.className = 'badge badge-WARNING';
-                        worstBadge.textContent = 'WARNING';
+            // ── Water geometry — only when new depth data ─────────────────
+            if (waterMesh && d.water_depth) {
+                const pos = waterMesh.geometry.attributes.position.array;
+                const flatDepth = d.water_depth;
+                const total = nx * ny;
+                let anyWet = false;
+                for (let i = 0; i < total; i++) {
+                    const val = flatDepth[i];
+                    if (val > 0) anyWet = true;
+                    waterDepthData[i] = val;
+                    pos[i * 3 + 1] = terrainElev[i] + val;
+                }
+                waterDepthTex.needsUpdate = true;
+                waterMesh.geometry.attributes.position.needsUpdate = true;
+                const waterChk = document.getElementById('chk-water');
+                waterMesh.visible = anyWet && (!waterChk || waterChk.checked);
+            }
+
+            // ── Pipe colors — only when X-Ray is active ───────────────────
+            const xrayActive = document.getElementById('chk-xray')?.checked;
+            if (xrayActive && d.pipes) {
+                d.pipes.forEach(p => {
+                    const entry = pipeMeshMap[p.id];
+                    if (!entry) return;
+                    const col = new THREE.Color(blockageColor(p.blockage));
+                    if (selectedPipeId === p.id) {
+                        entry.mesh.material.color.set(0xffffff);
+                        entry.mesh.material.emissiveIntensity = 0.5;
                     } else {
-                        worstBadge.className = 'badge badge-ALERT';
-                        worstBadge.textContent = 'ALERT';
+                        entry.mesh.material.color.copy(col);
+                        entry.mesh.material.emissiveIntensity = 0.0;
                     }
-                } else {
-                    worstEl.textContent = 'None (Safe)';
-                    worstBadge.className = 'badge badge-NORMAL';
-                    worstBadge.textContent = 'SAFE';
-                    if (worstBox) worstBox.onclick = null;
-                }
+                    entry.mesh.material.emissive.copy(col);
+                    if (selectedPipeId === p.id) {
+                        document.getElementById('pi-block-pct').textContent = p.blockage.toFixed(1) + '%';
+                        document.getElementById('pi-flow').textContent = p.flow >= 0
+                            ? `${p.flow.toFixed(4)} m³/s`
+                            : `⬆ ${Math.abs(p.flow).toFixed(4)} m³/s (rev)`;
+                        const fill = document.getElementById('pi-fill');
+                        fill.style.width = p.blockage + '%';
+                        fill.style.background = p.blockage >= 80 ? '#e74c3c'
+                                              : p.blockage >= 50 ? '#e67e22'
+                                              : p.blockage >= 20 ? '#f1c40f'
+                                              : '#2ecc71';
+                        if (!piSliderDragging) {
+                            document.getElementById('pi-slider').value = p.blockage;
+                            document.getElementById('pi-blockage-val').textContent = p.blockage.toFixed(0) + '%';
+                        }
+                    }
+                });
             }
 
-            // Update Zones Table (throttled every 250ms for buttery-smooth FPS)
-            const now = Date.now();
-            if (now - _lastTableUpdate > 250) {
-                _lastTableUpdate = now;
-                window._currentZones = s.zones;
-                const tbody = document.getElementById('zone-table-body');
-                if (tbody && s.zones) {
-                    let html = '';
-                    s.zones.forEach(z => {
-                        const badgeClass = `badge-${z.status}`;
-                        const isSel = (window.currentSelectedZoneId === z.id) ? ' selected-zone' : '';
-                        html += `
-                            <tr class="zone-row${isSel}" data-zone-id="${z.id}">
-                                <td>
-                                    <span class="zone-color-dot" style="background:${z.color};"></span>
-                                    <span style="font-weight:600;">${z.name}</span>
-                                </td>
-                                <td style="text-align:right; font-weight:700;">${z.peak_depth.toFixed(2)}m</td>
-                                <td style="text-align:right;">${z.pct_flooded.toFixed(1)}%</td>
-                                <td style="text-align:right;"><span class="badge ${badgeClass}">${z.status}</span></td>
-                            </tr>
-                        `;
+            // ── SitRep dashboard ──────────────────────────────────────────
+            if (d.sitrep) {
+                const s = d.sitrep;
+                const kpiRainDur = document.getElementById('kpi-rain-dur');
+                const kpiRainRate = document.getElementById('kpi-rain-rate');
+                const kpiBrgyPct = document.getElementById('kpi-brgy-pct');
+                const kpiBrgyCells = document.getElementById('kpi-brgy-cells');
+                const kpiFloodedCount = document.getElementById('kpi-flooded-count');
+                const kpiPeakDepth = document.getElementById('kpi-peak-depth');
+                const kpiPeakFt = document.getElementById('kpi-peak-ft');
+                if (kpiRainDur) kpiRainDur.textContent = s.rain_duration_label;
+                if (kpiRainRate) kpiRainRate.textContent = Math.round(d.rainfall_mmhr) + ' mm/hr';
+                if (kpiBrgyPct) {
+                    kpiBrgyPct.textContent = s.brgy_flooded_pct.toFixed(1) + '%';
+                    kpiBrgyPct.style.color = s.brgy_flooded_pct > 30 ? '#ff6b6b' : (s.brgy_flooded_pct > 10 ? '#f1c40f' : '#ffffff');
+                }
+                if (kpiBrgyCells) kpiBrgyCells.textContent = s.brgy_flooded_cells.toLocaleString() + ' cells';
+                if (kpiFloodedCount) kpiFloodedCount.textContent = `${s.flooded_zones_count} / ${s.total_zones_count}`;
+                if (kpiPeakDepth) kpiPeakDepth.textContent = s.highest_peak_depth.toFixed(2) + ' m';
+                if (kpiPeakFt) kpiPeakFt.textContent = (s.highest_peak_depth * 3.28084).toFixed(1) + ' ft';
 
-                        // Update 3D Floating Sprite Label
-                        updateZoneLabel(z.id, z.name, `${z.status} • Peak: ${z.peak_depth.toFixed(2)}m`, z.color);
-                    });
-                    tbody.innerHTML = html;
+                const worstEl = document.getElementById('worst-name');
+                const worstBadge = document.getElementById('worst-badge');
+                const worstBox = document.getElementById('worst-box');
+                if (worstEl && worstBadge) {
+                    if (s.highest_peak_depth > 0.05) {
+                        worstEl.textContent = s.worst_zone;
+                        const matchZ = s.zones ? s.zones.find(z => z.name === s.worst_zone) : null;
+                        if (worstBox && matchZ) worstBox.title = matchZ.name;
+                        if (s.highest_peak_depth >= 0.80) {
+                            worstBadge.className = 'badge badge-CRITICAL'; worstBadge.textContent = 'CRITICAL';
+                        } else if (s.highest_peak_depth >= 0.30) {
+                            worstBadge.className = 'badge badge-WARNING'; worstBadge.textContent = 'WARNING';
+                        } else {
+                            worstBadge.className = 'badge badge-ALERT'; worstBadge.textContent = 'ALERT';
+                        }
+                    } else {
+                        worstEl.textContent = 'None (Safe)';
+                        worstBadge.className = 'badge badge-NORMAL'; worstBadge.textContent = 'SAFE';
+                        if (worstBox) worstBox.onclick = null;
+                    }
+                }
+
+                // Zone table — throttled to 250ms
+                const now = Date.now();
+                if (now - _lastTableUpdate > 250) {
+                    _lastTableUpdate = now;
+                    window._currentZones = s.zones;
+                    const tbody = document.getElementById('zone-table-body');
+                    if (tbody && s.zones) {
+                        let html = '';
+                        s.zones.forEach(z => {
+                            const badgeClass = `badge-${z.status}`;
+                            const isSel = (window.currentSelectedZoneId === z.id) ? ' selected-zone' : '';
+                            html += `
+                                <tr class="zone-row${isSel}" data-zone-id="${z.id}">
+                                    <td>
+                                        <span class="zone-color-dot" style="background:${z.color};"></span>
+                                        <span style="font-weight:600;">${z.name}</span>
+                                    </td>
+                                    <td style="text-align:right; font-weight:700;">${z.peak_depth.toFixed(2)}m</td>
+                                    <td style="text-align:right;">${z.pct_flooded.toFixed(1)}%</td>
+                                    <td style="text-align:right;"><span class="badge ${badgeClass}">${z.status}</span></td>
+                                </tr>
+                            `;
+                            updateZoneLabel(z.id, z.name, `${z.status} • Peak: ${z.peak_depth.toFixed(2)}m`, z.color);
+                        });
+                        tbody.innerHTML = html;
+                    }
                 }
             }
         }
-        
+        // same tick — skip all parsing and rendering work, nothing changed
     } catch(e) { /* server briefly unavailable */ }
-    setTimeout(pollState, 50);   // 20 fps polling — smooth real-time water
+    setTimeout(pollState, nextPoll);
 }
 setTimeout(pollState, 800);
 
