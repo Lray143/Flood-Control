@@ -1321,8 +1321,7 @@ async function pollState() {
                     worstEl.textContent = s.worst_zone;
                     const matchZ = s.zones ? s.zones.find(z => z.name === s.worst_zone) : null;
                     if (worstBox && matchZ) {
-                        worstBox.title = `Click to fly camera to worst-hit community: ${matchZ.name}`;
-                        worstBox.onclick = () => focusOnZone(matchZ.center_x, matchZ.center_y, matchZ.id);
+                        worstBox.title = matchZ.name;
                     }
                     if (s.highest_peak_depth >= 0.80) {
                         worstBadge.className = 'badge badge-CRITICAL';
@@ -1354,7 +1353,7 @@ async function pollState() {
                         const badgeClass = `badge-${z.status}`;
                         const isSel = (window.currentSelectedZoneId === z.id) ? ' selected-zone' : '';
                         html += `
-                            <tr class="zone-row${isSel}" data-zone-id="${z.id}" onclick="focusOnZone(${z.center_x}, ${z.center_y}, '${z.id}')" title="Click to fly camera to ${z.name}">
+                            <tr class="zone-row${isSel}" data-zone-id="${z.id}">
                                 <td>
                                     <span class="zone-color-dot" style="background:${z.color};"></span>
                                     <span style="font-weight:600;">${z.name}</span>
@@ -1462,84 +1461,6 @@ renderer.domElement.addEventListener('click', e => {
         showInspectorAt(e.clientX, e.clientY);
         e.stopPropagation();
         return;
-    }
-
-    // 2. Check if user clicked a 3D Floating Zone Label
-    if (zoneLabelsGroup && zoneLabelsGroup.visible) {
-        const labelHits = raycaster.intersectObjects(zoneLabelsGroup.children, false);
-        if (labelHits.length > 0) {
-            const sprite = labelHits[0].object;
-            if (sprite.userData && sprite.userData.zone) {
-                const z = sprite.userData.zone;
-                focusOnZone(z.center_x, z.center_y, z.id);
-                e.stopPropagation();
-                return;
-            }
-        }
-    }
-
-    // 3. Check if user clicked a Map / Road Label
-    if (mapLabelsGroup && mapLabelsGroup.visible) {
-        const mapHits = raycaster.intersectObjects(mapLabelsGroup.children, false);
-        if (mapHits.length > 0) {
-            const sprite = mapHits[0].object;
-            if (sprite.userData && sprite.userData.label) {
-                const l = sprite.userData.label;
-                let matchedZid = null;
-                if (window.zoneGrid && window.zoneList) {
-                    const lr = Math.max(0, Math.min(ny - 1, Math.round(l.y)));
-                    const lc = Math.max(0, Math.min(nx - 1, Math.round(l.x)));
-                    const zIdx = window.zoneGrid[lr * nx + lc];
-                    if (zIdx >= 0 && zIdx < window.zoneList.length) {
-                        matchedZid = window.zoneList[zIdx].id;
-                    }
-                }
-                const matchZ = (matchedZid && window.zoneList) ? window.zoneList.find(z => z.id === matchedZid) : null;
-                if (matchZ) {
-                    focusOnZone(matchZ.center_x, matchZ.center_y, matchZ.id);
-                } else {
-                    focusOnZone(l.x, l.y, matchedZid);
-                }
-                e.stopPropagation();
-                return;
-            }
-        }
-    }
-
-    // 4. Check if user clicked on Terrain -> Identify and highlight community
-    if (terrainMesh) {
-        const terrainHits = raycaster.intersectObject(terrainMesh, false);
-        if (terrainHits.length > 0) {
-            const pt = terrainHits[0].point;
-            const cx = Math.max(0, Math.min(nx - 1, Math.round(pt.x)));
-            const cz = Math.max(0, Math.min(ny - 1, Math.round(pt.z)));
-            
-            let matchedZone = null;
-            // 1st priority: Exact pixel-perfect zone cell lookup from zone_grid
-            if (window.zoneGrid && window.zoneList) {
-                const zIdx = window.zoneGrid[cz * nx + cx];
-                if (zIdx >= 0 && zIdx < window.zoneList.length) {
-                    matchedZone = window.zoneList[zIdx];
-                }
-            }
-            
-            // 2nd priority fallback if clicked cell is slightly outside boundary
-            if (!matchedZone && window._currentZones) {
-                let minDist = Infinity;
-                window._currentZones.forEach(z => {
-                    const d = Math.hypot(z.center_x - cx, z.center_y - cz);
-                    if (d < minDist) {
-                        minDist = d;
-                        matchedZone = z;
-                    }
-                });
-                if (minDist > 160) matchedZone = null;
-            }
-
-            if (matchedZone) {
-                focusOnZone(matchedZone.center_x, matchedZone.center_y, matchedZone.id);
-            }
-        }
     }
 
     // Click on empty space — deselect pipe
@@ -1917,64 +1838,6 @@ function pulseZoneLabel(zoneId) {
     }, 25);
 }
 
-function highlightZoneRow(zoneId) {
-    window.currentSelectedZoneId = zoneId || null;
-    document.querySelectorAll('.zone-row').forEach(row => {
-        row.classList.remove('selected-zone');
-    });
-    if (!zoneId) return;
-    const targetRow = document.querySelector(`.zone-row[data-zone-id="${zoneId}"]`);
-    if (targetRow) {
-        targetRow.classList.add('selected-zone');
-        targetRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-}
-
-window.focusOnZone = function(cx, cz, zoneId) {
-    // Query exact zone extent for community-adapted framing
-    const zInfo = window.zoneList ? window.zoneList.find(z => z.id === zoneId) : null;
-    let span = 120;
-    let targetX = cx;
-    let targetZ = cz;
-    if (zInfo && zInfo.bounds && zInfo.bounds.length === 4) {
-        const w = zInfo.bounds[2] - zInfo.bounds[0];
-        const h = zInfo.bounds[3] - zInfo.bounds[1];
-        span = Math.max(w, h);
-        targetX = (zInfo.bounds[0] + zInfo.bounds[2]) * 0.5;
-        targetZ = (zInfo.bounds[1] + zInfo.bounds[3]) * 0.5;
-    }
-
-    const r = Math.max(0, Math.min(ny - 1, Math.floor(targetZ)));
-    const c = Math.max(0, Math.min(nx - 1, Math.floor(targetX)));
-    const elev = terrainElev ? (terrainElev[r * nx + c] || 0) : 0;
-
-    const targetPos = new THREE.Vector3();
-    const targetLookAt = new THREE.Vector3();
-
-    if (is2DView) {
-        // Overhead top-down view: comfortably frames community (~65% screen fill)
-        // Keep target Y at 0 to stay in the 2D plane, camera at comfortable overhead altitude
-        const alt = Math.max(220, Math.min(300, span * 1.4));
-        targetLookAt.set(targetX, 0, targetZ);
-        // Standard 0.1 Z offset identical to default 2D setup, completely avoiding gimbal lock
-        targetPos.set(targetX, alt, targetZ + 0.1);
-    } else {
-        // Isometric 3D: clean ~48-degree perspective viewing from south looking down at community
-        const horiz = Math.max(100, Math.min(160, span * 0.80));
-        const height = Math.max(120, Math.min(180, span * 0.95));
-        targetLookAt.set(targetX, elev, targetZ);
-        targetPos.set(targetX, elev + height, targetZ + horiz);
-    }
-
-    flyCameraTo(targetPos, targetLookAt, 650);
-
-    if (zoneId) {
-        highlightZoneRow(zoneId);
-        pulseZoneLabel(zoneId);
-    }
-};
-
-
 // ─── ZONE LABEL FRUSTUM VISIBILITY ───────────────────────────────────
 // Sprites outside (or near the edge of) the camera frustum render
 // at huge/distorted sizes when depthTest=false. Hide them proactively.
@@ -1982,9 +1845,9 @@ const _labelTmpVec = new THREE.Vector3();
 function _updateZoneLabelVisibility() {
     if (!zoneLabelsGroup || !zoneLabelsGroup.visible) return;
     zoneLabelsGroup.children.forEach(sprite => {
-        // If this label is actively pulsing or currently selected, keep it visible
+        // If this label is actively pulsing, keep it visible
         const zid = sprite.userData?.zone?.id;
-        if (zid && (_zonePulseTimers[zid] || zid === window.currentSelectedZoneId)) {
+        if (zid && _zonePulseTimers[zid]) {
             sprite.visible = true;
             return;
         }
