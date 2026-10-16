@@ -1,7 +1,7 @@
 import json
 import sys, os
 sys.path.insert(0, os.path.abspath('.'))
-from src.server import app, state, simulator, get_state, get_terrain
+from src.server import app, state, simulator, _build_state_payload as get_state, get_terrain
 
 print("--- Testing /api/terrain ---")
 terrain = get_terrain()
