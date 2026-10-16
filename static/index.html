@@ -1948,10 +1948,10 @@ window.focusOnZone = function(cx, cz, zoneId) {
     }
 
     if (is2DView) {
-        // Overhead top-down view: altitude scaled to community extent with margin
-        const alt = Math.max(120, Math.min(200, span * 1.15));
-        // Offset slightly in Z (alt * 0.15) to guarantee smooth non-degenerate OrbitControls math
-        targetPos.set(cx, alt, cz + alt * 0.15);
+        // Fixed 80 units above terrain level → shows ~120-unit-wide view (buildings clearly visible)
+        const alt = elev + 80;
+        // Tiny Z offset prevents OrbitControls gimbal lock in strict top-down orientation
+        targetPos.set(cx, alt, cz + 0.5);
     } else {
         // Isometric 3D: clean ~48-degree perspective viewing from south looking down at community
         const horiz = Math.max(70, Math.min(125, span * 0.75));
