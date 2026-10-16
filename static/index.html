@@ -1703,6 +1703,7 @@ function buildZoneLabels(zones) {
         const entry = createTextSprite(z.name, 'Normal • Peak 0.00m', z.color);
         entry.sprite.position.set(cx, elev + 26, cy);
         entry.sprite.userData = { isZoneLabel: true, zone: z };
+        entry.sprite.userData.baseScale = entry.sprite.scale.clone();
         zoneLabelsGroup.add(entry.sprite);
         zoneLabelSprites[z.id] = entry;
     });
@@ -1849,19 +1850,33 @@ function flyCameraTo(targetPos, targetLookAt, durationMs = 650) {
     };
 }
 
+const _zonePulseTimers = {};
+
 function pulseZoneLabel(zoneId) {
     if (!zoneId) return;
     const entry = zoneLabelSprites[zoneId];
     if (!entry || !entry.sprite) return;
-    const origScale = entry.sprite.scale.clone();
+
+    // Cancel any in-progress pulse on this zone to prevent accumulation
+    if (_zonePulseTimers[zoneId]) {
+        clearInterval(_zonePulseTimers[zoneId]);
+        delete _zonePulseTimers[zoneId];
+    }
+
+    // Always restore to canonical base scale before starting a new pulse
+    const base = entry.sprite.userData.baseScale;
+    if (!base) return;
+    entry.sprite.scale.copy(base);
+
     let step = 0;
-    const timer = setInterval(() => {
+    _zonePulseTimers[zoneId] = setInterval(() => {
         step++;
         const factor = 1.0 + 0.25 * Math.sin((step / 12) * Math.PI);
-        entry.sprite.scale.set(origScale.x * factor, origScale.y * factor, 1);
+        entry.sprite.scale.set(base.x * factor, base.y * factor, 1);
         if (step >= 12) {
-            clearInterval(timer);
-            entry.sprite.scale.copy(origScale);
+            clearInterval(_zonePulseTimers[zoneId]);
+            delete _zonePulseTimers[zoneId];
+            entry.sprite.scale.copy(base);
         }
     }, 25);
 }
