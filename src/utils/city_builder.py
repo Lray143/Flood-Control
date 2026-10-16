@@ -401,7 +401,10 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                 "btype":      bname,
             })
 
-    # ── 4. REALISTIC OSM-ALIGNED PIPE NETWORK ────────────────────────────────
+    # ── 4. ROAD-GEOMETRY-FOLLOWING PIPE NETWORK ───────────────────────────────
+    # Manholes are placed at regular intervals ALONG each major road's OSM
+    # centerline, then connected sequentially. This means pipes run parallel
+    # to the road surface, just like real storm drain infrastructure.
     nodes_list = []
     pipes      = []
     inlet_mapping = {}
@@ -419,137 +422,246 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
     osm_network_ok = False
     try:
         import json as _json, os as _os, math as _math
-        from collections import Counter as _Counter
         from scipy.spatial import cKDTree as _KDTree
 
         osm_path = _os.path.join(_os.path.dirname(__file__), '..', '..', 'data', 'roads_osm.json')
         with open(osm_path) as f:
             osm = _json.load(f)
 
-        DRAIN_HW = {'secondary', 'tertiary', 'residential', 'unclassified',
-                    'service', 'secondary_link', 'primary', 'trunk', 'living_street'}
+        # Roads eligible to carry storm drains (major + collector roads)
+        # Ordered by priority: higher priority → larger pipe diameter
+        PIPE_ROADS = {
+            'secondary':      {'diam': 1.20, 'spacing_m': 80},
+            'secondary_link': {'diam': 1.00, 'spacing_m': 80},
+            'primary':        {'diam': 1.40, 'spacing_m': 80},
+            'trunk':          {'diam': 1.40, 'spacing_m': 80},
+            'tertiary':       {'diam': 0.90, 'spacing_m': 100},
+            'residential':    {'diam': 0.60, 'spacing_m': 120},
+            'unclassified':   {'diam': 0.60, 'spacing_m': 120},
+            'living_street':  {'diam': 0.50, 'spacing_m': 150},
+        }
 
-        node_count = _Counter()
-        node_pos   = {}
+        # Snap tolerance: two manholes closer than this (cells) are merged
+        SNAP_DIST = 18   # ~90 m
+
+        # Helper: Euclidean distance in metres between two (lat,lon) points
+        def _haversine_m(lat1, lon1, lat2, lon2):
+            R = 6_371_000.0
+            dlat = _math.radians(lat2 - lat1)
+            dlon = _math.radians(lon2 - lon1)
+            a = (_math.sin(dlat / 2) ** 2 +
+                 _math.cos(_math.radians(lat1)) *
+                 _math.cos(_math.radians(lat2)) *
+                 _math.sin(dlon / 2) ** 2)
+            return 2 * R * _math.asin(_math.sqrt(a))
+
+        # ── Pass 1: walk every eligible road way and sample manhole positions ──
+        # raw_nodes: list of (cx, cy, lat, lon, hw_priority, way_id)
+        raw_nodes   = []   # (cx, cy, lat, lon)
+        raw_segs    = []   # (i_from, i_to, diam, length_m)  — pre-merge indices
+
+        hw_order = list(PIPE_ROADS.keys())
 
         for way in osm['elements']:
             if way.get('type') != 'way':
                 continue
             hw = way.get('tags', {}).get('highway', '')
-            if hw not in DRAIN_HW:
+            if hw not in PIPE_ROADS:
                 continue
-            geom     = way.get('geometry', [])
-            node_ids = way.get('nodes', [])
-            for nid, pt in zip(node_ids, geom):
-                node_count[nid] += 1
-                node_pos[nid] = (pt['lat'], pt['lon'])
+            cfg     = PIPE_ROADS[hw]
+            spacing = cfg['spacing_m']
+            diam    = cfg['diam']
+            geom    = way.get('geometry', [])
+            if len(geom) < 2:
+                continue
 
-        # Keep intersections (shared by 2+ roads) inside bbox
-        raw_pts = []
-        for nid, cnt in node_count.items():
-            if cnt < 2:
-                continue
-            lat, lon = node_pos[nid]
-            if not (LAT_MIN_bb <= lat <= LAT_MAX_bb and
-                    LON_MIN_bb <= lon <= LON_MAX_bb):
-                continue
-            c, r = geo_to_grid_f(lat, lon)
-            if 0 <= c < nx and 0 <= r < ny:
-                if border_mask[int(r), int(c)]:
-                    raw_pts.append((c, r))
+            # Walk the polyline; emit a manhole every `spacing` metres
+            seg_start_idx = len(raw_nodes)
+            acc_dist  = 0.0
+            prev_lat  = geom[0]['lat']
+            prev_lon  = geom[0]['lon']
+            prev_cx, prev_cy = geo_to_grid_f(prev_lat, prev_lon)
 
-        # Cluster nearby intersections → manholes
-        CLUSTER_DIST = 40   # cells = 200 m
-        clusters = []
-        used = [False] * len(raw_pts)
-        for i, pt in enumerate(raw_pts):
-            if used[i]:
-                continue
-            group = [pt]
-            used[i] = True
-            for j in range(i + 1, len(raw_pts)):
-                if used[j]:
-                    continue
-                dx2 = pt[0] - raw_pts[j][0]
-                dy2 = pt[1] - raw_pts[j][1]
-                if _math.sqrt(dx2 * dx2 + dy2 * dy2) < CLUSTER_DIST:
-                    group.append(raw_pts[j])
-                    used[j] = True
-            cx = sum(p[0] for p in group) / len(group)
-            cy = sum(p[1] for p in group) / len(group)
-            clusters.append((cx, cy))
+            # Emit the first node if it's inside the boundary
+            def _emit(lat, lon):
+                cx, cy = geo_to_grid_f(lat, lon)
+                if 0 <= cx < nx and 0 <= cy < ny:
+                    col = max(0, min(nx-1, int(round(cx))))
+                    row = max(0, min(ny-1, int(round(cy))))
+                    if border_mask[row, col]:
+                        raw_nodes.append((cx, cy, lat, lon))
+                        return len(raw_nodes) - 1
+                return None
 
-        # Mark western-most and southern-most existing clusters as outlets
-        # instead of creating artificial nodes outside the boundary
+            last_emit_idx = _emit(prev_lat, prev_lon)
+
+            for pt in geom[1:]:
+                lat, lon = pt['lat'], pt['lon']
+                seg_m = _haversine_m(prev_lat, prev_lon, lat, lon)
+                acc_dist += seg_m
+
+                # Emit intermediate nodes at each `spacing` step
+                while acc_dist >= spacing:
+                    frac = 1.0 - (acc_dist - spacing) / seg_m
+                    mid_lat = prev_lat + frac * (lat - prev_lat)
+                    mid_lon = prev_lon + frac * (lon - prev_lon)
+                    new_idx = _emit(mid_lat, mid_lon)
+                    if new_idx is not None and last_emit_idx is not None:
+                        seg_len = _haversine_m(
+                            raw_nodes[last_emit_idx][2], raw_nodes[last_emit_idx][3],
+                            mid_lat, mid_lon)
+                        raw_segs.append((last_emit_idx, new_idx, diam, max(seg_len, 1.0)))
+                    last_emit_idx = new_idx
+                    acc_dist -= spacing
+
+                prev_lat, prev_lon = lat, lon
+
+            # Always emit the road endpoint
+            end_idx = _emit(geom[-1]['lat'], geom[-1]['lon'])
+            if end_idx is not None and last_emit_idx is not None and end_idx != last_emit_idx:
+                seg_len = _haversine_m(
+                    raw_nodes[last_emit_idx][2], raw_nodes[last_emit_idx][3],
+                    geom[-1]['lat'], geom[-1]['lon'])
+                raw_segs.append((last_emit_idx, end_idx, diam, max(seg_len, 1.0)))
+
+        # ── Pass 2: merge nodes that are within SNAP_DIST of each other ─────
+        if not raw_nodes:
+            raise RuntimeError("No road nodes sampled — check boundary/road data")
+
+        coords_arr = np.array([(n[0], n[1]) for n in raw_nodes])
+        snap_kd    = _KDTree(coords_arr)
+
+        merge_map  = list(range(len(raw_nodes)))  # old_idx → merged_idx
+        visited    = [False] * len(raw_nodes)
+        merged_pts = []   # (cx, cy, lat, lon)
+
+        for i in range(len(raw_nodes)):
+            if visited[i]:
+                continue
+            idxs = snap_kd.query_ball_point(coords_arr[i], SNAP_DIST)
+            group = [j for j in idxs if not visited[j]]
+            # Centroid of the group
+            cx = sum(raw_nodes[j][0] for j in group) / len(group)
+            cy = sum(raw_nodes[j][1] for j in group) / len(group)
+            lat = sum(raw_nodes[j][2] for j in group) / len(group)
+            lon = sum(raw_nodes[j][3] for j in group) / len(group)
+            mid = len(merged_pts)
+            merged_pts.append((cx, cy, lat, lon))
+            for j in group:
+                merge_map[j] = mid
+                visited[j] = True
+
+        # Re-index segments to merged IDs and deduplicate
+        seen_pairs = set()
+        final_segs = []
+        for (a, b, diam, length_m) in raw_segs:
+            ma, mb = merge_map[a], merge_map[b]
+            if ma == mb:
+                continue
+            key = (min(ma, mb), max(ma, mb))
+            if key in seen_pairs:
+                continue
+            seen_pairs.add(key)
+            final_segs.append((ma, mb, diam, length_m))
+
+        # ── Pass 3: build Node objects ───────────────────────────────────────
+        # Outlets: nodes on the barangay boundary edge (within 2 cells of edge)
+        # or nodes that are in the bottom/left quarter of the grid
+        EDGE_MARGIN = 3   # cells from grid edge
         outlet_ids = set()
-        if len(clusters) > 4:
-            # Sort by X to find westernmost
-            sorted_by_x = sorted(enumerate(clusters), key=lambda item: item[1][0])
-            # Sort by Y (higher Y is further south in this grid)
-            sorted_by_y = sorted(enumerate(clusters), key=lambda item: item[1][1], reverse=True)
-            
-            outlet_ids.add(sorted_by_x[0][0])
-            outlet_ids.add(sorted_by_x[1][0])
-            outlet_ids.add(sorted_by_y[0][0])
-            outlet_ids.add(sorted_by_y[1][0])
-        else:
-            for i in range(len(clusters)):
-                outlet_ids.add(i)
+        for idx, (cx, cy, lat, lon) in enumerate(merged_pts):
+            # Near grid edges
+            if cx < EDGE_MARGIN or cx > nx - EDGE_MARGIN:
+                outlet_ids.add(idx)
+                continue
+            if cy < EDGE_MARGIN or cy > ny - EDGE_MARGIN:
+                outlet_ids.add(idx)
+                continue
+            # Near boundary of polygon (check a small ring)
+            col = max(0, min(nx-1, int(round(cx))))
+            row = max(0, min(ny-1, int(round(cy))))
+            ring_ok = False
+            for dr in (-2, -1, 0, 1, 2):
+                for dc in (-2, -1, 0, 1, 2):
+                    rr = max(0, min(ny-1, row+dr))
+                    cc = max(0, min(nx-1, col+dc))
+                    if not border_mask[rr, cc]:
+                        ring_ok = True
+                        break
+                if ring_ok:
+                    break
+            if ring_ok:
+                outlet_ids.add(idx)
 
-        print(f"[city_builder] OSM pipe network: {len(clusters)} manhole nodes "
-              f"({len(outlet_ids)} outlets)")
+        # Keep outlet count reasonable: prefer southernmost and westernmost
+        if len(outlet_ids) > 6:
+            sorted_s = sorted(outlet_ids, key=lambda i: -merged_pts[i][1])[:3]   # south
+            sorted_w = sorted(outlet_ids, key=lambda i:  merged_pts[i][0])[:3]   # west
+            outlet_ids = set(sorted_s + sorted_w)
 
-        # Build Node objects using real terrain elevation for invert depth
-        for idx, (cx, cy) in enumerate(clusters):
-            col = max(0, min(nx - 1, int(round(cx))))
-            row = max(0, min(ny - 1, int(round(cy))))
+        # Ensure at least one outlet
+        if not outlet_ids:
+            westmost = min(range(len(merged_pts)), key=lambda i: merged_pts[i][0])
+            outlet_ids.add(westmost)
+
+        for idx, (cx, cy, lat, lon) in enumerate(merged_pts):
+            col = max(0, min(nx-1, int(round(cx))))
+            row = max(0, min(ny-1, int(round(cy))))
             z_surf = float(elevation[row, col])
             z_inv  = z_surf - 1.5
             nodes_list.append(Node(
-                node_id   = idx,
-                x         = col,
-                y         = row,
-                z_invert  = z_inv,
-                is_outlet = (idx in outlet_ids),
+                node_id    = idx,
+                x          = col,
+                y          = row,
+                z_invert   = z_inv,
+                is_outlet  = (idx in outlet_ids),
                 shaft_area = 2.0,
             ))
 
-        # Connect nodes via K-nearest-neighbor proximity graph
-        K_NEAREST     = 3
-        MAX_CONN_DIST = 150   # cells
-        TRUNK_DIAM    = 1.2
-        SECONDARY_DIAM = 0.9
-        LATERAL_DIAM  = 0.6
+        # ── Pass 4: build Pipe objects ───────────────────────────────────────
+        pipe_id = 0
+        for (ma, mb, diam, length_m) in final_segs:
+            pipes.append(Pipe(
+                pipe_id     = pipe_id,
+                node_in     = ma,
+                node_out    = mb,
+                diameter    = diam,
+                roughness_n = 0.013,
+                length      = max(length_m, 1.0),
+            ))
+            pipe_id += 1
 
-        pipe_id   = 0
-        connected = set()
-        coords    = np.array([(c[0], c[1]) for c in clusters])
-        kd_pipes  = _KDTree(coords)
+        # ── Pass 5: cross-connect isolated sub-networks ─────────────────────
+        # Find any node with no connections and connect it to its nearest neighbor
+        node_degree = {i: 0 for i in range(len(merged_pts))}
+        for p in pipes:
+            node_degree[p.node_in]  += 1
+            node_degree[p.node_out] += 1
 
-        for i in range(len(clusters)):
-            dists, idxs = kd_pipes.query(coords[i], k=K_NEAREST + 1)
-            for dist, j in zip(dists[1:], idxs[1:]):
-                if dist > MAX_CONN_DIST:
-                    continue
-                key = frozenset((i, int(j)))
-                if key in connected:
-                    continue
-                connected.add(key)
-                length_m = float(dist) * dx
-                diam = TRUNK_DIAM if length_m > 400 else (
-                       SECONDARY_DIAM if length_m > 150 else LATERAL_DIAM)
-                pipes.append(Pipe(
-                    pipe_id    = pipe_id,
-                    node_in    = i,
-                    node_out   = int(j),
-                    diameter   = diam,
-                    roughness_n = 0.013,
-                    length     = max(length_m, 1.0),
-                ))
-                pipe_id += 1
+        orphans = [i for i, d in node_degree.items() if d == 0]
+        if orphans and len(merged_pts) > 1:
+            all_coords = np.array([(merged_pts[i][0], merged_pts[i][1])
+                                   for i in range(len(merged_pts))])
+            kd_all = _KDTree(all_coords)
+            for oi in orphans:
+                dists, idxs = kd_all.query(all_coords[oi], k=3)
+                for dist, ni in zip(dists[1:], idxs[1:]):
+                    if ni != oi:
+                        seg_len = float(dist) * dx
+                        pipes.append(Pipe(
+                            pipe_id     = pipe_id,
+                            node_in     = oi,
+                            node_out    = int(ni),
+                            diameter    = 0.60,
+                            roughness_n = 0.013,
+                            length      = max(seg_len, 1.0),
+                        ))
+                        pipe_id += 1
+                        break
 
-        # Demo blockage: first non-outlet secondary/trunk pipe
+        # Demo blockage: first non-outlet secondary/trunk pipe (diameter >= 0.90)
         MAIN_BLOCKAGE = 0
+        SECONDARY_DIAM = 0.90
         for p in pipes:
             ni = nodes_list[p.node_in]
             no = nodes_list[p.node_out]
@@ -558,6 +670,8 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                 p.blockage = 0.95
                 break
 
+        print(f"[city_builder] OSM pipe network: {len(nodes_list)} manhole nodes "
+              f"({len(outlet_ids)} outlets)")
         print(f"[city_builder] {len(pipes)} pipes. Demo blockage -> pipe #{MAIN_BLOCKAGE}")
         osm_network_ok = True
 
@@ -565,6 +679,7 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
         import traceback
         traceback.print_exc()
         print(f"[city_builder] OSM pipe network failed ({e}), using 3x3 fallback")
+
 
     if not osm_network_ok:
         # 3x3 fallback
