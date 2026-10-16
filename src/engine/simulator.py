@@ -44,3 +44,5 @@ class Simulator:
             remaining -= sub_dt
 
         self.state.time += self.dt
+        if self.state.rainfall_rate > 0.0:
+            self.state.rain_duration_sec += self.dt
