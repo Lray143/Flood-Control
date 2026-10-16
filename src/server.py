@@ -65,9 +65,12 @@ for i, z in enumerate(state.zones):
     state.zone_peaks[z["id"]] = 0.0
 
 MAIN_BLOCKAGE_PIPE_ID = city_data["main_blockage_id"]
-_zero_depth_list = [[0.0] * state.grid_shape[1] for _ in range(state.grid_shape[0])]
+_zero_depth_flat = [0.0] * (state.grid_shape[0] * state.grid_shape[1])
 _last_water_depth_time = -1.0
-_last_water_depth_list = None
+_last_water_depth_flat = None
+_last_pipes_time = -1.0
+_pipes_live_cache = None
+_nodes_live_cache = None
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  2. SIMULATION LOOP STATE
@@ -153,6 +156,7 @@ async def physics_loop():
             mb_rain_total = 0.0; mb_drain_total = 0.0
             snapshots.clear()
             _last_water_depth_time = -1.0  # invalidate depth cache
+            _last_water_depth_flat = None
             reset_requested = False
             
         if is_running and not time_skip_running:
@@ -349,37 +353,43 @@ def get_state():
     else:
         rain_dur_label = f"{mins}m"
 
-    # Per-pipe live state (blockage + flow) — used by frontend pipe inspector
-    pipes_live = [
-        {
-            "id":       p.id,
-            "blockage": round(p.blockage * 100, 1),
-            "flow":     round(p.current_flow, 5),
-            "diameter": round(p.diameter, 3),
-        }
-        for p in state.pipes
-    ]
 
-    # Per-node live state (head + volume)
-    nodes_live = [
-        {
-            "id":     n.id,
-            "head":   round(n.head, 3),
-            "volume": round(n.volume, 4),
-        }
-        for n in state.nodes.values()
-    ]
+    import time as _t
+    global _last_water_depth_time, _last_water_depth_flat
+    global _last_pipes_time, _pipes_live_cache, _nodes_live_cache
 
-    global _last_water_depth_time, _last_water_depth_list
-    if state.time == _last_water_depth_time and _last_water_depth_list is not None:
-        depth_payload = _last_water_depth_list
+    # ── Water depth — flat 1D array, memoized per sim tick ──────────────────
+    if state.time == _last_water_depth_time and _last_water_depth_flat is not None:
+        depth_payload = _last_water_depth_flat
     else:
         if max_d <= 0.04:
-            depth_payload = _zero_depth_list
+            depth_payload = _zero_depth_flat
         else:
-            depth_payload = np.where(depth > 0.04, np.round(depth, 2), 0.0).tolist()
+            depth_payload = np.where(depth > 0.04, np.round(depth, 2), 0.0).ravel().tolist()
         _last_water_depth_time = state.time
-        _last_water_depth_list = depth_payload
+        _last_water_depth_flat = depth_payload
+
+    # ── Pipes + nodes — throttled to ~2 Hz (500ms) to cut serialization cost ──
+    now_wall = _t.monotonic()
+    if _pipes_live_cache is None or (now_wall - _last_pipes_time) >= 0.5:
+        _pipes_live_cache = [
+            {
+                "id":       p.id,
+                "blockage": round(p.blockage * 100, 1),
+                "flow":     round(p.current_flow, 5),
+                "diameter": round(p.diameter, 3),
+            }
+            for p in state.pipes
+        ]
+        _nodes_live_cache = [
+            {
+                "id":     n.id,
+                "head":   round(n.head, 3),
+                "volume": round(n.volume, 4),
+            }
+            for n in state.nodes.values()
+        ]
+        _last_pipes_time = now_wall
 
     return {
         "time":           round(state.time, 2),
@@ -387,6 +397,8 @@ def get_state():
         "running":        is_running,
         "speed":          sim_speed,
         "water_depth":    depth_payload,
+        "water_nx":       state.grid_shape[1],
+        "water_ny":       state.grid_shape[0],
         "rainfall_mmhr":  round(state.rainfall_rate * 1000 * 3600, 1),
         "rain_stops_at":  rain_stop_at,
         "skip_progress":  time_skip_progress if time_skip_running else None,
@@ -410,8 +422,8 @@ def get_state():
             "highest_peak_depth": round(worst_peak_depth, 2),
             "zones": zones_stat_sorted
         },
-        "pipes":          pipes_live,
-        "nodes":          nodes_live,
+        "pipes":          _pipes_live_cache,
+        "nodes":          _nodes_live_cache,
         "snapshots":      [{"time": s["time"], "label": s["label"]} for s in snapshots],
     }
 
@@ -589,18 +601,18 @@ def rewind(req: RewindRequest):
         if int_id in state.nodes:
             state.nodes[int_id].volume = vol
     # Pause so user can inspect the restored state
-    global is_running, _last_water_depth_time, _last_water_depth_list
+    global is_running, _last_water_depth_time, _last_water_depth_flat
     _last_water_depth_time = -1.0
-    _last_water_depth_list = None
+    _last_water_depth_flat = None
     is_running = False
     return {"ok": True, "restored_to": best["time"], "label": best["label"]}
 
 # ── Reset ─────────────────────────────────────────────────────────────────────
 @app.post("/api/reset")
 def reset():
-    global rain_stop_at, mb_rain_total, mb_drain_total, _last_water_depth_time, _last_water_depth_list
+    global rain_stop_at, mb_rain_total, mb_drain_total, _last_water_depth_time, _last_water_depth_flat
     _last_water_depth_time = -1.0
-    _last_water_depth_list = None
+    _last_water_depth_flat = None
     state.water_depth[:] = 0.0
     if hasattr(state, 'velocity_x'): state.velocity_x[:] = 0.0
     if hasattr(state, 'velocity_y'): state.velocity_y[:] = 0.0

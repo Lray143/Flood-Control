@@ -1231,20 +1231,17 @@ async function pollState() {
             }
         }
 
-        // Apply Water Depth — update geometry + DataTexture
+        // Apply Water Depth — update geometry + DataTexture (flat 1D array)
         if (waterMesh && d.water_depth) {
-            const VISUAL_SCALE = 1.0;
             const pos = waterMesh.geometry.attributes.position.array;
             const flatDepth = d.water_depth;
+            const total = nx * ny;
             let anyWet = false;
-            for(let r=0; r<ny; r++){
-                for(let c=0; c<nx; c++){
-                    const i = r*nx + c;
-                    const val = flatDepth[r][c];
-                    if(val > 0) anyWet = true;
-                    waterDepthData[i] = val;
-                    pos[i*3+1] = terrainElev[i] + (val * VISUAL_SCALE);
-                }
+            for (let i = 0; i < total; i++) {
+                const val = flatDepth[i];
+                if (val > 0) anyWet = true;
+                waterDepthData[i] = val;
+                pos[i * 3 + 1] = terrainElev[i] + val;
             }
             waterDepthTex.needsUpdate = true;
             waterMesh.geometry.attributes.position.needsUpdate = true;
