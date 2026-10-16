@@ -35,32 +35,19 @@ A physics-based, dual-domain urban flood simulation digital twin for **Barangay 
 ## 1. System Architecture
 
 ```mermaid
-flowchart TD
-    subgraph GIS["1. Geospatial Synthesis Pipeline"]
-        DEM["SRTM 30m Real DEM\nbarangay168_dem.tif"] --> Spline["Bilinear Spline Rasterizer\n690 x 380 Grid (dx = 5.0m)"]
-        OSM["OpenStreetMap Conduits\nroads_osm.json"] --> Spline
-        Poly["Official Barangay Boundary\nbrgy168.geojson"] --> Spline
-        Spline --> SurfaceMesh["Topographic Matrix\nz(x, y), Roughness n, Road Mask"]
-        Spline --> ConduitGraph["Subsurface Graph\n143 Manholes + 145 Conduits"]
-    end
-
-    subgraph Engine["2. Dual-Domain Numerical Physics (Python / Numba JIT)"]
-        Precip["Atmospheric Inflow\nP(t) (mm/hr)"] --> SurfaceEngine
-        Infil["Green-Ampt Infiltration\nf_inf(x, y)"] --> SurfaceEngine
-        SurfaceEngine["2D Diffusive Wave Engine\nsurface.py (Numba Parallel)"] <-->|Dual-Domain Orifice Coupling| PipeEngine
-        PipeEngine["1D Saint-Venant Conduit Model\nunderground.py (Manning Flow)"]
-        PipeEngine --> Outfalls["4 Catchment Outfalls\n(Discharge to River Network)"]
-        Clock["Paced Sub-stepping Clock\nsimulator.py (Adaptive CFL)"] --> SurfaceEngine
-        Clock --> PipeEngine
-    end
-
-    subgraph Client["3. WebGL Digital Twin (Three.js / FastAPI)"]
-        Engine --> Server["server.py\nJSON Cache (80ms throttle)"]
-        Server --> Poll["HTTP State Sync\n(100ms / 10 Hz)"]
-        Poll --> ThreeWater["Dynamic Water Elevation Mesh\n(PlaneGeometry + Uniforms)"]
-        Poll --> ThreePipes["X-Ray 3D Hydraulic Conduits\n(Flow & Blockage Colormaps)"]
-        Poll --> SitRepHUD["Emergency SitRep HUD\n(8 Community Subdivision Cards)"]
-    end
+graph TD
+    A["1. Geospatial Data Pipeline\n• SRTM 30m Digital Elevation Model\n• OpenStreetMap Road Vectors (1,965 segments)\n• Official Barangay 168 Boundary Polygon"] --> B["2. Procedural City Builder (city_builder.py)\n• 690 × 380 Grid (dx = 5.0m, 93,531 active cells)\n• 143 Manhole Junctions + 145 Concrete Pipes\n• 9,971 Buildings + 1,749 Trees + 4 River Outfalls"]
+    
+    B --> C["3. 2D Surface Overland Flow (surface.py)\n• Diffusive-wave shallow water equations (Numba JIT)\n• Green-Ampt soil infiltration (5 mm/hr; roads 0 mm/hr)\n• Adaptive volumetric flux limiter (F_cap = 10%)"]
+    
+    B --> D["4. 1D Pipe Conduit Hydraulics (underground.py)\n• Gravity flow via Manning's conduit equation\n• Dynamic pipe blockage throttling (0 - 100%)\n• Bidirectional backwater flow & 4 river outfalls"]
+    
+    C <-->|"Dual-Domain Coupling\n• Street curb inlets: Q = Cd · A · √(2gh)\n• Surcharge geysering with 10% grate damping"| D
+    
+    C --> E["5. Simulation Server & Cache (server.py)\n• Calibrated time-stepping: 1× real-time to 10000×\n• State payload serialization throttled to 12.5 Hz"]
+    D --> E
+    
+    E --> F["6. 3D WebGL Digital Twin (index.html)\n• Three.js dynamic water elevation surface mesh\n• X-Ray underground hydraulic network visualization\n• Live emergency SitRep subdivision cards"]
 ```
 
 ---
