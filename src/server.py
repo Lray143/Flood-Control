@@ -317,11 +317,13 @@ def _build_state_payload() -> dict:
             pct_flooded = round((z_flood_count / max(1, z["cell_count"])) * 100.0, 1)
         else:
             cur_max = cur_mean = peak = pct_flooded = 0.0
-        if peak >= 0.80:   status, status_desc = "CRITICAL", "Waist to Overhead"
-        elif peak >= 0.30: status, status_desc = "WARNING",  "Knee to Waist"
-        elif peak >= 0.10: status, status_desc = "ALERT",    "Ankle Deep"
-        else:              status, status_desc = "NORMAL",   "Passable"
-        if pct_flooded > 5.0 or peak >= 0.25: flooded_zones_count += 1
+        # Status badge reflects CURRENT flood severity (not historical peak).
+        # Peak depth is still tracked historically and shown in the Peak column.
+        if cur_max >= 0.80:   status, status_desc = "CRITICAL", "Waist to Overhead"
+        elif cur_max >= 0.30: status, status_desc = "WARNING",  "Knee to Waist"
+        elif cur_max >= 0.10: status, status_desc = "ALERT",    "Ankle Deep"
+        else:                 status, status_desc = "NORMAL",   "Passable"
+        if pct_flooded > 5.0 or cur_max >= 0.25: flooded_zones_count += 1
         if peak > worst_peak_depth:
             worst_peak_depth = peak; worst_zone_name = z["name"]
         zones_stat.append({
