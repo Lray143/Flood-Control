@@ -23,6 +23,7 @@ scripts/test_*.py
 scripts/debug_*.py
 scripts/trace_*.py
 scripts/crop_*.py
+scripts/analyze_roads.py
 scripts/check_all_sides.py
 scripts/find_*.py
 scripts/fit_*.py
