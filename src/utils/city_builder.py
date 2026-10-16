@@ -207,56 +207,56 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                     "name": "Camella Altezza",
                     "type": "Subdivision",
                     "seed_lat": 14.7460, "seed_lon": 121.0080,
-                    "color": "#8e44ad"
+                    "color": "#8c6ca6"   # soft muted lavender
                 },
                 {
                     "id": "nova_romania",
                     "name": "Nova Romania",
                     "type": "Subdivision",
                     "seed_lat": 14.7450, "seed_lon": 121.0120,
-                    "color": "#9b59b6"
+                    "color": "#727bb3"   # soft muted periwinkle
                 },
                 {
                     "id": "alecon_woodridge",
                     "name": "Alecon & Narra (Woodridge)",
                     "type": "Subdivision",
                     "seed_lat": 14.7390, "seed_lon": 121.0110,
-                    "color": "#3498db"
+                    "color": "#5687a8"   # soft dusk ocean blue
                 },
                 {
                     "id": "precious_ruby_natividad",
                     "name": "Precious Ruby & Natividad",
                     "type": "Subdivision",
                     "seed_lat": 14.7385, "seed_lon": 121.0160,
-                    "color": "#e67e22"
+                    "color": "#b57954"   # soft warm terracotta
                 },
                 {
                     "id": "deparo_proper",
                     "name": "Deparo Proper (Sentro)",
                     "type": "Purok / Sentro",
                     "seed_lat": 14.7395, "seed_lon": 121.0205,
-                    "color": "#f1c40f"
+                    "color": "#bfa152"   # soft warm ochre gold
                 },
                 {
                     "id": "sto_thomas_casimiro",
                     "name": "Sto. Thomas & Casimiro",
                     "type": "Subdivision",
                     "seed_lat": 14.7425, "seed_lon": 121.0215,
-                    "color": "#1abc9c"
+                    "color": "#529987"   # soft eucalyptus teal
                 },
                 {
                     "id": "bf_homes_phase3",
                     "name": "BF Homes Phase III",
                     "type": "Subdivision",
                     "seed_lat": 14.7365, "seed_lon": 121.0255,
-                    "color": "#e74c3c"
+                    "color": "#ad5d5d"   # soft dusty rosewood
                 },
                 {
                     "id": "camarin_metrogreen",
                     "name": "Metro Green & Camarin",
                     "type": "Sector / Subdivision",
                     "seed_lat": 14.7425, "seed_lon": 121.0320,
-                    "color": "#2ecc71"
+                    "color": "#5c9668"   # soft sage green
                 }
             ]
 
@@ -338,26 +338,54 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
 
     THEMES = [
         {
+            "name": "suburban_terracotta",
+            "walls": ["#f7f4ee", "#ece6dc", "#e2dbce", "#eae4d8"],
+            "roofs": ["#8e4e44", "#9b584d", "#7d4239", "#a36155"],  # soft warm terracotta clay tile
+        },
+        {
+            "name": "sage_coloroof",
+            "walls": ["#f5f6f3", "#eaece6", "#dfe2da", "#e6e9e1"],
+            "roofs": ["#4e6756", "#5a7462", "#43594a", "#66806e"],  # muted evergreen / sage metal
+        },
+        {
+            "name": "coastal_slate_blue",
+            "walls": ["#f4f6f8", "#eaeef2", "#dfe4e8", "#e5e9ed"],
+            "roofs": ["#4a6174", "#566e82", "#3f5466", "#617b8f"],  # muted dusk petroleum blue
+        },
+        {
+            "name": "earth_sandstone",
+            "walls": ["#f8f6f0", "#ede9df", "#e3ded2", "#eae4d7"],
+            "roofs": ["#8a7155", "#987e61", "#7c6448", "#a3896c"],  # warm sandy ochre / straw tile
+        },
+        {
             "name": "modern_graphite",
-            "walls": ["#f7f7f5", "#edece8", "#e4e3dd", "#eae9e4"],
-            "roofs": ["#4a5568", "#535f73", "#3e4856", "#5a6678"],
+            "walls": ["#f6f6f5", "#ecece9", "#e2e2dd", "#eaeae5"],
+            "roofs": ["#434a56", "#4e5663", "#383e49", "#565e6c"],  # dark architectural graphite
+        },
+        {
+            "name": "weathered_teal",
+            "walls": ["#f3f6f6", "#e7eeee", "#dbe3e3", "#e2ebeb"],
+            "roofs": ["#446768", "#4f7475", "#3a5758", "#5b8182"],  # soft verdigris / patina metal
+        },
+        {
+            "name": "zinc_aluminum",
+            "walls": ["#f4f5f7", "#e9ebef", "#dee1e6", "#e6e8ec"],
+            "roofs": ["#737f8d", "#808c9a", "#67727f", "#8c98a5"],  # galvanized sheet metal
+        },
+        {
+            "name": "dusty_rosewood",
+            "walls": ["#f7f4f5", "#ece7e8", "#e1dcdd", "#eae4e6"],
+            "roofs": ["#784e58", "#855a64", "#6b434c", "#91656f"],  # soft muted burgundy / plum tile
         },
         {
             "name": "warm_slate",
-            "walls": ["#f6f5f1", "#eae8e1", "#e0ded5", "#edebe3"],
-            "roofs": ["#606873", "#515863", "#6c7480", "#484f58"],
-        },
-        {
-            "name": "suburban_terracotta",
-            "walls": ["#faf8f5", "#f0ede6", "#e5e1d7", "#f3efe7"],
-            "roofs": ["#8e4e44", "#9b584d", "#7d4239", "#a36155"],  # soft muted terracotta tile
-        },
-        {
-            "name": "zinc_metal",
-            "walls": ["#f4f6f8", "#e8ebed", "#dde1e4", "#edf0f2"],
-            "roofs": ["#728191", "#647280", "#808f9f", "#5b6875"],  # galvanized sheet roofing
+            "walls": ["#f6f5f2", "#eae8e2", "#dfddd5", "#edebe3"],
+            "roofs": ["#5c6570", "#4f5762", "#68727d", "#454d57"],  # neutral basalt / slate
         },
     ]
+
+    flat_parapet_roofs = ["#828c98", "#8f99a5", "#77808c", "#9aa4b0", "#6d7681"]
+    commercial_walls = ["#f2f4f7", "#e6e9ee", "#dbe0e6", "#edf0f4"]
 
     rng = np.random.default_rng(42)
     bldg_grid = np.zeros((ny, nx), dtype=bool)
@@ -439,8 +467,15 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                                 btype = "residential"
                                 roof_type = "hip" if rng.random() > 0.40 else "flat"
 
-                            wall_col = theme["walls"][int(rng.integers(0, len(theme["walls"])))]
-                            roof_col = theme["roofs"][int(rng.integers(0, len(theme["roofs"])))]
+                            # 70% primary road theme, 30% individual lot variety from complementary themes
+                            lot_theme = theme if rng.random() < 0.70 else THEMES[int(rng.integers(0, len(THEMES)))]
+
+                            if roof_type == "flat" and is_arterial:
+                                roof_col = flat_parapet_roofs[int(rng.integers(0, len(flat_parapet_roofs)))]
+                                wall_col = commercial_walls[int(rng.integers(0, len(commercial_walls)))]
+                            else:
+                                wall_col = lot_theme["walls"][int(rng.integers(0, len(lot_theme["walls"])))]
+                                roof_col = lot_theme["roofs"][int(rng.integers(0, len(lot_theme["roofs"])))]
 
                             buildings.append({
                                 "x": round(float(bx), 2),
@@ -462,10 +497,11 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
             c = int(rng.integers(5, nx - 5))
             if not road_mask[r, c] and border_mask[r, c] and not bldg_grid[r-1:r+2, c-1:c+2].any():
                 bldg_grid[r, c] = True
+                lot_theme = THEMES[int(rng.integers(0, len(THEMES)))]
                 buildings.append({
                     "x": c, "y": r,
                     "width": 1.8, "depth": 2.0, "height": 1.4, "rot": 0.0,
-                    "color": "#f5f5f4", "roof_color": "#535f73",
+                    "color": lot_theme["walls"][0], "roof_color": lot_theme["roofs"][0],
                     "roof_type": "hip", "btype": "residential"
                 })
 
@@ -812,32 +848,32 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
 
     RAW_MAP_LABELS = [
         # ── Major Road Labels ──
-        {'name': 'Kabatuhan Rd', 'type': 'road', 'icon': '🛣️', 'lat': 14.7410, 'lon': 121.0150, 'color': '#34495e'},
-        {'name': 'Deparo Rd (Sentro)', 'type': 'road', 'icon': '🛣️', 'lat': 14.7402, 'lon': 121.0252, 'color': '#34495e'},
-        {'name': 'Camarin Rd', 'type': 'road', 'icon': '🛣️', 'lat': 14.7420, 'lon': 121.0333, 'color': '#34495e'},
-        {'name': 'Teofilo Samson Ave', 'type': 'road', 'icon': '🛣️', 'lat': 14.7370, 'lon': 121.0225, 'color': '#34495e'},
-        {'name': 'Narra Street', 'type': 'road', 'icon': '🛣️', 'lat': 14.7372, 'lon': 121.0135, 'color': '#34495e'},
-        {'name': 'Saint Mary St (Altezza)', 'type': 'road', 'icon': '🛣️', 'lat': 14.7460, 'lon': 121.0075, 'color': '#34495e'},
-        {'name': 'Nova Romania Main Rd', 'type': 'road', 'icon': '🛣️', 'lat': 14.7450, 'lon': 121.0118, 'color': '#34495e'},
-        {'name': 'Sto. Thomas Extension', 'type': 'road', 'icon': '🛣️', 'lat': 14.7415, 'lon': 121.0200, 'color': '#34495e'},
+        {'name': 'Kabatuhan Rd', 'type': 'road', 'icon': '🛣️', 'lat': 14.7410, 'lon': 121.0150, 'color': '#3f4f61'},
+        {'name': 'Deparo Rd (Sentro)', 'type': 'road', 'icon': '🛣️', 'lat': 14.7402, 'lon': 121.0252, 'color': '#3f4f61'},
+        {'name': 'Camarin Rd', 'type': 'road', 'icon': '🛣️', 'lat': 14.7420, 'lon': 121.0333, 'color': '#3f4f61'},
+        {'name': 'Teofilo Samson Ave', 'type': 'road', 'icon': '🛣️', 'lat': 14.7370, 'lon': 121.0225, 'color': '#3f4f61'},
+        {'name': 'Narra Street', 'type': 'road', 'icon': '🛣️', 'lat': 14.7372, 'lon': 121.0135, 'color': '#3f4f61'},
+        {'name': 'Saint Mary St (Altezza)', 'type': 'road', 'icon': '🛣️', 'lat': 14.7460, 'lon': 121.0075, 'color': '#3f4f61'},
+        {'name': 'Nova Romania Main Rd', 'type': 'road', 'icon': '🛣️', 'lat': 14.7450, 'lon': 121.0118, 'color': '#3f4f61'},
+        {'name': 'Sto. Thomas Extension', 'type': 'road', 'icon': '🛣️', 'lat': 14.7415, 'lon': 121.0200, 'color': '#3f4f61'},
 
         # ── Civic, Commercial & Institutional Landmarks ──
-        {'name': 'BARANGAY 168 HALL', 'type': 'hall', 'icon': '🏛️', 'lat': 14.7392, 'lon': 121.0185, 'color': '#8e44ad'},
-        {'name': 'Deparo High School', 'type': 'school', 'icon': '🏫', 'lat': 14.7408, 'lon': 121.0102, 'color': '#27ae60'},
-        {'name': 'La Consolacion College Area', 'type': 'school', 'icon': '🎓', 'lat': 14.7436, 'lon': 121.0255, 'color': '#27ae60'},
-        {'name': 'Puregold Deparo', 'type': 'commercial', 'icon': '🛒', 'lat': 14.7412, 'lon': 121.0235, 'color': '#e67e22'},
-        {'name': 'Vicas Market / Cedar Corner', 'type': 'commercial', 'icon': '🏪', 'lat': 14.7450, 'lon': 121.0345, 'color': '#e67e22'},
-        {'name': '168 Firing Range', 'type': 'commercial', 'icon': '🎯', 'lat': 14.7418, 'lon': 121.0085, 'color': '#c0392b'},
+        {'name': 'BARANGAY 168 HALL', 'type': 'hall', 'icon': '🏛️', 'lat': 14.7392, 'lon': 121.0185, 'color': '#8c6ca6'},
+        {'name': 'Deparo High School', 'type': 'school', 'icon': '🏫', 'lat': 14.7408, 'lon': 121.0102, 'color': '#508568'},
+        {'name': 'La Consolacion College Area', 'type': 'school', 'icon': '🎓', 'lat': 14.7436, 'lon': 121.0255, 'color': '#508568'},
+        {'name': 'Puregold Deparo', 'type': 'commercial', 'icon': '🛒', 'lat': 14.7412, 'lon': 121.0235, 'color': '#b87c4a'},
+        {'name': 'Vicas Market / Cedar Corner', 'type': 'commercial', 'icon': '🏪', 'lat': 14.7450, 'lon': 121.0345, 'color': '#b87c4a'},
+        {'name': '168 Firing Range', 'type': 'commercial', 'icon': '🎯', 'lat': 14.7418, 'lon': 121.0085, 'color': '#ad584e'},
 
         # ── Residential Communities & Subdivisions ──
-        {'name': 'Camella Altezza', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7462, 'lon': 121.0082, 'color': '#2980b9'},
-        {'name': 'Nova Romania', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7445, 'lon': 121.0122, 'color': '#2980b9'},
-        {'name': 'Alecon / Woodridge', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7390, 'lon': 121.0110, 'color': '#2980b9'},
-        {'name': 'Precious Ruby Homes', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7390, 'lon': 121.0165, 'color': '#2980b9'},
-        {'name': 'Sto. Thomas Village', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7422, 'lon': 121.0205, 'color': '#2980b9'},
-        {'name': 'Casimiro Townhomes', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7428, 'lon': 121.0225, 'color': '#2980b9'},
-        {'name': 'BF Homes Phase 3', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7365, 'lon': 121.0255, 'color': '#2980b9'},
-        {'name': 'Metro Green Village', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7435, 'lon': 121.0318, 'color': '#2980b9'},
+        {'name': 'Camella Altezza', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7462, 'lon': 121.0082, 'color': '#8c6ca6'},
+        {'name': 'Nova Romania', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7445, 'lon': 121.0122, 'color': '#727bb3'},
+        {'name': 'Alecon / Woodridge', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7390, 'lon': 121.0110, 'color': '#5687a8'},
+        {'name': 'Precious Ruby Homes', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7390, 'lon': 121.0165, 'color': '#b57954'},
+        {'name': 'Sto. Thomas Village', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7422, 'lon': 121.0205, 'color': '#529987'},
+        {'name': 'Casimiro Townhomes', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7428, 'lon': 121.0225, 'color': '#529987'},
+        {'name': 'BF Homes Phase 3', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7365, 'lon': 121.0255, 'color': '#ad5d5d'},
+        {'name': 'Metro Green Village', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7435, 'lon': 121.0318, 'color': '#5c9668'},
     ]
 
     map_labels = []

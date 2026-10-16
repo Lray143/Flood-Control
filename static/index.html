@@ -1446,10 +1446,10 @@ function drawBorderLine(d) {
         }
         const geo = new THREE.BufferGeometry().setFromPoints(points);
         const mat = new THREE.LineBasicMaterial({
-            color: 0xff2d20,
+            color: 0xdc4c40,      // tasteful modern cartographic crimson
             linewidth: 3,
             transparent: true,
-            opacity: 1.0,
+            opacity: 0.95,
             depthTest: false
         });
         borderMesh = new THREE.LineLoop(geo, mat);
@@ -1473,7 +1473,7 @@ function drawBorderLine(d) {
         }
         if(points.length > 0) {
             const geo = new THREE.BufferGeometry().setFromPoints(points);
-            const mat = new THREE.PointsMaterial({ color: 0xff3b30, size: 2.0, sizeAttenuation: false });
+            const mat = new THREE.PointsMaterial({ color: 0xdc4c40, size: 2.0, sizeAttenuation: false });
             borderMesh = new THREE.Points(geo, mat);
             borderMesh.userData = { isBorder: true };
             scene.add(borderMesh);
@@ -1504,11 +1504,11 @@ function drawZoneBorders(d) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pointBuf, 3));
     const mat = new THREE.PointsMaterial({
-        color: 0xf9e400,      // bright yellow — clearly visible against terrain
-        size: 2.0,
+        color: 0xd6ba70,      // soft warm champagne gold — elegant community dividing lines
+        size: 1.8,
         sizeAttenuation: false,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.82,
         depthTest: false       // always on top of terrain
     });
     zoneBorderLines = new THREE.Points(geo, mat);
