@@ -33,7 +33,7 @@ app = FastAPI(title="Flood Control Simulation")
 # ═══════════════════════════════════════════════════════════════════════════════
 #  1. WORLD SETUP
 # ═══════════════════════════════════════════════════════════════════════════════
-city_data = build_procedural_city(nx=660, ny=360, dx=5.0)
+city_data = build_procedural_city(nx=690, ny=380, dx=5.0)
 
 state = SimulationState(grid_shape=city_data["grid_shape"], dx=city_data["dx"])
 state.elevation       = city_data["elevation"]
@@ -52,6 +52,17 @@ state.infiltration_rate[~road_mask]  = 4e-6    # ~15 mm/hr
 # Wire boundary mask from GeoJSON (if loaded)
 if city_data.get("border_mask") is not None:
     state.border_mask = np.array(city_data["border_mask"], dtype=bool)
+    state.brgy_cell_count = int(np.sum(state.border_mask))
+else:
+    state.brgy_cell_count = state.grid_shape[0] * state.grid_shape[1]
+
+state.zones = city_data.get("zones", [])
+state.zone_grid = city_data.get("zone_grid", None)
+state.zone_masks = {}
+for i, z in enumerate(state.zones):
+    if state.zone_grid is not None:
+        state.zone_masks[z["id"]] = (state.zone_grid == i)
+    state.zone_peaks[z["id"]] = 0.0
 
 MAIN_BLOCKAGE_PIPE_ID = city_data["main_blockage_id"]
 
@@ -132,6 +143,8 @@ async def physics_loop():
         if reset_requested:
             state.water_depth[:] = 0.0
             state.time = 0.0
+            state.rain_duration_sec = 0.0
+            for z in state.zones: state.zone_peaks[z["id"]] = 0.0
             for node in state.nodes.values(): node.volume = 0.0
             for pipe in state.pipes: pipe.current_flow = 0.0
             mb_rain_total = 0.0; mb_drain_total = 0.0
@@ -153,13 +166,15 @@ async def physics_loop():
             # snapshot
             if state.time - _last_snap_time >= SNAPSHOT_INTERVAL:
                 snap = {
-                    "time":      round(state.time, 1),
-                    "label":     _fmt_time(state.time),
-                    "depth":     state.water_depth.copy(),
-                    "node_vols": {k: v.volume for k, v in state.nodes.items()},
-                    "rainfall":  state.rainfall_rate,
-                    "mb_rain":   mb_rain_total,
-                    "mb_drain":  mb_drain_total,
+                    "time":       round(state.time, 1),
+                    "label":      _fmt_time(state.time),
+                    "depth":      state.water_depth.copy(),
+                    "node_vols":  {k: v.volume for k, v in state.nodes.items()},
+                    "rainfall":   state.rainfall_rate,
+                    "rain_dur":   state.rain_duration_sec,
+                    "zone_peaks": dict(state.zone_peaks),
+                    "mb_rain":    mb_rain_total,
+                    "mb_drain":   mb_drain_total,
                 }
                 snapshots.append(snap)
                 if len(snapshots) > MAX_SNAPSHOTS:
@@ -217,6 +232,10 @@ def get_terrain():
                               "blockage": p.blockage, "diameter": p.diameter}
                              for p in state.pipes],
         "main_blockage_id": MAIN_BLOCKAGE_PIPE_ID,
+        "zones":            city_data.get("zones", []),
+        "brgy_border":      city_data.get("brgy_border", []),
+        "zone_borders":     city_data.get("zone_borders", []),
+        "map_labels":       city_data.get("map_labels", []),
     }
 
 # ── Network summary (lightweight — no grid data) ──────────────────────────────
@@ -246,6 +265,82 @@ def get_state():
     # Mass-balance error
     expected_in_system = mb_rain_total - mb_drain_total
     mb_error = abs(total_vol - expected_in_system) / max(expected_in_system, 1e-9) * 100.0
+
+    # ── Barangay SitRep & Zoning (High-Accuracy Real-Time Telemetry) ──────────
+    brgy_total = max(1, state.brgy_cell_count)
+    if state.border_mask is not None:
+        brgy_flooded_cells = int(((depth > 0.10) & state.border_mask).sum())
+    else:
+        brgy_flooded_cells = int((depth > 0.10).sum())
+    brgy_flooded_pct = round((brgy_flooded_cells / brgy_total) * 100.0, 1)
+
+    zones_stat = []
+    flooded_zones_count = 0
+    worst_zone_name = "None"
+    worst_peak_depth = 0.0
+
+    for z in state.zones:
+        z_id = z["id"]
+        mask = state.zone_masks.get(z_id)
+        if mask is not None:
+            z_depths = depth[mask]
+            cur_max = float(z_depths.max()) if len(z_depths) > 0 else 0.0
+            cur_mean = float(z_depths.mean()) if len(z_depths) > 0 else 0.0
+            peak = max(state.zone_peaks.get(z_id, 0.0), cur_max)
+            state.zone_peaks[z_id] = peak
+            z_flood_count = int((z_depths > 0.10).sum())
+            pct_flooded = round((z_flood_count / max(1, z["cell_count"])) * 100.0, 1)
+        else:
+            cur_max = 0.0
+            cur_mean = 0.0
+            peak = 0.0
+            pct_flooded = 0.0
+
+        if peak >= 0.80:
+            status = "CRITICAL"
+            status_desc = "Waist to Overhead"
+        elif peak >= 0.30:
+            status = "WARNING"
+            status_desc = "Knee to Waist"
+        elif peak >= 0.10:
+            status = "ALERT"
+            status_desc = "Ankle Deep"
+        else:
+            status = "NORMAL"
+            status_desc = "Passable"
+
+        if pct_flooded > 5.0 or peak >= 0.25:
+            flooded_zones_count += 1
+
+        if peak > worst_peak_depth:
+            worst_peak_depth = peak
+            worst_zone_name = z["name"]
+
+        zones_stat.append({
+            "id": z_id,
+            "name": z["name"],
+            "type": z["type"],
+            "color": z["color"],
+            "center_x": z["center_x"],
+            "center_y": z["center_y"],
+            "area_ha": z["area_ha"],
+            "current_depth": round(cur_max, 2),
+            "mean_depth": round(cur_mean, 2),
+            "peak_depth": round(peak, 2),
+            "pct_flooded": pct_flooded,
+            "status": status,
+            "status_desc": status_desc,
+        })
+
+    # Sort zones: highest peak depth / flooded first
+    zones_stat_sorted = sorted(zones_stat, key=lambda x: (x["peak_depth"], x["pct_flooded"]), reverse=True)
+
+    hrs = int(state.rain_duration_sec // 3600)
+    mins = int((state.rain_duration_sec % 3600) // 60)
+    if hrs > 0:
+        rain_dur_label = f"{hrs}h {mins:02d}m"
+    else:
+        rain_dur_label = f"{mins}m"
 
     # Per-pipe live state (blockage + flow) — used by frontend pipe inspector
     pipes_live = [
@@ -283,6 +378,19 @@ def get_state():
             "flooded_cells": flooded_cells,
             "blockage":     round(state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage * 100, 1),
             "mb_error_pct": round(mb_error, 2),
+        },
+        "sitrep": {
+            "barangay_name": "Barangay 168 (Deparo, Caloocan City)",
+            "rain_duration_hours": round(state.rain_duration_sec / 3600.0, 2),
+            "rain_duration_label": rain_dur_label,
+            "is_raining": state.rainfall_rate > 0.0,
+            "brgy_flooded_pct": brgy_flooded_pct,
+            "brgy_flooded_cells": brgy_flooded_cells,
+            "flooded_zones_count": flooded_zones_count,
+            "total_zones_count": len(state.zones),
+            "worst_zone": worst_zone_name,
+            "highest_peak_depth": round(worst_peak_depth, 2),
+            "zones": zones_stat_sorted
         },
         "pipes":          pipes_live,
         "nodes":          nodes_live,
@@ -455,6 +563,9 @@ def rewind(req: RewindRequest):
     state.water_depth[:] = best["depth"]
     state.time           = best["time"]
     state.rainfall_rate  = best.get("rainfall", state.rainfall_rate)
+    state.rain_duration_sec = best.get("rain_dur", 0.0)
+    if "zone_peaks" in best:
+        state.zone_peaks = dict(best["zone_peaks"])
     for nid, vol in best["node_vols"].items():
         int_id = int(nid)           # JSON turns int keys → strings; convert back
         if int_id in state.nodes:
@@ -473,6 +584,8 @@ def reset():
     if hasattr(state, 'velocity_y'): state.velocity_y[:] = 0.0
     state.time           = 0.0
     state.rainfall_rate  = 0.0
+    state.rain_duration_sec = 0.0
+    for z in state.zones: state.zone_peaks[z["id"]] = 0.0
     rain_stop_at         = None
     mb_rain_total        = 0.0
     mb_drain_total       = 0.0
