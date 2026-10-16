@@ -10,6 +10,50 @@ __pycache__/
 # Generated output files
 flood_heatmap_snapshot.png
 
+# Scratch / diagnostic outputs from boundary and zone dev work
+data/*.bak
+data/brgy168_*.geojson
+data/namria_*.geojson
+data/osm_brgy16*.json
+data/relation_*.json
+data/dots_im2.json
+data/roads_osm_backup.json
+scripts/*.png
+scripts/test_*.py
+scripts/debug_*.py
+scripts/trace_*.py
+scripts/crop_*.py
+scripts/check_all_sides.py
+scripts/find_*.py
+scripts/fit_*.py
+scripts/apply_*.py
+scripts/build_*.py
+scripts/calc_*.py
+scripts/cluster_*.py
+scripts/compare_*.py
+scripts/create_*.py
+scripts/detect_*.py
+scripts/extract_*.py
+scripts/index_*.py
+scripts/inspect_comp_bounds.py
+scripts/inspect_east.py
+scripts/inspect_gaps.py
+scripts/inspect_img.py
+scripts/inspect_relation.py
+scripts/inspect_se_junction.py
+scripts/locate_*.py
+scripts/plot_comps.py
+scripts/plot_dots_vs_current.py
+scripts/plot_labels.py
+scripts/robust_*.py
+scripts/save_geojson.py
+scripts/side_by_side_comparison.py
+scripts/splice_*.py
+scripts/assemble_*.py
+scripts/align_*.py
+scripts/check_validity.py
+scripts/chain_components.py
+
 
 # C extensions
 *.so
