@@ -206,21 +206,21 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                     "id": "camella_altezza",
                     "name": "Camella Altezza",
                     "type": "Subdivision",
-                    "seed_lat": 14.7460, "seed_lon": 121.0075,
+                    "seed_lat": 14.7460, "seed_lon": 121.0080,
                     "color": "#8e44ad"
                 },
                 {
                     "id": "nova_romania",
                     "name": "Nova Romania",
                     "type": "Subdivision",
-                    "seed_lat": 14.7450, "seed_lon": 121.0118,
+                    "seed_lat": 14.7450, "seed_lon": 121.0120,
                     "color": "#9b59b6"
                 },
                 {
-                    "id": "bf_homes_alecon",
-                    "name": "BF Homes Phase III",
+                    "id": "alecon_woodridge",
+                    "name": "Alecon & Narra (Woodridge)",
                     "type": "Subdivision",
-                    "seed_lat": 14.7395, "seed_lon": 121.0112,
+                    "seed_lat": 14.7390, "seed_lon": 121.0110,
                     "color": "#3498db"
                 },
                 {
@@ -241,21 +241,21 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                     "id": "sto_thomas_casimiro",
                     "name": "Sto. Thomas & Casimiro",
                     "type": "Subdivision",
-                    "seed_lat": 14.7425, "seed_lon": 121.0210,
+                    "seed_lat": 14.7425, "seed_lon": 121.0215,
                     "color": "#1abc9c"
                 },
                 {
-                    "id": "dolmar_golden_hills",
-                    "name": "Dolmar Golden Hills",
+                    "id": "bf_homes_phase3",
+                    "name": "BF Homes Phase III",
                     "type": "Subdivision",
-                    "seed_lat": 14.7395, "seed_lon": 121.0260,
+                    "seed_lat": 14.7365, "seed_lon": 121.0255,
                     "color": "#e74c3c"
                 },
                 {
                     "id": "camarin_metrogreen",
                     "name": "Metro Green & Camarin",
                     "type": "Sector / Subdivision",
-                    "seed_lat": 14.7420, "seed_lon": 121.0315,
+                    "seed_lat": 14.7425, "seed_lon": 121.0320,
                     "color": "#2ecc71"
                 }
             ]
@@ -832,11 +832,11 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
         # ── Residential Communities & Subdivisions ──
         {'name': 'Camella Altezza', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7462, 'lon': 121.0082, 'color': '#2980b9'},
         {'name': 'Nova Romania', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7445, 'lon': 121.0122, 'color': '#2980b9'},
-        {'name': 'BF Homes Phase 3', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7395, 'lon': 121.0115, 'color': '#2980b9'},
+        {'name': 'Alecon / Woodridge', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7390, 'lon': 121.0110, 'color': '#2980b9'},
         {'name': 'Precious Ruby Homes', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7390, 'lon': 121.0165, 'color': '#2980b9'},
         {'name': 'Sto. Thomas Village', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7422, 'lon': 121.0205, 'color': '#2980b9'},
         {'name': 'Casimiro Townhomes', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7428, 'lon': 121.0225, 'color': '#2980b9'},
-        {'name': 'Dolmar Golden Hills', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7410, 'lon': 121.0268, 'color': '#2980b9'},
+        {'name': 'BF Homes Phase 3', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7365, 'lon': 121.0255, 'color': '#2980b9'},
         {'name': 'Metro Green Village', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7435, 'lon': 121.0318, 'color': '#2980b9'},
     ]
 

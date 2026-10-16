@@ -159,6 +159,11 @@ button:hover { filter:brightness(1.15); }
     margin: 0 12px 10px; padding: 8px 10px; border-radius: 8px;
     background: rgba(231, 76, 60, 0.12); border: 1px solid rgba(231, 76, 60, 0.35);
     display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; transition: background 0.15s, transform 0.15s;
+}
+.worst-box:hover {
+    background: rgba(231, 76, 60, 0.22);
+    transform: translateY(-1px);
 }
 .worst-label { font-size: 9.5px; color: #e74c3c; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 .worst-name { font-size: 11.5px; color: #fff; font-weight: 600; margin-top: 2px; }
@@ -181,6 +186,10 @@ button:hover { filter:brightness(1.15); }
 }
 .zone-row { cursor: pointer; transition: background 0.15s; }
 .zone-row:hover { background: rgba(93, 173, 226, 0.15); }
+.zone-row.selected-zone {
+    background: rgba(93, 173, 226, 0.28) !important;
+    outline: 1px solid rgba(93, 173, 226, 0.7);
+}
 .zone-color-dot {
     display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px;
 }
@@ -1181,9 +1190,15 @@ async function pollState() {
             // Worst-hit area alert box
             const worstEl = document.getElementById('worst-name');
             const worstBadge = document.getElementById('worst-badge');
+            const worstBox = document.getElementById('worst-box');
             if (worstEl && worstBadge) {
                 if (s.highest_peak_depth > 0.05) {
                     worstEl.textContent = s.worst_zone;
+                    const matchZ = s.zones ? s.zones.find(z => z.name === s.worst_zone) : null;
+                    if (worstBox && matchZ) {
+                        worstBox.title = `Click to fly camera to worst-hit community: ${matchZ.name}`;
+                        worstBox.onclick = () => focusOnZone(matchZ.center_x, matchZ.center_y, matchZ.id);
+                    }
                     if (s.highest_peak_depth >= 0.80) {
                         worstBadge.className = 'badge badge-CRITICAL';
                         worstBadge.textContent = 'CRITICAL';
@@ -1198,6 +1213,7 @@ async function pollState() {
                     worstEl.textContent = 'None (Safe)';
                     worstBadge.className = 'badge badge-NORMAL';
                     worstBadge.textContent = 'SAFE';
+                    if (worstBox) worstBox.onclick = null;
                 }
             }
 
@@ -1205,13 +1221,14 @@ async function pollState() {
             const now = Date.now();
             if (now - _lastTableUpdate > 250) {
                 _lastTableUpdate = now;
+                window._currentZones = s.zones;
                 const tbody = document.getElementById('zone-table-body');
                 if (tbody && s.zones) {
                     let html = '';
                     s.zones.forEach(z => {
                         const badgeClass = `badge-${z.status}`;
                         html += `
-                            <tr class="zone-row" onclick="focusOnZone(${z.center_x}, ${z.center_y})" title="Click to fly camera to ${z.name}">
+                            <tr class="zone-row" data-zone-id="${z.id}" onclick="focusOnZone(${z.center_x}, ${z.center_y}, '${z.id}')" title="Click to fly camera to ${z.name}">
                                 <td>
                                     <span class="zone-color-dot" style="background:${z.color};"></span>
                                     <span style="font-weight:600;">${z.name}</span>
@@ -1290,15 +1307,27 @@ function showInspectorAt(screenX, screenY) {
     panel.style.top  = ly + 'px';
 }
 
-// Click to select pipe
+let pointerDownPos = { x: 0, y: 0 };
+renderer.domElement.addEventListener('pointerdown', e => {
+    pointerDownPos.x = e.clientX;
+    pointerDownPos.y = e.clientY;
+});
+
+// Click to select pipe, area, or landmark
 renderer.domElement.addEventListener('click', e => {
     // Ignore clicks on the UI panels
     if (e.target !== renderer.domElement) return;
 
-    pointer.x =  (e.clientX / window.innerWidth)  * 2 - 1;
-    pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    // Ignore mouse drags (orbit/pan)
+    const dragDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+    if (dragDist > 6) return;
+
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+    pointer.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
 
+    // 1. Check if user clicked a Pipe
     const hits = raycaster.intersectObjects(pipeClickables, false);
     if (hits.length > 0) {
         const hit = hits[0];
@@ -1306,10 +1335,64 @@ renderer.domElement.addEventListener('click', e => {
         selectPipe(pid);
         showInspectorAt(e.clientX, e.clientY);
         e.stopPropagation();
-    } else {
-        // Click on empty space — deselect
-        selectPipe(null);
+        return;
     }
+
+    // 2. Check if user clicked a 3D Floating Zone Label
+    if (zoneLabelsGroup && zoneLabelsGroup.visible) {
+        const labelHits = raycaster.intersectObjects(zoneLabelsGroup.children, false);
+        if (labelHits.length > 0) {
+            const sprite = labelHits[0].object;
+            if (sprite.userData && sprite.userData.zone) {
+                const z = sprite.userData.zone;
+                focusOnZone(z.center_x, z.center_y, z.id);
+                e.stopPropagation();
+                return;
+            }
+        }
+    }
+
+    // 3. Check if user clicked a Map / Road Label
+    if (mapLabelsGroup && mapLabelsGroup.visible) {
+        const mapHits = raycaster.intersectObjects(mapLabelsGroup.children, false);
+        if (mapHits.length > 0) {
+            const sprite = mapHits[0].object;
+            if (sprite.userData && sprite.userData.label) {
+                const l = sprite.userData.label;
+                focusOnZone(l.x, l.y, l.name);
+                e.stopPropagation();
+                return;
+            }
+        }
+    }
+
+    // 4. Check if user clicked on Terrain -> Identify and highlight community
+    if (terrainMesh) {
+        const terrainHits = raycaster.intersectObject(terrainMesh, false);
+        if (terrainHits.length > 0) {
+            const pt = terrainHits[0].point;
+            const cx = Math.max(0, Math.min(nx - 1, Math.round(pt.x)));
+            const cz = Math.max(0, Math.min(ny - 1, Math.round(pt.z)));
+            let nearestZone = null;
+            let minDist = Infinity;
+            if (window._currentZones) {
+                window._currentZones.forEach(z => {
+                    const d = Math.hypot(z.center_x - cx, z.center_y - cz);
+                    if (d < minDist) {
+                        minDist = d;
+                        nearestZone = z;
+                    }
+                });
+            }
+            if (nearestZone && minDist < 160) {
+                highlightZoneRow(nearestZone.id);
+                pulseZoneLabel(nearestZone.id);
+            }
+        }
+    }
+
+    // Click on empty space — deselect pipe
+    selectPipe(null);
 });
 
 // Inspector controls
@@ -1496,6 +1579,7 @@ function buildZoneLabels(zones) {
 
         const entry = createTextSprite(z.name, 'Normal • Peak 0.00m', z.color);
         entry.sprite.position.set(cx, elev + 26, cy);
+        entry.sprite.userData = { isZoneLabel: true, zone: z };
         zoneLabelsGroup.add(entry.sprite);
         zoneLabelSprites[z.id] = entry;
     });
@@ -1612,23 +1696,87 @@ function buildMapLabels(labels) {
         const sprite = createMapLabelSprite(l.name, l.icon, l.type, l.color);
         const yOffset = (l.type === 'hall') ? 22 : ((l.type === 'road') ? 5 : 13);
         sprite.position.set(cx, elev + yOffset, cy);
+        sprite.userData = { isMapLabel: true, label: l };
         mapLabelsGroup.add(sprite);
     });
 }
 
-window.focusOnZone = function(cx, cz) {
+let cameraTween = null;
+
+function flyCameraTo(targetPos, targetLookAt, durationMs = 650) {
+    const startPos = camera.position.clone();
+    const startLookAt = controls.target.clone();
+    const startTime = performance.now();
+
+    cameraTween = {
+        update: (now) => {
+            const elapsed = now - startTime;
+            const progress = Math.min(1.0, elapsed / durationMs);
+            // Smooth ease-out cubic curve
+            const ease = 1 - Math.pow(1 - progress, 3);
+
+            camera.position.lerpVectors(startPos, targetPos, ease);
+            controls.target.lerpVectors(startLookAt, targetLookAt, ease);
+            controls.update();
+
+            if (progress >= 1.0) {
+                cameraTween = null;
+            }
+        }
+    };
+}
+
+function pulseZoneLabel(zoneId) {
+    if (!zoneId) return;
+    const entry = zoneLabelSprites[zoneId];
+    if (!entry || !entry.sprite) return;
+    const origScale = entry.sprite.scale.clone();
+    let step = 0;
+    const timer = setInterval(() => {
+        step++;
+        const factor = 1.0 + 0.25 * Math.sin((step / 12) * Math.PI);
+        entry.sprite.scale.set(origScale.x * factor, origScale.y * factor, 1);
+        if (step >= 12) {
+            clearInterval(timer);
+            entry.sprite.scale.copy(origScale);
+        }
+    }, 25);
+}
+
+function highlightZoneRow(zoneId) {
+    document.querySelectorAll('.zone-row').forEach(row => {
+        row.classList.remove('selected-zone');
+    });
+    if (!zoneId) return;
+    const targetRow = document.querySelector(`.zone-row[data-zone-id="${zoneId}"]`);
+    if (targetRow) {
+        targetRow.classList.add('selected-zone');
+        targetRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+window.focusOnZone = function(cx, cz, zoneId) {
     const r = Math.max(0, Math.min(ny - 1, Math.floor(cz)));
     const c = Math.max(0, Math.min(nx - 1, Math.floor(cx)));
     const elev = terrainElev ? (terrainElev[r * nx + c] || 0) : 0;
-    controls.target.set(cx, elev, cz);
+
+    const targetLookAt = new THREE.Vector3(cx, elev, cz);
+    const targetPos = new THREE.Vector3();
+
     if (is2DView) {
-        // Keep overhead height; just pan the camera X/Z to zone center
-        camera.position.set(cx, camera.position.y, cz);
+        // Overhead 2D top-down: keep altitude, add 0.1 in Z to prevent OrbitControls vertical gimbal lock
+        targetPos.set(cx, Math.min(350, camera.position.y), cz + 0.1);
     } else {
-        // Isometric-style: above and slightly behind the zone
-        camera.position.set(cx, elev + 120, cz + 150);
+        // Isometric 3D: comfortable angle looking directly at community center
+        targetPos.set(cx, elev + 95, cz + 130);
     }
-    controls.update();
+
+    flyCameraTo(targetPos, targetLookAt, 650);
+
+    if (zoneId) {
+        highlightZoneRow(zoneId);
+        pulseZoneLabel(zoneId);
+    }
 };
 
 
@@ -1637,14 +1785,19 @@ const clock = new THREE.Clock();
 function animate() {
     requestAnimationFrame(animate);
     const dt = clock.getDelta();
-    controls.update();
-    
+
+    if (cameraTween) {
+        cameraTween.update(performance.now());
+    } else {
+        controls.update();
+    }
+
     if (window.wUni) window.wUni.uTime.value += dt;
     if (rainMesh) {
         rainMesh.material.uniforms.uTime.value += dt;
         rainMesh.material.uniforms.uRain.value = currentRain;
     }
-    
+
     renderer.render(scene, camera);
 }
 animate();
