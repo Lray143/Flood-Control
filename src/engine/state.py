@@ -37,3 +37,12 @@ class SimulationState:
         # ── Underground network ───────────────────────────────────────────────
         self.nodes = {}   # node_id → Node
         self.pipes = []   # list of Pipe
+
+        # ── Zones & Subdivisions ──────────────────────────────────────────────
+        self.zones = []               # list of zone metadata dicts
+        self.zone_grid = None         # (ny, nx) int8 array of zone indices
+        self.zone_masks = {}          # zone_id -> boolean mask
+        self.brgy_cell_count = 0      # total cells inside barangay
+        self.zone_peaks = {}          # zone_id -> historical peak depth (m)
+        self.rain_duration_sec = 0.0  # seconds rainfall has been active
+
