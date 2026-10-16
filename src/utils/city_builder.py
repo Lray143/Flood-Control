@@ -280,8 +280,9 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                 area_ha = area_sqm / 10000.0
                 if cell_count > 0:
                     rows, cols = np.where(z_mask)
-                    mean_c = float(np.mean(cols))
-                    mean_r = float(np.mean(rows))
+                    # Median gives the true central density point of the community
+                    mean_c = float(np.median(cols))
+                    mean_r = float(np.median(rows))
                 else:
                     mean_c, mean_r = float(seeds_xy[i][0]), float(seeds_xy[i][1])
 
@@ -974,7 +975,7 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
         # ── Residential Communities & Subdivisions ──
         {'name': 'Camella Altezza', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7462, 'lon': 121.0082, 'color': '#8c6ca6'},
         {'name': 'Nova Romania', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7445, 'lon': 121.0122, 'color': '#727bb3'},
-        {'name': 'Alecon / Woodridge', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7390, 'lon': 121.0110, 'color': '#5687a8'},
+        {'name': 'Alecon / Woodridge', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7400, 'lon': 121.0114, 'color': '#5687a8'},
         {'name': 'Precious Ruby Homes', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7390, 'lon': 121.0165, 'color': '#b57954'},
         {'name': 'Sto. Thomas Village', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7422, 'lon': 121.0205, 'color': '#529987'},
         {'name': 'Casimiro Townhomes', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7428, 'lon': 121.0225, 'color': '#529987'},

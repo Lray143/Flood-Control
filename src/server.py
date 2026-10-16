@@ -234,6 +234,7 @@ def get_terrain():
                              for p in state.pipes],
         "main_blockage_id": MAIN_BLOCKAGE_PIPE_ID,
         "zones":            city_data.get("zones", []),
+        "zone_grid":        city_data["zone_grid"].tolist() if "zone_grid" in city_data and city_data["zone_grid"] is not None else None,
         "brgy_border":      city_data.get("brgy_border", []),
         "zone_borders":     city_data.get("zone_borders", []),
         "map_labels":       city_data.get("map_labels", []),

@@ -505,6 +505,8 @@ fetch('/api/terrain?t=' + Date.now()).then(r=>r.json()).then(d=>{
     MAIN_BLOCK_ID = d.main_blockage_id;
     terrainElev = new Float32Array(ny*nx);
     for(let i=0; i<ny*nx; i++) terrainElev[i] = d.elevation[Math.floor(i/nx)][i%nx];
+    window.zoneGrid = d.zone_grid ? new Int8Array(d.zone_grid.flat()) : null;
+    window.zoneList = d.zones || [];
 
     buildTerrain(d);
     buildWater();
@@ -1482,7 +1484,16 @@ renderer.domElement.addEventListener('click', e => {
             const sprite = mapHits[0].object;
             if (sprite.userData && sprite.userData.label) {
                 const l = sprite.userData.label;
-                focusOnZone(l.x, l.y, l.name);
+                let matchedZid = null;
+                if (window.zoneGrid && window.zoneList) {
+                    const lr = Math.max(0, Math.min(ny - 1, Math.round(l.y)));
+                    const lc = Math.max(0, Math.min(nx - 1, Math.round(l.x)));
+                    const zIdx = window.zoneGrid[lr * nx + lc];
+                    if (zIdx >= 0 && zIdx < window.zoneList.length) {
+                        matchedZid = window.zoneList[zIdx].id;
+                    }
+                }
+                focusOnZone(l.x, l.y, matchedZid);
                 e.stopPropagation();
                 return;
             }
@@ -1496,20 +1507,32 @@ renderer.domElement.addEventListener('click', e => {
             const pt = terrainHits[0].point;
             const cx = Math.max(0, Math.min(nx - 1, Math.round(pt.x)));
             const cz = Math.max(0, Math.min(ny - 1, Math.round(pt.z)));
-            let nearestZone = null;
-            let minDist = Infinity;
-            if (window._currentZones) {
+            
+            let matchedZone = null;
+            // 1st priority: Exact pixel-perfect zone cell lookup from zone_grid
+            if (window.zoneGrid && window.zoneList) {
+                const zIdx = window.zoneGrid[cz * nx + cx];
+                if (zIdx >= 0 && zIdx < window.zoneList.length) {
+                    matchedZone = window.zoneList[zIdx];
+                }
+            }
+            
+            // 2nd priority fallback if clicked cell is slightly outside boundary
+            if (!matchedZone && window._currentZones) {
+                let minDist = Infinity;
                 window._currentZones.forEach(z => {
                     const d = Math.hypot(z.center_x - cx, z.center_y - cz);
                     if (d < minDist) {
                         minDist = d;
-                        nearestZone = z;
+                        matchedZone = z;
                     }
                 });
+                if (minDist > 160) matchedZone = null;
             }
-            if (nearestZone && minDist < 160) {
-                highlightZoneRow(nearestZone.id);
-                pulseZoneLabel(nearestZone.id);
+
+            if (matchedZone) {
+                highlightZoneRow(matchedZone.id);
+                pulseZoneLabel(matchedZone.id);
             }
         }
     }
@@ -1841,9 +1864,12 @@ function flyCameraTo(targetPos, targetLookAt, durationMs = 650) {
 
             camera.position.lerpVectors(startPos, targetPos, ease);
             controls.target.lerpVectors(startLookAt, targetLookAt, ease);
-            controls.update();
+            camera.lookAt(controls.target);
 
             if (progress >= 1.0) {
+                camera.position.copy(targetPos);
+                controls.target.copy(targetLookAt);
+                controls.update();
                 cameraTween = null;
             }
         }
@@ -1902,11 +1928,25 @@ window.focusOnZone = function(cx, cz, zoneId) {
     const targetPos = new THREE.Vector3();
 
     if (is2DView) {
-        // Overhead 2D top-down: keep altitude, add 0.1 in Z to prevent OrbitControls vertical gimbal lock
-        targetPos.set(cx, Math.min(350, camera.position.y), cz + 0.1);
+        // Overhead 2D top-down: keep altitude 280, add 0.1 in Z to prevent OrbitControls gimbal lock
+        targetPos.set(cx, 280, cz + 0.1);
     } else {
-        // Isometric 3D: comfortable angle looking directly at community center
-        targetPos.set(cx, elev + 95, cz + 130);
+        // Isometric 3D: maintain current viewing angle or comfortable 51-degree pitch looking down at community
+        const offset = camera.position.clone().sub(controls.target);
+        const horizDist = Math.hypot(offset.x, offset.z);
+        const desiredHoriz = 110;
+        const desiredHeight = 140;
+
+        if (horizDist > 1.0) {
+            targetPos.set(
+                cx + (offset.x / horizDist) * desiredHoriz,
+                elev + desiredHeight,
+                cz + (offset.z / horizDist) * desiredHoriz
+            );
+        } else {
+            // Default isometric from south looking north-west
+            targetPos.set(cx, elev + desiredHeight, cz + desiredHoriz);
+        }
     }
 
     flyCameraTo(targetPos, targetLookAt, 650);
