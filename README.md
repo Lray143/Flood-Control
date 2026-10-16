@@ -17,10 +17,11 @@ A physics-based, dual-domain urban flood simulation digital twin for **Barangay 
    - [7. Mass Balance & Conservation of Mass](#7-mass-balance--conservation-of-mass)
 3. [GIS & Urban Infrastructure Pipeline](#gis--urban-infrastructure-pipeline)
 4. [Community Subdivisions (SitRep Zones)](#community-subdivisions-sitrep-zones)
-5. [Directory & File Structure](#directory--file-structure)
-6. [API Specification](#api-specification)
-7. [Getting Started & Installation](#getting-started--installation)
-8. [Engine Verification & Quality Assurance](#engine-verification--quality-assurance)
+5. [Simulation Timing & Fast-Forward Engine](#simulation-timing--fast-forward-engine)
+6. [Directory & File Structure](#directory--file-structure)
+7. [API Specification](#api-specification)
+8. [Getting Started & Installation](#getting-started--installation)
+9. [Engine Verification & Quality Assurance](#engine-verification--quality-assurance)
 
 ---
 
@@ -129,15 +130,27 @@ Where $B_k \in [0, 1]$ is the percentage blockage of connected pipe $k$. When pi
 
 ### 4. Surcharge Backflow (Urban Geysering)
 
-When underground conduits exceed full capacity or backwater pressure builds up, the hydraulic grade line (HGL) at manhole $j$ can exceed the street ground elevation:
+When underground conduits exceed full capacity or backwater pressure builds up, the hydraulic grade line (HGL) at manhole $j$ can exceed both the street ground elevation and the local water surface:
 
 $$\text{HGL}_j = z_{\text{invert}, j} + \frac{V_j}{A_{\text{shaft}, j}}$$
 
-If $\text{HGL}_j > z_{\text{street}} + h_{\text{street}}$, the hydraulic head forces water **upwards out of the manhole onto the street**:
+Water can **only** be pushed upwards onto the street when three physical criteria are simultaneously met:
+1. **Shaft Full to Rim**: $\text{HGL}_j \ge z_{\text{rim}, j}$ (piezometric head reaches the surface manhole rim).
+2. **Piezometric Gradient**: $\text{HGL}_j > z_{\text{street}} + h_{\text{street}}$ (head in shaft exceeds local overland water head).
+3. **Available Stored Water**: $V_j > 10^{-6}\text{ m}^3$.
+
+When active, the upward geysering discharge is calculated via the orifice formula:
 
 $$Q_{\text{surcharge}} = C_d \cdot A_{\text{inlet}} \cdot \sqrt{2g \cdot (\text{HGL}_j - (z_{\text{street}} + h_{\text{street}}))}$$
 
-To preserve conservation of mass, the total surcharge volume leaving a manhole is strictly bounded to $50\%$ of available node storage per sub-step ($\sum V_{\text{surcharge}} \le 0.50 \cdot V_j$), preventing artificial mass creation.
+#### Conservation of Mass & Numerical Damping
+Because multiple grid cells can couple to the same manhole junction, numerical stability and strict mass conservation are guaranteed through two safeguards:
+- **Rim-Excess Volume Cap**: The total water allowed to escape underground storage is strictly limited to the volume physically exceeding the ground rim:
+  $$V_{\text{excess}} = \max\left(0.0, (\text{HGL}_j - z_{\text{rim}, j}) \cdot A_{\text{shaft}, j}\right)$$
+  Subterranean water below the rim cannot spill onto the surface.
+- **Dynamic 10% Grate Damping ($F_{\text{damp}} = 0.10$)**:
+  $$\Delta V_{\text{surcharge}} = \min\left(\sum Q_{\text{surcharge}} \cdot \Delta t, 0.10 \cdot V_{\text{excess}}\right)$$
+  By releasing the excess volume over ~10 consecutive sub-steps, this eliminates discrete numerical ping-pong oscillations (fill $\to$ surface spill $\to$ drain $\to$ refill) and accurately reflects physical flow resistance through iron grate apertures.
 
 ---
 
@@ -244,12 +257,39 @@ Barangay 168 is partitioned into 8 community subdivision zones, each continuousl
 
 ### Severity Classifications
 
+The SitRep dashboard dynamically updates community flood status based on **active, real-time depth** ($h_{\text{current}}$), while the historical maximum is preserved independently in the **Peak Depth** column:
+
 | Classification | Depth Range | Description | Action Required |
 | :--- | :---: | :--- | :--- |
 | 🟢 **NORMAL** | $< 0.10\text{ m}$ | Passable; road gutter flow | Monitoring |
 | 🟡 **ALERT** | $0.10\text{ m} - 0.30\text{ m}$ | Ankle-deep ponding | Traffic advisory |
 | 🟠 **WARNING** | $0.30\text{ m} - 0.80\text{ m}$ | Knee-to-waist deep; light vehicles stalled | Evacuation preparation |
 | 🔴 **CRITICAL** | $\ge 0.80\text{ m}$ | Waist to overhead; structural flooding | Mandatory rescue / evacuation |
+
+> [!NOTE]
+> Once floodwaters recede or drain through the culvert network, affected zones naturally downgrade back to **NORMAL**, while the SitRep Peak column retains the session's historical worst-case metric for engineering reference.
+
+---
+
+## Simulation Timing & Fast-Forward Engine
+
+The engine features calibrated, multi-tier temporal scaling designed for both real-time monitoring and high-speed multi-hour forecast simulation:
+
+| Multiplier | Step Size ($\Delta t$) | Pacing Strategy | Effective Advance Rate | Typical Use Case |
+| :--- | :---: | :--- | :---: | :--- |
+| **$1\times$** | $0.05\text{ s}$ | Paced $20\text{ Hz}$ sleep ($50\text{ ms}$) | $1.0\text{ sim-sec / real-sec}$ | True real-time live monitoring |
+| **$5\times$** | $0.25\text{ s}$ | Paced $20\text{ Hz}$ sleep ($50\text{ ms}$) | $5.0\text{ sim-sec / real-sec}$ | Observational hydrograph review |
+| **$25\times$** | $1.25\text{ s}$ | Paced $20\text{ Hz}$ sleep ($50\text{ ms}$) | $25.0\text{ sim-sec / real-sec}$ | Moderate speed-up |
+| **$100\times$** | $2.00\text{ s}$ | $150\text{ ms}$ wall budget loop | $\approx 60 - 80\times$ | Rapid storm development |
+| **$500\times$** | $5.00\text{ s}$ | $150\text{ ms}$ wall budget loop | $\approx 150 - 200\times$ | Extended rainfall events |
+| **$1000\times - 2000\times$** | $8.00\text{ s}$ | $150\text{ ms}$ wall budget loop | $\approx 250\times$ | Multi-hour flood accumulation |
+| **$5000\times - 10000\times$** | $10.00\text{ s}$ | $150\text{ ms}$ wall budget loop | $> 300\times$ | Fast-forwarding drainage & dry-out |
+
+### Performance & Client Synchronization Optimizations:
+1. **JSON Serialization Throttling ($12.5\text{ Hz}$ / $80\text{ ms}$)**: Prevents CPU oversubscription from high-frequency polling while keeping telemetry fluid.
+2. **Frontend Poll Rate Tuning ($100\text{ ms}$ / $10\text{ Hz}$)**: Eliminates browser garbage collection stutter and main-thread lag over multi-hour simulation runs.
+3. **Canvas 2D Texture Dirty-Checking**: Zone label sprite textures only re-render when text or status changes, eliminating redundant GPU texture uploads.
+4. **Adaptive Snapshot Stride**: Time-scaled snapshot intervals prevent memory bloat at extreme fast-forward speeds.
 
 ---
 
