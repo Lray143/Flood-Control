@@ -1262,38 +1262,47 @@ async function pollState() {
                 waterMesh.visible = anyWet && (!waterChk || waterChk.checked);
             }
 
-            // ── Pipe colors — only when X-Ray is active ───────────────────
-            const xrayActive = document.getElementById('chk-xray')?.checked;
-            if (xrayActive && d.pipes) {
-                d.pipes.forEach(p => {
-                    const entry = pipeMeshMap[p.id];
-                    if (!entry) return;
-                    const col = new THREE.Color(blockageColor(p.blockage));
-                    if (selectedPipeId === p.id) {
-                        entry.mesh.material.color.set(0xffffff);
-                        entry.mesh.material.emissiveIntensity = 0.5;
-                    } else {
-                        entry.mesh.material.color.copy(col);
-                        entry.mesh.material.emissiveIntensity = 0.0;
-                    }
-                    entry.mesh.material.emissive.copy(col);
-                    if (selectedPipeId === p.id) {
-                        document.getElementById('pi-block-pct').textContent = p.blockage.toFixed(1) + '%';
-                        document.getElementById('pi-flow').textContent = p.flow >= 0
-                            ? `${p.flow.toFixed(4)} m³/s`
-                            : `⬆ ${Math.abs(p.flow).toFixed(4)} m³/s (rev)`;
+            // ── Pipe colors & Pipe Inspector updates ──────────────────────
+            if (d.pipes) {
+                // Always update the selected pipe's inspector data if open
+                if (selectedPipeId !== null) {
+                    const sp = d.pipes.find(p => p.id === selectedPipeId);
+                    if (sp) {
+                        document.getElementById('pi-block-pct').textContent = sp.blockage.toFixed(1) + '%';
+                        document.getElementById('pi-flow').textContent = sp.flow >= 0
+                            ? `${sp.flow.toFixed(4)} m³/s`
+                            : `⬆ ${Math.abs(sp.flow).toFixed(4)} m³/s (rev)`;
                         const fill = document.getElementById('pi-fill');
-                        fill.style.width = p.blockage + '%';
-                        fill.style.background = p.blockage >= 80 ? '#e74c3c'
-                                              : p.blockage >= 50 ? '#e67e22'
-                                              : p.blockage >= 20 ? '#f1c40f'
-                                              : '#2ecc71';
+                        if (fill) {
+                            fill.style.width = sp.blockage + '%';
+                            fill.style.background = sp.blockage >= 80 ? '#e74c3c'
+                                                  : sp.blockage >= 50 ? '#e67e22'
+                                                  : sp.blockage >= 20 ? '#f1c40f'
+                                                  : '#2ecc71';
+                        }
                         if (!piSliderDragging) {
-                            document.getElementById('pi-slider').value = p.blockage;
-                            document.getElementById('pi-blockage-val').textContent = p.blockage.toFixed(0) + '%';
+                            document.getElementById('pi-slider').value = sp.blockage;
+                            document.getElementById('pi-blockage-val').textContent = sp.blockage.toFixed(0) + '%';
                         }
                     }
-                });
+                }
+
+                // Update pipe colors when X-Ray (glassMode) is active
+                if (glassMode) {
+                    d.pipes.forEach(p => {
+                        const entry = pipeMeshMap[p.id];
+                        if (!entry) return;
+                        const col = new THREE.Color(blockageColor(p.blockage));
+                        if (selectedPipeId === p.id) {
+                            entry.mesh.material.color.set(0xffffff);
+                            entry.mesh.material.emissiveIntensity = 0.5;
+                        } else {
+                            entry.mesh.material.color.copy(col);
+                            entry.mesh.material.emissiveIntensity = 0.0;
+                        }
+                        entry.mesh.material.emissive.copy(col);
+                    });
+                }
             }
 
             // ── SitRep dashboard ──────────────────────────────────────────
@@ -1404,12 +1413,38 @@ function selectPipe(pipeId) {
     const p = entry.data;
     document.getElementById('pi-id').textContent     = `#${p.id}`;
     document.getElementById('pi-nodes').textContent  = `${p.in} → ${p.out}`;
-    document.getElementById('pi-diam').textContent   = `${p.diameter} m`;
-    document.getElementById('pi-block-pct').textContent = (p.blockage * 100).toFixed(1) + '%';
-    document.getElementById('pi-flow').textContent   = '—';
-    piSlider.value = p.blockage * 100;
-    document.getElementById('pi-blockage-val').textContent = (p.blockage * 100).toFixed(0) + '%';
-    document.getElementById('pi-diam-input').value = p.diameter.toFixed(1);
+
+    // Read live state from _lastParsed if available
+    let curFlow = 0.0;
+    let curBlock = p.blockage * 100;
+    let curDiam = p.diameter;
+    if (_lastParsed && _lastParsed.pipes) {
+        const liveP = _lastParsed.pipes.find(item => item.id === pipeId);
+        if (liveP) {
+            curFlow = liveP.flow;
+            curBlock = liveP.blockage;
+            curDiam = liveP.diameter;
+            p.diameter = curDiam;
+        }
+    }
+
+    document.getElementById('pi-diam').textContent   = `${curDiam.toFixed(1)} m`;
+    document.getElementById('pi-diam-input').value   = curDiam.toFixed(1);
+    document.getElementById('pi-block-pct').textContent = curBlock.toFixed(1) + '%';
+    document.getElementById('pi-flow').textContent   = curFlow >= 0
+        ? `${curFlow.toFixed(4)} m³/s`
+        : `⬆ ${Math.abs(curFlow).toFixed(4)} m³/s (rev)`;
+    piSlider.value = curBlock;
+    document.getElementById('pi-blockage-val').textContent = curBlock.toFixed(0) + '%';
+
+    const fill = document.getElementById('pi-fill');
+    if (fill) {
+        fill.style.width = curBlock + '%';
+        fill.style.background = curBlock >= 80 ? '#e74c3c'
+                              : curBlock >= 50 ? '#e67e22'
+                              : curBlock >= 20 ? '#f1c40f'
+                              : '#2ecc71';
+    }
 
     // Highlight selected
     entry.mesh.material.color.set(0xffffff);
