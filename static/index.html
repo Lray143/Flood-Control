@@ -1722,14 +1722,14 @@ function buildZoneLabels(zones) {
     zoneLabelSprites = {};
 
     zones.forEach(z => {
-        const cx = z.center_x;
-        const cy = z.center_y;
-        const r = Math.max(0, Math.min(ny - 1, Math.floor(cy)));
-        const c = Math.max(0, Math.min(nx - 1, Math.floor(cx)));
+        const lx = (z.bounds && z.bounds.length === 4) ? (z.bounds[0] + z.bounds[2]) * 0.5 : z.center_x;
+        const ly = (z.bounds && z.bounds.length === 4) ? (z.bounds[1] + z.bounds[3]) * 0.5 : z.center_y;
+        const r = Math.max(0, Math.min(ny - 1, Math.floor(ly)));
+        const c = Math.max(0, Math.min(nx - 1, Math.floor(lx)));
         const elev = terrainElev ? (terrainElev[r * nx + c] || 10) : 10;
 
         const entry = createTextSprite(z.name, 'Normal • Peak 0.00m', z.color);
-        entry.sprite.position.set(cx, elev + 26, cy);
+        entry.sprite.position.set(lx, elev + 26, ly);
         entry.sprite.userData = { isZoneLabel: true, zone: z };
         entry.sprite.userData.baseScale = entry.sprite.scale.clone();
         zoneLabelsGroup.add(entry.sprite);
@@ -1931,32 +1931,39 @@ function highlightZoneRow(zoneId) {
 }
 
 window.focusOnZone = function(cx, cz, zoneId) {
-    const r = Math.max(0, Math.min(ny - 1, Math.floor(cz)));
-    const c = Math.max(0, Math.min(nx - 1, Math.floor(cx)));
-    const elev = terrainElev ? (terrainElev[r * nx + c] || 0) : 0;
-
-    const targetLookAt = new THREE.Vector3(cx, elev, cz);
-    const targetPos = new THREE.Vector3();
-
     // Query exact zone extent for community-adapted framing
     const zInfo = window.zoneList ? window.zoneList.find(z => z.id === zoneId) : null;
-    let span = 110;
+    let span = 120;
+    let targetX = cx;
+    let targetZ = cz;
     if (zInfo && zInfo.bounds && zInfo.bounds.length === 4) {
         const w = zInfo.bounds[2] - zInfo.bounds[0];
         const h = zInfo.bounds[3] - zInfo.bounds[1];
         span = Math.max(w, h);
+        targetX = (zInfo.bounds[0] + zInfo.bounds[2]) * 0.5;
+        targetZ = (zInfo.bounds[1] + zInfo.bounds[3]) * 0.5;
     }
 
+    const r = Math.max(0, Math.min(ny - 1, Math.floor(targetZ)));
+    const c = Math.max(0, Math.min(nx - 1, Math.floor(targetX)));
+    const elev = terrainElev ? (terrainElev[r * nx + c] || 0) : 0;
+
+    const targetPos = new THREE.Vector3();
+    const targetLookAt = new THREE.Vector3();
+
     if (is2DView) {
-        // Fixed 80 units above terrain level → shows ~120-unit-wide view (buildings clearly visible)
-        const alt = elev + 80;
-        // Tiny Z offset prevents OrbitControls gimbal lock in strict top-down orientation
-        targetPos.set(cx, alt, cz + 0.5);
+        // Overhead top-down view: comfortably frames community (~65% screen fill)
+        // Keep target Y at 0 to stay in the 2D plane, camera at comfortable overhead altitude
+        const alt = Math.max(220, Math.min(300, span * 1.4));
+        targetLookAt.set(targetX, 0, targetZ);
+        // Standard 0.1 Z offset identical to default 2D setup, completely avoiding gimbal lock
+        targetPos.set(targetX, alt, targetZ + 0.1);
     } else {
         // Isometric 3D: clean ~48-degree perspective viewing from south looking down at community
-        const horiz = Math.max(70, Math.min(125, span * 0.75));
-        const height = Math.max(85, Math.min(150, span * 0.90));
-        targetPos.set(cx, elev + height, cz + horiz);
+        const horiz = Math.max(100, Math.min(160, span * 0.80));
+        const height = Math.max(120, Math.min(180, span * 0.95));
+        targetLookAt.set(targetX, elev, targetZ);
+        targetPos.set(targetX, elev + height, targetZ + horiz);
     }
 
     flyCameraTo(targetPos, targetLookAt, 650);
