@@ -124,20 +124,21 @@ def _physics_batch() -> dict:
     tick_start  = _time.perf_counter()
     mb_rain = mb_drain = 0.0
     n_cells = state.grid_shape[0] * state.grid_shape[1]
+    active_cells = state.brgy_cell_count if getattr(state, "border_mask", None) is not None else n_cells
     area    = state.dx ** 2
 
     while _time.perf_counter() - tick_start < wall_budget:
         if reset_requested:
             break
             
-        vol_before = float(state.water_depth.sum()) * area
+        vol_before = float(state.water_depth.sum()) * area + sum(n.volume for n in state.nodes.values())
         try:
             simulator.step(max_stable_dt=max_dt)
         except Exception:
             import traceback; traceback.print_exc()
             break
-        vol_after  = float(state.water_depth.sum()) * area
-        rain_vol   = state.rainfall_rate * area * n_cells * simulator.dt
+        vol_after  = float(state.water_depth.sum()) * area + sum(n.volume for n in state.nodes.values())
+        rain_vol   = state.rainfall_rate * area * active_cells * simulator.dt
         mb_rain   += rain_vol
         mb_drain  += max(0.0, vol_before - vol_after + rain_vol)
 
@@ -286,8 +287,10 @@ def _build_state_payload() -> dict:
     total_vol     = float(depth.sum()) * state.dx ** 2
     flooded_cells = int((depth > 0.04).sum())
 
-    expected_in = mb_rain_total - mb_drain_total
-    mb_error    = abs(total_vol - expected_in) / max(expected_in, 1e-9) * 100.0
+    total_domain_vol = total_vol + sum(n.volume for n in state.nodes.values())
+    expected_in      = mb_rain_total - mb_drain_total
+    norm_base        = max(mb_rain_total, total_domain_vol, 1.0)
+    mb_error         = abs(total_domain_vol - expected_in) / norm_base * 100.0
 
     brgy_total = max(1, state.brgy_cell_count)
     if state.border_mask is not None:
@@ -449,9 +452,12 @@ class BlockageRequest(BaseModel):
 
 @app.post("/api/pipe/{pipe_id}/blockage")
 def set_pipe_blockage(pipe_id: int, req: BlockageRequest):
+    global _state_json_sim_time, _last_pipes_time
     for p in state.pipes:
         if p.id == pipe_id:
             p.blockage = max(0.0, min(1.0, req.blockage))
+            _state_json_sim_time = -2.0
+            _last_pipes_time = 0.0
             return {"ok": True}
     return {"error": "not found"}, 404
 
@@ -461,6 +467,7 @@ class BulkBlockageRequest(BaseModel):
 
 @app.post("/api/pipes/bulk_blockage")
 def set_bulk_blockage(req: BulkBlockageRequest):
+    global _state_json_sim_time, _last_pipes_time
     block_val = max(0.0, min(1.0, req.blockage))
     updated = 0
     pipe_set = set(req.pipe_ids)
@@ -468,6 +475,8 @@ def set_bulk_blockage(req: BulkBlockageRequest):
         if p.id in pipe_set:
             p.blockage = block_val
             updated += 1
+    _state_json_sim_time = -2.0
+    _last_pipes_time = 0.0
     return {"ok": True, "updated": updated}
 
 # ── Pipe Diameter ─────────────────────────────────────────────────────────────
@@ -476,9 +485,12 @@ class DiameterRequest(BaseModel):
 
 @app.post("/api/pipe/{pipe_id}/diameter")
 def set_pipe_diameter(pipe_id: int, req: DiameterRequest):
+    global _state_json_sim_time, _last_pipes_time
     for p in state.pipes:
         if p.id == pipe_id:
             p.set_diameter(max(0.1, min(5.0, req.diameter)))
+            _state_json_sim_time = -2.0
+            _last_pipes_time = 0.0
             return {"ok": True, "diameter": p.diameter}
     return {"error": "not found"}, 404
 
@@ -488,6 +500,7 @@ class BulkDiameterRequest(BaseModel):
 
 @app.post("/api/pipes/bulk_diameter")
 def set_bulk_diameter(req: BulkDiameterRequest):
+    global _state_json_sim_time, _last_pipes_time
     diam_val = max(0.1, min(5.0, req.diameter))
     updated = 0
     pipe_set = set(req.pipe_ids)
@@ -495,6 +508,8 @@ def set_bulk_diameter(req: BulkDiameterRequest):
         if p.id in pipe_set:
             p.set_diameter(diam_val)
             updated += 1
+    _state_json_sim_time = -2.0
+    _last_pipes_time = 0.0
     return {"ok": True, "updated": updated}
 
 # ── Configure Scenario ────────────────────────────────────────────────────────
