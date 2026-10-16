@@ -6,10 +6,10 @@ from src.server import app, state, simulator, get_state, get_terrain
 print("--- Testing /api/terrain ---")
 terrain = get_terrain()
 assert "zones" in terrain, "zones missing from terrain"
-assert len(terrain["zones"]) == 7, f"Expected 7 zones, got {len(terrain['zones'])}"
+assert len(terrain["zones"]) == 8, f"Expected 8 zones, got {len(terrain['zones'])}"
 assert "brgy_border" in terrain, "brgy_border missing"
 assert "zone_borders" in terrain, "zone_borders missing"
-print(f"Verified 7 zones, {len(terrain['brgy_border'])} border points, {len(terrain['zone_borders'])} line coords.")
+print(f"Verified 8 zones, {len(terrain['brgy_border'])} border points, {len(terrain['zone_borders'])} line coords.")
 
 print("\n--- Testing initial /api/state ---")
 s0 = get_state()
