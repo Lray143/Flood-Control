@@ -14,7 +14,7 @@ flood_heatmap_snapshot.png
 data/*.bak
 data/brgy168_*.geojson
 data/namria_*.geojson
-data/osm_brgy16*.json
+data/osm_brgy*.json
 data/relation_*.json
 data/dots_im2.json
 data/roads_osm_backup.json
