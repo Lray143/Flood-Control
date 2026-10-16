@@ -958,32 +958,32 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
 
     RAW_MAP_LABELS = [
         # ── Major Road Labels ──
-        {'name': 'Kabatuhan Rd', 'type': 'road', 'icon': '🛣️', 'lat': 14.7410, 'lon': 121.0150, 'color': '#3f4f61'},
-        {'name': 'Deparo Rd (Sentro)', 'type': 'road', 'icon': '🛣️', 'lat': 14.7402, 'lon': 121.0252, 'color': '#3f4f61'},
-        {'name': 'Camarin Rd', 'type': 'road', 'icon': '🛣️', 'lat': 14.7420, 'lon': 121.0333, 'color': '#3f4f61'},
-        {'name': 'Teofilo Samson Ave', 'type': 'road', 'icon': '🛣️', 'lat': 14.7370, 'lon': 121.0225, 'color': '#3f4f61'},
-        {'name': 'Narra Street', 'type': 'road', 'icon': '🛣️', 'lat': 14.7372, 'lon': 121.0135, 'color': '#3f4f61'},
-        {'name': 'Saint Mary St (Altezza)', 'type': 'road', 'icon': '🛣️', 'lat': 14.7460, 'lon': 121.0075, 'color': '#3f4f61'},
-        {'name': 'Nova Romania Main Rd', 'type': 'road', 'icon': '🛣️', 'lat': 14.7450, 'lon': 121.0118, 'color': '#3f4f61'},
-        {'name': 'Sto. Thomas Extension', 'type': 'road', 'icon': '🛣️', 'lat': 14.7415, 'lon': 121.0200, 'color': '#3f4f61'},
+        {'name': 'Kabatuhan Rd', 'type': 'road', 'icon': '', 'lat': 14.7410, 'lon': 121.0150, 'color': '#3f4f61'},
+        {'name': 'Deparo Rd (Sentro)', 'type': 'road', 'icon': '', 'lat': 14.7402, 'lon': 121.0252, 'color': '#3f4f61'},
+        {'name': 'Camarin Rd', 'type': 'road', 'icon': '', 'lat': 14.7420, 'lon': 121.0333, 'color': '#3f4f61'},
+        {'name': 'Teofilo Samson Ave', 'type': 'road', 'icon': '', 'lat': 14.7370, 'lon': 121.0225, 'color': '#3f4f61'},
+        {'name': 'Narra Street', 'type': 'road', 'icon': '', 'lat': 14.7372, 'lon': 121.0135, 'color': '#3f4f61'},
+        {'name': 'Saint Mary St (Altezza)', 'type': 'road', 'icon': '', 'lat': 14.7460, 'lon': 121.0075, 'color': '#3f4f61'},
+        {'name': 'Nova Romania Main Rd', 'type': 'road', 'icon': '', 'lat': 14.7450, 'lon': 121.0118, 'color': '#3f4f61'},
+        {'name': 'Sto. Thomas Extension', 'type': 'road', 'icon': '', 'lat': 14.7415, 'lon': 121.0200, 'color': '#3f4f61'},
 
         # ── Civic, Commercial & Institutional Landmarks ──
-        {'name': 'BARANGAY 168 HALL', 'type': 'hall', 'icon': '🏛️', 'lat': 14.7392, 'lon': 121.0185, 'color': '#8c6ca6'},
-        {'name': 'Deparo High School', 'type': 'school', 'icon': '🏫', 'lat': 14.7408, 'lon': 121.0102, 'color': '#508568'},
-        {'name': 'La Consolacion College Area', 'type': 'school', 'icon': '🎓', 'lat': 14.7436, 'lon': 121.0255, 'color': '#508568'},
-        {'name': 'Puregold Deparo', 'type': 'commercial', 'icon': '🛒', 'lat': 14.7412, 'lon': 121.0235, 'color': '#b87c4a'},
-        {'name': 'Vicas Market / Cedar Corner', 'type': 'commercial', 'icon': '🏪', 'lat': 14.7450, 'lon': 121.0345, 'color': '#b87c4a'},
-        {'name': '168 Firing Range', 'type': 'commercial', 'icon': '🎯', 'lat': 14.7418, 'lon': 121.0085, 'color': '#ad584e'},
+        {'name': 'BARANGAY 168 HALL', 'type': 'hall', 'icon': '', 'lat': 14.7392, 'lon': 121.0185, 'color': '#8c6ca6'},
+        {'name': 'Deparo High School', 'type': 'school', 'icon': '', 'lat': 14.7408, 'lon': 121.0102, 'color': '#508568'},
+        {'name': 'La Consolacion College Area', 'type': 'school', 'icon': '', 'lat': 14.7436, 'lon': 121.0255, 'color': '#508568'},
+        {'name': 'Puregold Deparo', 'type': 'commercial', 'icon': '', 'lat': 14.7412, 'lon': 121.0235, 'color': '#b87c4a'},
+        {'name': 'Vicas Market / Cedar Corner', 'type': 'commercial', 'icon': '', 'lat': 14.7450, 'lon': 121.0345, 'color': '#b87c4a'},
+        {'name': '168 Firing Range', 'type': 'commercial', 'icon': '', 'lat': 14.7418, 'lon': 121.0085, 'color': '#ad584e'},
 
         # ── Residential Communities & Subdivisions ──
-        {'name': 'Camella Altezza', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7462, 'lon': 121.0082, 'color': '#8c6ca6'},
-        {'name': 'Nova Romania', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7445, 'lon': 121.0122, 'color': '#727bb3'},
-        {'name': 'Alecon / Woodridge', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7400, 'lon': 121.0114, 'color': '#5687a8'},
-        {'name': 'Precious Ruby Homes', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7390, 'lon': 121.0165, 'color': '#b57954'},
-        {'name': 'Sto. Thomas Village', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7422, 'lon': 121.0205, 'color': '#529987'},
-        {'name': 'Casimiro Townhomes', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7428, 'lon': 121.0225, 'color': '#529987'},
-        {'name': 'BF Homes Phase 3', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7365, 'lon': 121.0255, 'color': '#ad5d5d'},
-        {'name': 'Metro Green Village', 'type': 'residential', 'icon': '🏘️', 'lat': 14.7435, 'lon': 121.0318, 'color': '#5c9668'},
+        {'name': 'Camella Altezza', 'type': 'residential', 'icon': '', 'lat': 14.7462, 'lon': 121.0082, 'color': '#8c6ca6'},
+        {'name': 'Nova Romania', 'type': 'residential', 'icon': '', 'lat': 14.7445, 'lon': 121.0122, 'color': '#727bb3'},
+        {'name': 'Alecon / Woodridge', 'type': 'residential', 'icon': '', 'lat': 14.7400, 'lon': 121.0114, 'color': '#5687a8'},
+        {'name': 'Precious Ruby Homes', 'type': 'residential', 'icon': '', 'lat': 14.7390, 'lon': 121.0165, 'color': '#b57954'},
+        {'name': 'Sto. Thomas Village', 'type': 'residential', 'icon': '', 'lat': 14.7422, 'lon': 121.0205, 'color': '#529987'},
+        {'name': 'Casimiro Townhomes', 'type': 'residential', 'icon': '', 'lat': 14.7428, 'lon': 121.0225, 'color': '#529987'},
+        {'name': 'BF Homes Phase 3', 'type': 'residential', 'icon': '', 'lat': 14.7365, 'lon': 121.0255, 'color': '#ad5d5d'},
+        {'name': 'Metro Green Village', 'type': 'residential', 'icon': '', 'lat': 14.7435, 'lon': 121.0318, 'color': '#5c9668'},
     ]
 
     map_labels = []
