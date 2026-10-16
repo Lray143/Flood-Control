@@ -932,68 +932,121 @@ function updatePipeDiameter(pipeId, newDiameter) {
 function buildBuildings(d) {
     // Filter buildings inside boundary
     const validBuildings = d.buildings.filter(b => {
-        if(d.border_mask && b.y < d.border_mask.length && b.x < d.border_mask[0].length){
-            return d.border_mask[b.y][b.x];
+        const bx = Math.round(b.x);
+        const by = Math.round(b.y);
+        if (d.border_mask && by >= 0 && by < d.border_mask.length && bx >= 0 && bx < d.border_mask[0].length) {
+            return d.border_mask[by][bx];
         }
         return true;
     });
 
-    // 1. Box InstancedMesh for main structures
+    // 1. Box InstancedMesh for main structure walls
     const boxGeo = new THREE.BoxGeometry(1, 1, 1);
     boxGeo.translate(0, 0.5, 0); // origin at bottom
-    const boxMat = new THREE.MeshStandardMaterial({roughness: 0.8});
+    const boxMat = new THREE.MeshStandardMaterial({
+        roughness: 0.85,
+        metalness: 0.05
+    });
     const boxInstanced = new THREE.InstancedMesh(boxGeo, boxMat, validBuildings.length);
     boxInstanced.castShadow = true;
     boxInstanced.receiveShadow = true;
 
-    // 2. Cone InstancedMesh for pitched roofs
-    const pitchedBuildings = validBuildings.filter(b => b.roof_type !== 'flat');
-    const coneGeo = new THREE.ConeGeometry(1, 1, 4);
-    coneGeo.rotateY(Math.PI/4);
-    coneGeo.translate(0, 0.5, 0); // origin at bottom of cone
-    const coneMat = new THREE.MeshStandardMaterial({roughness: 0.9});
-    const coneInstanced = new THREE.InstancedMesh(coneGeo, coneMat, pitchedBuildings.length);
-    coneInstanced.castShadow = true;
+    // 2. Separate pitched (hip) roofs and clean flat parapet roofs
+    const pitchedBuildings = validBuildings.filter(b => b.roof_type === 'hip');
+    const flatBuildings = validBuildings.filter(b => b.roof_type !== 'hip');
+
+    const hipGeo = new THREE.ConeGeometry(1, 1, 4);
+    hipGeo.rotateY(Math.PI / 4);
+    hipGeo.translate(0, 0.5, 0); // origin at bottom of hip roof
+    const hipMat = new THREE.MeshStandardMaterial({
+        roughness: 0.60,
+        metalness: 0.15
+    });
+    const hipInstanced = new THREE.InstancedMesh(hipGeo, hipMat, pitchedBuildings.length);
+    hipInstanced.castShadow = true;
+    hipInstanced.receiveShadow = true;
+
+    const flatRoofGeo = new THREE.BoxGeometry(1, 1, 1);
+    flatRoofGeo.translate(0, 0.5, 0); // origin at bottom of roof slab
+    const flatRoofMat = new THREE.MeshStandardMaterial({
+        roughness: 0.65,
+        metalness: 0.15
+    });
+    const flatInstanced = new THREE.InstancedMesh(flatRoofGeo, flatRoofMat, flatBuildings.length);
+    flatInstanced.castShadow = true;
+    flatInstanced.receiveShadow = true;
 
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
 
     validBuildings.forEach((b, i) => {
-        const h = b.height;
-        const w = b.width;
-        const b_elev = terrainElev[b.y * nx + b.x];
-        
+        const bx = Math.max(0, Math.min(nx - 1, Math.round(b.x)));
+        const by = Math.max(0, Math.min(ny - 1, Math.round(b.y)));
+        const b_elev = terrainElev[by * nx + bx];
+        const w = b.width || 1.8;
+        const d_len = b.depth || w;
+        const h = b.height || 1.4;
+        const rot = b.rot || 0;
+
         dummy.position.set(b.x, b_elev, b.y);
-        dummy.scale.set(w, h, w);
+        dummy.rotation.set(0, rot, 0);
+        dummy.scale.set(w, h, d_len);
         dummy.updateMatrix();
-        
+
         boxInstanced.setMatrixAt(i, dummy.matrix);
         color.setStyle(b.color);
         boxInstanced.setColorAt(i, color);
     });
 
-    let roofIdx = 0;
-    pitchedBuildings.forEach((b) => {
-        const h = b.height;
-        const w = b.width;
-        const b_elev = terrainElev[b.y * nx + b.x];
-        
-        // Roof is scaled w/1.2 wide, 3 tall. positioned at h.
+    pitchedBuildings.forEach((b, idx) => {
+        const bx = Math.max(0, Math.min(nx - 1, Math.round(b.x)));
+        const by = Math.max(0, Math.min(ny - 1, Math.round(b.y)));
+        const b_elev = terrainElev[by * nx + bx];
+        const w = (b.width || 1.8) * 1.05;
+        const d_len = (b.depth || (b.width || 1.8)) * 1.05;
+        const h = b.height || 1.4;
+        const rot = b.rot || 0;
+        const roofH = Math.max(0.35, Math.min(0.65, h * 0.35));
+
         dummy.position.set(b.x, b_elev + h, b.y);
-        dummy.scale.set(w/1.2, 3, w/1.2);
+        dummy.rotation.set(0, rot, 0);
+        dummy.scale.set(w / Math.SQRT2, roofH, d_len / Math.SQRT2);
         dummy.updateMatrix();
-        
-        coneInstanced.setMatrixAt(roofIdx, dummy.matrix);
+
+        hipInstanced.setMatrixAt(idx, dummy.matrix);
         color.setStyle(b.roof_color);
-        coneInstanced.setColorAt(roofIdx, color);
-        roofIdx++;
+        hipInstanced.setColorAt(idx, color);
+    });
+
+    flatBuildings.forEach((b, idx) => {
+        const bx = Math.max(0, Math.min(nx - 1, Math.round(b.x)));
+        const by = Math.max(0, Math.min(ny - 1, Math.round(b.y)));
+        const b_elev = terrainElev[by * nx + bx];
+        const w = (b.width || 1.8) * 1.04;
+        const d_len = (b.depth || (b.width || 1.8)) * 1.04;
+        const h = b.height || 1.4;
+        const rot = b.rot || 0;
+        const slabH = 0.16;
+
+        dummy.position.set(b.x, b_elev + h, b.y);
+        dummy.rotation.set(0, rot, 0);
+        dummy.scale.set(w, slabH, d_len);
+        dummy.updateMatrix();
+
+        flatInstanced.setMatrixAt(idx, dummy.matrix);
+        color.setStyle(b.roof_color);
+        flatInstanced.setColorAt(idx, color);
     });
 
     scene.add(boxInstanced);
     buildingMeshes.push(boxInstanced);
-    if(pitchedBuildings.length > 0) {
-        scene.add(coneInstanced);
-        buildingMeshes.push(coneInstanced);
+    if (pitchedBuildings.length > 0) {
+        scene.add(hipInstanced);
+        buildingMeshes.push(hipInstanced);
+    }
+    if (flatBuildings.length > 0) {
+        scene.add(flatInstanced);
+        buildingMeshes.push(flatInstanced);
     }
 }
 

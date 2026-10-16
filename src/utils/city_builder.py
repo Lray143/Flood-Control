@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import math
 from src.engine.underground import Node, Pipe
 
 def build_procedural_city(nx=690, ny=380, dx=5.0):
@@ -330,76 +331,143 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
     except Exception as e:
         print(f"[city_builder] Boundary tracing error: {e}")
 
-    # 3. VARIED BUILDINGS  — 6 distinct types matching Barangay 168 satellite
+    # 3. CLEAN STREET-FRONTAGE BUILDINGS (Organized Subdivision Lots & Corridors)
+    # Replaces messy random confetti scatter with clean, street-oriented parcel lots
+    # matching the real urban layout of Barangay 168 (BF Homes, Deparo, Nova Romania, etc.)
     buildings = []
 
-    BUILDING_TYPES = [
-        # (type_name, weight, width_range, height_range, colors, roof_colors, roof_types)
-        ("residential", 40, (0.8, 2.2), (0.7, 2.0),
-            ["#f5f0e6","#fdebd0","#fadbd8","#fef9e7","#f9ebea","#fdfefe"],
-            ["#963f35","#8b3a32","#a84b40","#b03a2e","#7d3c36","#2e86c1","#1a5276","#27ae60","#1e8449","#7f8c8d","#839192","#b9770e","#873600"],
-            ["pitched","pitched","flat"]),
-
-        ("shanty",      25, (0.6, 1.4), (0.5, 1.0),
-            ["#d5d8dc","#bfc9ca","#aab7b8","#d7dbdd","#ccd1d1"],
-            ["#7f8c8d","#95a5a6","#808b96","#717d7e","#bdc3c7"],
-            ["flat","flat","pitched"]),
-
-        ("shop",        15, (1.5, 3.5), (0.6, 1.2),
-            ["#d6eaf8","#d4efdf","#fdfefe","#fef9e7","#f4f6f7"],
-            ["#2e86c1","#1a5276","#7f8c8d","#34495e","#a04000"],
-            ["flat","flat","flat"]),
-
-        ("concrete",    10, (2.0, 4.0), (1.5, 4.0),
-            ["#eaecee","#d5d8dc","#cacfd2","#f2f3f4","#e8eaed"],
-            ["#717d7e","#626567","#797d7f","#839192","#aab7b8"],
-            ["flat"]),
-
-        ("apartment",    7, (2.5, 5.0), (3.0, 6.0),
-            ["#d6eaf8","#d5d8dc","#e8f8f5","#fdfefe","#ebf5fb"],
-            ["#2e86c1","#1abc9c","#7f8c8d","#5d6d7e","#2980b9"],
-            ["flat"]),
-
-        ("warehouse",    3, (3.0, 6.0), (1.0, 2.0),
-            ["#d5d8dc","#e8eaed","#f2f3f4"],
-            ["#7f8c8d","#566573","#839192"],
-            ["flat","flat"]),
+    THEMES = [
+        {
+            "name": "modern_graphite",
+            "walls": ["#f7f7f5", "#edece8", "#e4e3dd", "#eae9e4"],
+            "roofs": ["#4a5568", "#535f73", "#3e4856", "#5a6678"],
+        },
+        {
+            "name": "warm_slate",
+            "walls": ["#f6f5f1", "#eae8e1", "#e0ded5", "#edebe3"],
+            "roofs": ["#606873", "#515863", "#6c7480", "#484f58"],
+        },
+        {
+            "name": "suburban_terracotta",
+            "walls": ["#faf8f5", "#f0ede6", "#e5e1d7", "#f3efe7"],
+            "roofs": ["#8e4e44", "#9b584d", "#7d4239", "#a36155"],  # soft muted terracotta tile
+        },
+        {
+            "name": "zinc_metal",
+            "walls": ["#f4f6f8", "#e8ebed", "#dde1e4", "#edf0f2"],
+            "roofs": ["#728191", "#647280", "#808f9f", "#5b6875"],  # galvanized sheet roofing
+        },
     ]
 
-    # Build weighted pool
-    type_pool = []
-    for entry in BUILDING_TYPES:
-        type_pool.extend([entry] * entry[1])
-
     rng = np.random.default_rng(42)
+    bldg_grid = np.zeros((ny, nx), dtype=bool)
 
-    for _ in range(25000):
-        r = int(rng.integers(5, ny - 5))
-        c = int(rng.integers(5, nx - 5))
-
-        if not road_mask[r, c] and border_mask[r, c]:
-            btype = type_pool[int(rng.integers(0, len(type_pool)))]
-            _, _, wr, hr, cols, rcols, rtypes = btype
-            bname = btype[0]
-            b_width  = float(rng.uniform(wr[0], wr[1]))
-            b_height = float(rng.uniform(hr[0], hr[1]))
-
-            # Ensure building doesn't completely block narrow roads nearby
-            # (check a 1-cell ring — if ALL neighbors are road, skip)
-            r0, c0 = max(0, r-1), max(0, c-1)
-            r1, c1 = min(ny, r+2), min(nx, c+2)
-            if road_mask[r0:r1, c0:c1].all():
+    if use_real_roads and 'osm' in locals():
+        for way in osm.get('elements', []):
+            if way.get('type') != 'way' or 'geometry' not in way:
+                continue
+            hw = way.get('tags', {}).get('highway', 'residential')
+            if hw not in ['residential', 'service', 'tertiary', 'secondary', 'unclassified', 'living_street']:
                 continue
 
-            buildings.append({
-                "x": c, "y": r,
-                "width":      b_width,
-                "height":     b_height,
-                "color":      cols[int(rng.integers(0, len(cols)))],
-                "roof_color": rcols[int(rng.integers(0, len(rcols)))],
-                "roof_type":  rtypes[int(rng.integers(0, len(rtypes)))],
-                "btype":      bname,
-            })
+            theme = THEMES[int(rng.integers(0, len(THEMES)))]
+            is_arterial = hw in ['primary', 'secondary']
+            is_collector = hw in ['tertiary']
+
+            spacing = 2.4 if not is_arterial else 3.4
+            base_setback = 2.4 if is_arterial else (1.8 if is_collector else 1.5)
+
+            geom = way['geometry']
+            for i in range(len(geom) - 1):
+                c1, r1 = geo_to_grid(geom[i]['lat'], geom[i]['lon'])
+                c2, r2 = geo_to_grid(geom[i+1]['lat'], geom[i+1]['lon'])
+
+                dx = c2 - c1
+                dy = r2 - r1
+                seg_len = math.hypot(dx, dy)
+                if seg_len < 1.0:
+                    continue
+
+                tx = dx / seg_len
+                ty = dy / seg_len
+                nx_norm = -ty
+                ny_norm = tx
+                # In Three.js: X is East (+col), Z is South (+row).
+                # Tangent (tx, ty) maps to Three.js Y-rotation: atan2(-ty, tx)
+                rot_angle = math.atan2(-ty, tx)
+
+                num_lots = max(1, int(round(seg_len / spacing)))
+                for step_idx in range(num_lots):
+                    t = (step_idx + 0.5) * (seg_len / num_lots)
+                    px = c1 + tx * t
+                    py = r1 + ty * t
+
+                    # Row 1 (street frontage) and Row 2 (back-to-back lot for subdivision blocks)
+                    setbacks = [base_setback]
+                    if not is_arterial and not is_collector:
+                        setbacks.append(base_setback + 2.3)
+
+                    for sb in setbacks:
+                        for side in [1.0, -1.0]:
+                            bx = px + nx_norm * (sb * side)
+                            by = py + ny_norm * (sb * side)
+
+                            ic = int(round(bx))
+                            ir = int(round(by))
+
+                            if ic < 2 or ic >= nx - 2 or ir < 2 or ir >= ny - 2:
+                                continue
+                            if not border_mask[ir, ic]:
+                                continue
+                            if road_mask[ir, ic] > 0:
+                                continue
+                            if bldg_grid[max(0, ir-1):min(ny, ir+2), max(0, ic-1):min(nx, ic+2)].any():
+                                continue
+
+                            bldg_grid[ir, ic] = True
+
+                            if is_arterial:
+                                w = float(rng.uniform(2.4, 3.4))
+                                d = float(rng.uniform(2.0, 2.8))
+                                h = float(rng.uniform(1.8, 2.8))
+                                btype = "commercial"
+                                roof_type = "flat" if rng.random() > 0.25 else "hip"
+                            else:
+                                w = float(rng.uniform(1.6, 2.1))
+                                d = float(rng.uniform(1.8, 2.3))
+                                h = float(rng.uniform(1.1, 1.7))
+                                btype = "residential"
+                                roof_type = "hip" if rng.random() > 0.40 else "flat"
+
+                            wall_col = theme["walls"][int(rng.integers(0, len(theme["walls"])))]
+                            roof_col = theme["roofs"][int(rng.integers(0, len(theme["roofs"])))]
+
+                            buildings.append({
+                                "x": round(float(bx), 2),
+                                "y": round(float(by), 2),
+                                "width": round(w, 2),
+                                "depth": round(d, 2),
+                                "height": round(h, 2),
+                                "rot": round(float(rot_angle), 3),
+                                "color": wall_col,
+                                "roof_color": roof_col,
+                                "roof_type": roof_type,
+                                "btype": btype,
+                            })
+        print(f"[city_builder] Generated {len(buildings)} clean street-frontage buildings")
+    else:
+        # Fallback procedural building placement
+        for _ in range(2000):
+            r = int(rng.integers(5, ny - 5))
+            c = int(rng.integers(5, nx - 5))
+            if not road_mask[r, c] and border_mask[r, c] and not bldg_grid[r-1:r+2, c-1:c+2].any():
+                bldg_grid[r, c] = True
+                buildings.append({
+                    "x": c, "y": r,
+                    "width": 1.8, "depth": 2.0, "height": 1.4, "rot": 0.0,
+                    "color": "#f5f5f4", "roof_color": "#535f73",
+                    "roof_type": "hip", "btype": "residential"
+                })
 
     # ── 4. ROAD-GEOMETRY-FOLLOWING PIPE NETWORK ───────────────────────────────
     # Manholes are placed at regular intervals ALONG each main road's OSM
