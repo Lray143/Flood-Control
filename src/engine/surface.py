@@ -130,11 +130,13 @@ def step_surface_water(state: SimulationState, dt: float):
             state._node_ids   = nid_list   # ordered list of node_ids
             state._node_zinv  = np.array([state.nodes[nid].z_invert for nid in nid_list])
             state._node_area  = np.array([state.nodes[nid].area     for nid in nid_list])
+            state._node_zrim  = np.array([state.elevation[state.nodes[nid].y, state.nodes[nid].x] for nid in nid_list])
         else:
             state._inlet_ix   = np.array([], dtype=np.int32)
             state._inlet_iy   = np.array([], dtype=np.int32)
             state._inlet_nidx = np.array([], dtype=np.int32)
             state._node_ids   = []
+            state._node_zrim  = np.array([])
 
     if len(state._inlet_ix) > 0:
         num_nodes = len(state._node_ids)
@@ -151,20 +153,28 @@ def step_surface_water(state: SimulationState, dt: float):
         surf_head      = state.elevation[iy, ix] + cell_h
         cell_node_head = node_heads[nidx]   # pure numpy fancy index
         cell_node_vol  = node_vols[nidx]
+        cell_node_rim  = state._node_zrim[nidx]
 
         # ── Surcharge backflow ────────────────────────────────────────────────
-        # Node head > surface: water pushed UP onto street
-        back_mask  = cell_node_head >= surf_head
+        # Water can ONLY be pushed UP onto the street when the manhole shaft is
+        # actually full to the rim (cell_node_head >= cell_node_rim), contains water,
+        # and has greater piezometric head than the local street surface.
+        back_mask  = (cell_node_head >= cell_node_rim) & (cell_node_head >= surf_head) & (cell_node_vol > 1e-6)
         excess     = np.where(back_mask, cell_node_head - surf_head, 0.0)
         back_vol_t = np.where(back_mask,
                               INLET_CD * INLET_AREA * np.sqrt(2.0 * G * excess + 1e-9) * dt,
                               0.0)
 
         # CRITICAL: multiple cells share the same node. Cap total backflow per
-        # node to node_vol * 0.5 — otherwise we create water from nothing.
+        # node strictly to the water volume that physically exceeds the ground rim.
+        # Water trapped underground inside the shaft (head < z_rim) cannot spill.
         node_back_want = np.zeros(num_nodes)
         np.add.at(node_back_want, nidx, back_vol_t)
-        node_back_limit = node_vols * 0.5
+        # Limit total backflow per node to the water physically above the rim,
+        # and apply a 10% per-step damping factor so the system reaches
+        # equilibrium gradually instead of oscillating (fill → drain → fill → …).
+        # Physically, the manhole grate limits how fast water can escape upward.
+        node_back_limit = np.maximum(0.0, (node_heads - state._node_zrim) * state._node_area) * 0.10
         # Scale-down factor per node (1.0 if node can supply all, <1 if not)
         back_scale_node = np.where(node_back_want > 1e-12,
                                    np.minimum(node_back_limit, node_back_want) / (node_back_want + 1e-12),
