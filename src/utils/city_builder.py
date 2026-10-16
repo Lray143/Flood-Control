@@ -435,11 +435,12 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
             'tertiary_link':  {'diam': 0.80, 'spacing_m': 80},
         }
 
-        # Key collector avenues & main subdivision access corridors
+        # Key collector avenues & main subdivision access corridors covering all 8 sectors
         COLLECTOR_KEYWORDS = [
             'main road', 'avenue', 'ave', 'drive', 'dr', 'blvd', 'boulevard',
             'saint mary', 'alecon', 'ruby', 'casimiro', 'thomas', 'dolmar', 'celina', 'narra',
-            'joyville', 'don mariano', 'azucena'
+            'joyville', 'don mariano', 'azucena', 'cedar', 'taurus', 'virgo', 'leo', 'gemini',
+            'mangga', 'bayabas', 'melon', 'interneighborhood'
         ]
 
         # Snap tolerance: merge nodes within ~50m (10 grid cells)
@@ -573,68 +574,11 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
             seen_pairs.add(key)
             final_segs.append((ma, mb, diam, length_m))
 
-        # ── Pass 3: designate outlets at lowest boundary exit points ─────────
-        # Find all nodes near boundary edge
-        edge_candidates = []
-        for idx, (cx, cy, lat, lon) in enumerate(merged_pts):
-            col = max(0, min(nx-1, int(round(cx))))
-            row = max(0, min(ny-1, int(round(cy))))
-            near_edge = False
-            for dr in (-3, -2, -1, 0, 1, 2, 3):
-                for dc in (-3, -2, -1, 0, 1, 2, 3):
-                    rr = max(0, min(ny-1, row+dr))
-                    cc = max(0, min(nx-1, col+dc))
-                    if not border_mask[rr, cc]:
-                        near_edge = True
-                        break
-                if near_edge:
-                    break
-            if near_edge or col <= 3 or col >= nx-4 or row <= 3 or row >= ny-4:
-                edge_candidates.append((idx, float(elevation[row, col])))
-
-        outlet_ids = set()
-        if edge_candidates:
-            # Sort by elevation to choose the lowest elevation drainage outlets
-            edge_candidates.sort(key=lambda item: item[1])
-            # Pick top 4 lowest distinct outlets along the edges
-            for c_id, _ in edge_candidates[:4]:
-                outlet_ids.add(c_id)
-        else:
-            outlet_ids.add(0)
-
-        # Build Node objects
-        for idx, (cx, cy, lat, lon) in enumerate(merged_pts):
-            col = max(0, min(nx-1, int(round(cx))))
-            row = max(0, min(ny-1, int(round(cy))))
-            z_surf = float(elevation[row, col])
-            z_inv  = z_surf - 1.5
-            nodes_list.append(Node(
-                node_id    = idx,
-                x          = col,
-                y          = row,
-                z_invert   = z_inv,
-                is_outlet  = (idx in outlet_ids),
-                shaft_area = 2.0,
-            ))
-
-        # ── Pass 4: build Pipe objects ───────────────────────────────────────
-        pipe_id = 0
-        for (ma, mb, diam, length_m) in final_segs:
-            pipes.append(Pipe(
-                pipe_id     = pipe_id,
-                node_in     = ma,
-                node_out    = mb,
-                diameter    = diam,
-                roughness_n = 0.013,
-                length      = max(length_m, 1.0),
-            ))
-            pipe_id += 1
-
-        # ── Pass 5: connect any disjoint components into unified network ─────
+        # ── Pass 3: bridge disjoint components so the network is unified ─────
         adj = {i: [] for i in range(len(merged_pts))}
-        for p in pipes:
-            adj[p.node_in].append(p.node_out)
-            adj[p.node_out].append(p.node_in)
+        for (ma, mb, _, _) in final_segs:
+            adj[ma].append(mb)
+            adj[mb].append(ma)
 
         visited_comp = set()
         components = []
@@ -653,12 +597,10 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                         queue.append(nb)
             components.append(comp)
 
-        # Sort components largest first
         components.sort(key=len, reverse=True)
         if len(components) > 1:
             main_comp = set(components[0])
             for secondary in components[1:]:
-                # Find closest pair between secondary and main_comp
                 best_dist = float('inf')
                 best_pair = None
                 for u in secondary:
@@ -672,16 +614,57 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                 if best_pair is not None:
                     u, v = best_pair
                     dist_m = float(_math.sqrt(best_dist)) * dx
-                    pipes.append(Pipe(
-                        pipe_id     = pipe_id,
-                        node_in     = u,
-                        node_out    = v,
-                        diameter    = 0.75,
-                        roughness_n = 0.013,
-                        length      = max(dist_m, 1.0),
-                    ))
-                    pipe_id += 1
+                    final_segs.append((u, v, 0.75, max(dist_m, 1.0)))
                     main_comp.update(secondary)
+
+        # ── Pass 4: designate outlets at the 4 geographic drainage exits ─────
+        # 1. West exit (Kabatuhan / Altezza outfall)
+        west_cands = [i for i, p in enumerate(merged_pts) if p[0] < 120 and p[1] < 220]
+        west_out = min(west_cands, key=lambda i: merged_pts[i][0]) if west_cands else None
+
+        # 2. South exit (Teofilo Samson Ave outfall)
+        south_cands = [i for i, p in enumerate(merged_pts) if 140 <= p[0] <= 240 and p[1] > 230]
+        south_out = max(south_cands, key=lambda i: merged_pts[i][1]) if south_cands else None
+
+        # 3. Southeast exit (Deparo Rd Sentro outfall)
+        se_cands = [i for i, p in enumerate(merged_pts) if 480 <= p[0] <= 550 and p[1] > 270]
+        se_out = max(se_cands, key=lambda i: merged_pts[i][1]) if se_cands else None
+
+        # 4. East exit (Camarin Rd south exit towards Susano/Camarin)
+        east_cands = [i for i, p in enumerate(merged_pts) if p[0] > 570 and p[1] > 180]
+        east_out = max(east_cands, key=lambda i: merged_pts[i][1]) if east_cands else None
+
+        outlet_ids = set(filter(None, [west_out, south_out, se_out, east_out]))
+        if not outlet_ids:
+            outlet_ids.add(0)
+
+        # Build Node objects
+        for idx, (cx, cy, lat, lon) in enumerate(merged_pts):
+            col = max(0, min(nx-1, int(round(cx))))
+            row = max(0, min(ny-1, int(round(cy))))
+            z_surf = float(elevation[row, col])
+            z_inv  = z_surf - 1.5
+            nodes_list.append(Node(
+                node_id    = idx,
+                x          = col,
+                y          = row,
+                z_invert   = z_inv,
+                is_outlet  = (idx in outlet_ids),
+                shaft_area = 2.0,
+            ))
+
+        # ── Pass 5: build Pipe objects ───────────────────────────────────────
+        pipe_id = 0
+        for (ma, mb, diam, length_m) in final_segs:
+            pipes.append(Pipe(
+                pipe_id     = pipe_id,
+                node_in     = ma,
+                node_out    = mb,
+                diameter    = diam,
+                roughness_n = 0.013,
+                length      = max(length_m, 1.0),
+            ))
+            pipe_id += 1
 
         # Demo blockage: first non-outlet secondary/trunk pipe (diameter >= 0.90)
         MAIN_BLOCKAGE = 0
