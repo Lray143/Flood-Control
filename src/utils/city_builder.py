@@ -505,6 +505,112 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                     "roof_type": "hip", "btype": "residential"
                 })
 
+    # ── 3b. NATURAL TREES & GREENERY (Variations in Open & Low-Density Areas) ──
+    trees = []
+    try:
+        import scipy.ndimage
+        dist_bldg = scipy.ndimage.distance_transform_edt(~bldg_grid)
+        dist_road = scipy.ndimage.distance_transform_edt(road_mask == 0)
+
+        open_mask = border_mask & (dist_road > 1.2) & (dist_bldg >= 5.0)
+        open_indices = np.argwhere(open_mask)
+
+        fringe_mask = border_mask & (dist_road > 1.2) & (dist_bldg >= 2.4) & (dist_bldg < 5.0)
+        fringe_indices = np.argwhere(fringe_mask)
+
+        tree_grid = np.zeros((ny, nx), dtype=bool)
+
+        TREE_PALETTES = {
+            'broadleaf': {
+                'colors': ['#3b5433', '#46633d', '#334c2c', '#4d6c44', '#55754b'],
+                'trunk_h': (1.0, 1.6),
+                'crown_r': (1.2, 1.8),
+            },
+            'pine': {
+                'colors': ['#2d4a3a', '#365644', '#263e31', '#3c5e4c'],
+                'trunk_h': (0.8, 1.3),
+                'crown_r': (0.8, 1.3),
+                'crown_h': (2.0, 3.2),
+            },
+            'palm': {
+                'colors': ['#4c7334', '#56803c', '#41632c', '#618d45'],
+                'trunk_h': (2.4, 3.8),
+                'crown_r': (1.3, 1.9),
+                'crown_h': (0.7, 1.0),
+            },
+            'blossom': {
+                'colors': ['#9c8544', '#aa924d', '#8f5747', '#a16353'],
+                'trunk_h': (0.9, 1.5),
+                'crown_r': (1.1, 1.7),
+            }
+        }
+        type_choices = ['broadleaf', 'pine', 'palm', 'blossom']
+        type_weights = [0.50, 0.20, 0.20, 0.10]
+
+        # A. Plant natural groves in open valleys, ravines, and vacant fields
+        if len(open_indices) > 0:
+            num_groves = min(280, len(open_indices))
+            grove_centers = open_indices[rng.choice(len(open_indices), num_groves, replace=False)]
+            for cy, cx in grove_centers:
+                grove_type = rng.choice(type_choices, p=type_weights)
+                grove_size = int(rng.integers(5, 14))
+                for _ in range(grove_size):
+                    angle = float(rng.uniform(0, 2 * np.pi))
+                    rad = float(rng.uniform(0.6, 6.0))
+                    tx = cx + rad * np.cos(angle)
+                    ty = cy + rad * np.sin(angle)
+                    ix, iy = int(round(tx)), int(round(ty))
+                    if 2 <= ix < nx - 2 and 2 <= iy < ny - 2:
+                        if border_mask[iy, ix] and dist_road[iy, ix] > 1.0 and dist_bldg[iy, ix] > 1.8:
+                            if not tree_grid[max(0, iy-1):min(ny, iy+2), max(0, ix-1):min(nx, ix+2)].any():
+                                tree_grid[iy, ix] = True
+                                t_type = grove_type if rng.random() < 0.80 else rng.choice(type_choices, p=type_weights)
+                                pal = TREE_PALETTES[t_type]
+                                col = pal['colors'][int(rng.integers(0, len(pal['colors'])))]
+                                th = round(float(rng.uniform(*pal['trunk_h'])), 2)
+                                cr = round(float(rng.uniform(*pal['crown_r'])), 2)
+                                ch = round(float(rng.uniform(*pal.get('crown_h', (cr, cr)))), 2)
+                                sc = round(float(rng.uniform(0.85, 1.25)), 2)
+                                trees.append({
+                                    'x': round(float(tx), 2),
+                                    'y': round(float(ty), 2),
+                                    'type': str(t_type),
+                                    'color': str(col),
+                                    'trunk_h': th,
+                                    'crown_r': cr,
+                                    'crown_h': ch,
+                                    'scale': sc,
+                                    'rot': round(float(rng.uniform(0, 2 * np.pi)), 2)
+                                })
+
+        # B. Scatter fringe trees in low-density parcel borders
+        if len(fringe_indices) > 0:
+            fringe_sample = fringe_indices[rng.choice(len(fringe_indices), min(1200, len(fringe_indices)), replace=False)]
+            for fy, fx in fringe_sample:
+                if not tree_grid[max(0, fy-1):min(ny, fy+2), max(0, fx-1):min(nx, fx+2)].any():
+                    tree_grid[fy, fx] = True
+                    t_type = rng.choice(type_choices, p=type_weights)
+                    pal = TREE_PALETTES[t_type]
+                    col = pal['colors'][int(rng.integers(0, len(pal['colors'])))]
+                    th = round(float(rng.uniform(*pal['trunk_h'])), 2)
+                    cr = round(float(rng.uniform(*pal['crown_r'])), 2)
+                    ch = round(float(rng.uniform(*pal.get('crown_h', (cr, cr)))), 2)
+                    sc = round(float(rng.uniform(0.85, 1.20)), 2)
+                    trees.append({
+                        'x': round(float(fx), 2),
+                        'y': round(float(fy), 2),
+                        'type': str(t_type),
+                        'color': str(col),
+                        'trunk_h': th,
+                        'crown_r': cr,
+                        'crown_h': ch,
+                        'scale': sc,
+                        'rot': round(float(rng.uniform(0, 2 * np.pi)), 2)
+                    })
+        print(f"[city_builder] Generated {len(trees)} natural trees in open & low-density areas")
+    except Exception as e:
+        print(f"[city_builder] Tree generation error: {e}")
+
     # ── 4. ROAD-GEOMETRY-FOLLOWING PIPE NETWORK ───────────────────────────────
     # Manholes are placed at regular intervals ALONG each main road's OSM
     # centerline, then connected sequentially. This ensures pipes strictly
@@ -899,6 +1005,7 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
         "elevation": elevation,
         "road_mask": road_mask.tolist(),
         "buildings": buildings,
+        "trees": trees,
         "nodes": nodes,
         "pipes": pipes,
         "inlet_mapping": inlet_mapping,

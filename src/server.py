@@ -225,6 +225,7 @@ def get_terrain():
         "road_mask":        city_data["road_mask"],
         "border_mask":      city_data.get("border_mask", None),
         "buildings":        city_data["buildings"],
+        "trees":            city_data.get("trees", []),
         "nodes":            [{"id": n.id, "x": n.x, "y": n.y,
                               "z": n.z_invert, "is_outlet": n.is_outlet}
                              for n in state.nodes.values()],

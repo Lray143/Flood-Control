@@ -392,6 +392,10 @@ button:hover { filter:brightness(1.15); }
             🏠 Buildings
         </label>
         <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+            <input type="checkbox" id="chk-trees" checked style="width:14px;height:14px;">
+            🌳 Trees & Greenery
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
             <input type="checkbox" id="chk-roads" checked style="width:14px;height:14px;">
             🛣 Road Overlay
         </label>
@@ -484,6 +488,7 @@ let playing=false, simSpeed=1, currentRain=0, MAIN_BLOCK_ID=0;
 let waterDepthTex, waterDepthData;
 let gridHelper = null;
 let buildingMeshes = [];   // refs to InstancedMeshes so X-Ray can hide them
+let treeMeshes = [];       // refs to tree InstancedMeshes for X-Ray and layer toggles
 
 let borderMesh = null;
 let zoneBorderLines = null;
@@ -507,6 +512,7 @@ fetch('/api/terrain?t=' + Date.now()).then(r=>r.json()).then(d=>{
     buildGrid();
     buildPipes(d.nodes, d.pipes);
     buildBuildings(d);
+    buildTrees(d.trees);
     drawBorderLine(d);
     drawZoneBorders(d);
     buildZoneLabels(d.zones);
@@ -1057,6 +1063,123 @@ function buildBuildings(d) {
         scene.add(flatInstanced);
         buildingMeshes.push(flatInstanced);
     }
+}
+
+function buildTrees(trees) {
+    if (!trees || trees.length === 0) return;
+    treeMeshes = [];
+
+    // Filter trees inside valid grid bounds
+    const validTrees = trees.filter(t => {
+        const tx = Math.round(t.x);
+        const ty = Math.round(t.y);
+        return tx >= 0 && tx < nx && ty >= 0 && ty < ny;
+    });
+
+    if (validTrees.length === 0) return;
+
+    // 1. Shared Trunk InstancedMesh (low-poly 5-sided tapered cylinder)
+    const trunkGeo = new THREE.CylinderGeometry(0.12, 0.22, 1.0, 5);
+    trunkGeo.translate(0, 0.5, 0); // origin at base of trunk
+    const trunkMat = new THREE.MeshStandardMaterial({
+        color: 0x4a3b2c,
+        roughness: 0.90,
+        metalness: 0.05
+    });
+    const trunkInstanced = new THREE.InstancedMesh(trunkGeo, trunkMat, validTrees.length);
+    trunkInstanced.castShadow = true;
+    trunkInstanced.receiveShadow = true;
+
+    // 2. Separate InstancedMeshes for Crown variations
+    const broadleafTrees = validTrees.filter(t => t.type === 'broadleaf');
+    const pineTrees      = validTrees.filter(t => t.type === 'pine');
+    const palmTrees      = validTrees.filter(t => t.type === 'palm');
+    const blossomTrees   = validTrees.filter(t => t.type === 'blossom');
+
+    // Broadleaf Crown (Dodecahedron - low poly shade canopy)
+    const broadleafGeo = new THREE.DodecahedronGeometry(1.0, 0);
+    broadleafGeo.translate(0, 0.8, 0);
+    const broadleafMat = new THREE.MeshStandardMaterial({ roughness: 0.75, metalness: 0.08 });
+    const broadleafInstanced = new THREE.InstancedMesh(broadleafGeo, broadleafMat, broadleafTrees.length);
+    broadleafInstanced.castShadow = true;
+    broadleafInstanced.receiveShadow = true;
+
+    // Pine Crown (Cone - low poly spruce/cypress)
+    const pineGeo = new THREE.ConeGeometry(1.0, 2.0, 5);
+    pineGeo.translate(0, 1.0, 0);
+    const pineMat = new THREE.MeshStandardMaterial({ roughness: 0.70, metalness: 0.08 });
+    const pineInstanced = new THREE.InstancedMesh(pineGeo, pineMat, pineTrees.length);
+    pineInstanced.castShadow = true;
+    pineInstanced.receiveShadow = true;
+
+    // Palm Crown (Tiered / Flared Tropical Palm Fronds)
+    const palmGeo = new THREE.ConeGeometry(1.5, 0.6, 6);
+    palmGeo.translate(0, 0.25, 0);
+    const palmMat = new THREE.MeshStandardMaterial({ roughness: 0.65, metalness: 0.08 });
+    const palmInstanced = new THREE.InstancedMesh(palmGeo, palmMat, palmTrees.length);
+    palmInstanced.castShadow = true;
+    palmInstanced.receiveShadow = true;
+
+    // Blossom Crown (Flowering Golden / Coral Canopy)
+    const blossomGeo = new THREE.DodecahedronGeometry(1.05, 0);
+    blossomGeo.translate(0, 0.8, 0);
+    const blossomMat = new THREE.MeshStandardMaterial({ roughness: 0.72, metalness: 0.08 });
+    const blossomInstanced = new THREE.InstancedMesh(blossomGeo, blossomMat, blossomTrees.length);
+    blossomInstanced.castShadow = true;
+    blossomInstanced.receiveShadow = true;
+
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+
+    // Populate Trunks
+    validTrees.forEach((t, i) => {
+        const tx = Math.max(0, Math.min(nx - 1, Math.round(t.x)));
+        const ty = Math.max(0, Math.min(ny - 1, Math.round(t.y)));
+        const elev = terrainElev ? (terrainElev[ty * nx + tx] || 0) : 0;
+        const sc = t.scale || 1.0;
+        const th = (t.trunk_h || 1.2) * sc;
+
+        dummy.position.set(t.x, elev, t.y);
+        dummy.rotation.set(0, t.rot || 0, 0);
+        dummy.scale.set(sc * 0.9, th, sc * 0.9);
+        dummy.updateMatrix();
+        trunkInstanced.setMatrixAt(i, dummy.matrix);
+    });
+
+    // Helper for Crown placement
+    function populateCrowns(list, instMesh) {
+        list.forEach((t, idx) => {
+            const tx = Math.max(0, Math.min(nx - 1, Math.round(t.x)));
+            const ty = Math.max(0, Math.min(ny - 1, Math.round(t.y)));
+            const elev = terrainElev ? (terrainElev[ty * nx + tx] || 0) : 0;
+            const sc = t.scale || 1.0;
+            const th = (t.trunk_h || 1.2) * sc;
+            const cr = (t.crown_r || 1.4) * sc;
+            const ch = (t.crown_h || cr) * sc;
+
+            dummy.position.set(t.x, elev + th * 0.9, t.y);
+            dummy.rotation.set(0, t.rot || 0, 0);
+            dummy.scale.set(cr, ch, cr);
+            dummy.updateMatrix();
+
+            instMesh.setMatrixAt(idx, dummy.matrix);
+            color.setStyle(t.color);
+            instMesh.setColorAt(idx, color);
+        });
+    }
+
+    populateCrowns(broadleafTrees, broadleafInstanced);
+    populateCrowns(pineTrees, pineInstanced);
+    populateCrowns(palmTrees, palmInstanced);
+    populateCrowns(blossomTrees, blossomInstanced);
+
+    scene.add(trunkInstanced);
+    treeMeshes.push(trunkInstanced);
+
+    if (broadleafTrees.length > 0) { scene.add(broadleafInstanced); treeMeshes.push(broadleafInstanced); }
+    if (pineTrees.length > 0)      { scene.add(pineInstanced);      treeMeshes.push(pineInstanced); }
+    if (palmTrees.length > 0)      { scene.add(palmInstanced);      treeMeshes.push(palmInstanced); }
+    if (blossomTrees.length > 0)   { scene.add(blossomInstanced);   treeMeshes.push(blossomInstanced); }
 }
 
 // ─── POLLING & SYNC ──────────────────────────────────────────────────
@@ -2022,8 +2145,9 @@ document.getElementById('btn-glass').onclick = () => {
         terrainMesh.material.opacity = glassMode ? 0.25 : 1.0;
         terrainMesh.material.depthWrite = !glassMode;
     }
-    // Buildings: completely hidden in X-Ray so pipes are clearly visible
+    // Buildings & Trees: completely hidden in X-Ray so pipes are clearly visible
     buildingMeshes.forEach(m => { m.visible = !glassMode; });
+    treeMeshes.forEach(m => { m.visible = !glassMode; });
     document.getElementById('btn-glass').textContent = glassMode ? '👁 X-Ray: ON' : '👁 X-Ray Ground';
     document.getElementById('btn-glass').style.background = glassMode ? '#117a65' : '#145a32';
 };
@@ -2031,6 +2155,10 @@ document.getElementById('btn-glass').onclick = () => {
 // ─── LAYER VISIBILITY ─────────────────────────────────────────────────
 document.getElementById('chk-buildings').onchange = e => {
     buildingMeshes.forEach(m => m.visible = e.target.checked);
+};
+
+document.getElementById('chk-trees').onchange = e => {
+    treeMeshes.forEach(m => m.visible = e.target.checked);
 };
 
 document.getElementById('chk-roads').onchange = e => {
