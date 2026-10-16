@@ -325,6 +325,7 @@ def get_state():
             "color": z["color"],
             "center_x": z["center_x"],
             "center_y": z["center_y"],
+            "bounds": z.get("bounds", []),
             "area_ha": z["area_ha"],
             "current_depth": round(cur_max, 2),
             "mean_depth": round(cur_mean, 2),

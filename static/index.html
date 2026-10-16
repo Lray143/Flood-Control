@@ -1352,8 +1352,9 @@ async function pollState() {
                     let html = '';
                     s.zones.forEach(z => {
                         const badgeClass = `badge-${z.status}`;
+                        const isSel = (window.currentSelectedZoneId === z.id) ? ' selected-zone' : '';
                         html += `
-                            <tr class="zone-row" data-zone-id="${z.id}" onclick="focusOnZone(${z.center_x}, ${z.center_y}, '${z.id}')" title="Click to fly camera to ${z.name}">
+                            <tr class="zone-row${isSel}" data-zone-id="${z.id}" onclick="focusOnZone(${z.center_x}, ${z.center_y}, '${z.id}')" title="Click to fly camera to ${z.name}">
                                 <td>
                                     <span class="zone-color-dot" style="background:${z.color};"></span>
                                     <span style="font-weight:600;">${z.name}</span>
@@ -1493,7 +1494,12 @@ renderer.domElement.addEventListener('click', e => {
                         matchedZid = window.zoneList[zIdx].id;
                     }
                 }
-                focusOnZone(l.x, l.y, matchedZid);
+                const matchZ = (matchedZid && window.zoneList) ? window.zoneList.find(z => z.id === matchedZid) : null;
+                if (matchZ) {
+                    focusOnZone(matchZ.center_x, matchZ.center_y, matchZ.id);
+                } else {
+                    focusOnZone(l.x, l.y, matchedZid);
+                }
                 e.stopPropagation();
                 return;
             }
@@ -1531,8 +1537,7 @@ renderer.domElement.addEventListener('click', e => {
             }
 
             if (matchedZone) {
-                highlightZoneRow(matchedZone.id);
-                pulseZoneLabel(matchedZone.id);
+                focusOnZone(matchedZone.center_x, matchedZone.center_y, matchedZone.id);
             }
         }
     }
@@ -1893,21 +1898,27 @@ function pulseZoneLabel(zoneId) {
     const base = entry.sprite.userData.baseScale;
     if (!base) return;
     entry.sprite.scale.copy(base);
+    entry.sprite.renderOrder = 20;
 
     let step = 0;
+    const totalSteps = 24;
     _zonePulseTimers[zoneId] = setInterval(() => {
         step++;
-        const factor = 1.0 + 0.25 * Math.sin((step / 12) * Math.PI);
+        // Smooth sine pulse up to 1.35x and ease back to base
+        const progress = step / totalSteps;
+        const factor = 1.0 + 0.35 * Math.sin(progress * Math.PI);
         entry.sprite.scale.set(base.x * factor, base.y * factor, 1);
-        if (step >= 12) {
+        if (step >= totalSteps) {
             clearInterval(_zonePulseTimers[zoneId]);
             delete _zonePulseTimers[zoneId];
             entry.sprite.scale.copy(base);
+            entry.sprite.renderOrder = 10;
         }
     }, 25);
 }
 
 function highlightZoneRow(zoneId) {
+    window.currentSelectedZoneId = zoneId || null;
     document.querySelectorAll('.zone-row').forEach(row => {
         row.classList.remove('selected-zone');
     });
@@ -1927,26 +1938,25 @@ window.focusOnZone = function(cx, cz, zoneId) {
     const targetLookAt = new THREE.Vector3(cx, elev, cz);
     const targetPos = new THREE.Vector3();
 
-    if (is2DView) {
-        // Overhead 2D top-down: keep altitude 280, add 0.1 in Z to prevent OrbitControls gimbal lock
-        targetPos.set(cx, 280, cz + 0.1);
-    } else {
-        // Isometric 3D: maintain current viewing angle or comfortable 51-degree pitch looking down at community
-        const offset = camera.position.clone().sub(controls.target);
-        const horizDist = Math.hypot(offset.x, offset.z);
-        const desiredHoriz = 110;
-        const desiredHeight = 140;
+    // Query exact zone extent for community-adapted framing
+    const zInfo = window.zoneList ? window.zoneList.find(z => z.id === zoneId) : null;
+    let span = 110;
+    if (zInfo && zInfo.bounds && zInfo.bounds.length === 4) {
+        const w = zInfo.bounds[2] - zInfo.bounds[0];
+        const h = zInfo.bounds[3] - zInfo.bounds[1];
+        span = Math.max(w, h);
+    }
 
-        if (horizDist > 1.0) {
-            targetPos.set(
-                cx + (offset.x / horizDist) * desiredHoriz,
-                elev + desiredHeight,
-                cz + (offset.z / horizDist) * desiredHoriz
-            );
-        } else {
-            // Default isometric from south looking north-west
-            targetPos.set(cx, elev + desiredHeight, cz + desiredHoriz);
-        }
+    if (is2DView) {
+        // Overhead top-down view: altitude scaled to community extent with margin
+        const alt = Math.max(120, Math.min(200, span * 1.15));
+        // Offset slightly in Z (alt * 0.15) to guarantee smooth non-degenerate OrbitControls math
+        targetPos.set(cx, alt, cz + alt * 0.15);
+    } else {
+        // Isometric 3D: clean ~48-degree perspective viewing from south looking down at community
+        const horiz = Math.max(70, Math.min(125, span * 0.75));
+        const height = Math.max(85, Math.min(150, span * 0.90));
+        targetPos.set(cx, elev + height, cz + horiz);
     }
 
     flyCameraTo(targetPos, targetLookAt, 650);
@@ -1957,6 +1967,28 @@ window.focusOnZone = function(cx, cz, zoneId) {
     }
 };
 
+
+// ─── ZONE LABEL FRUSTUM VISIBILITY ───────────────────────────────────
+// Sprites outside (or near the edge of) the camera frustum render
+// at huge/distorted sizes when depthTest=false. Hide them proactively.
+const _labelTmpVec = new THREE.Vector3();
+function _updateZoneLabelVisibility() {
+    if (!zoneLabelsGroup || !zoneLabelsGroup.visible) return;
+    zoneLabelsGroup.children.forEach(sprite => {
+        // If this label is actively pulsing or currently selected, keep it visible
+        const zid = sprite.userData?.zone?.id;
+        if (zid && (_zonePulseTimers[zid] || zid === window.currentSelectedZoneId)) {
+            sprite.visible = true;
+            return;
+        }
+        // Project world position to NDC coords (-1..1 = on screen)
+        _labelTmpVec.copy(sprite.position).project(camera);
+        // Use a tight margin (1.1) — just enough to avoid edge distortion
+        sprite.visible = _labelTmpVec.z <= 1.0 &&
+                         _labelTmpVec.x >= -1.1 && _labelTmpVec.x <= 1.1 &&
+                         _labelTmpVec.y >= -1.1 && _labelTmpVec.y <= 1.1;
+    });
+}
 
 // ─── RENDER LOOP ─────────────────────────────────────────────────────
 const clock = new THREE.Clock();
@@ -1976,6 +2008,7 @@ function animate() {
         rainMesh.material.uniforms.uRain.value = currentRain;
     }
 
+    _updateZoneLabelVisibility();
     renderer.render(scene, camera);
 }
 animate();

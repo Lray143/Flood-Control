@@ -283,8 +283,10 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                     # Median gives the true central density point of the community
                     mean_c = float(np.median(cols))
                     mean_r = float(np.median(rows))
+                    z_bounds = [int(cols.min()), int(rows.min()), int(cols.max()), int(rows.max())]
                 else:
                     mean_c, mean_r = float(seeds_xy[i][0]), float(seeds_xy[i][1])
+                    z_bounds = [int(mean_c), int(mean_r), int(mean_c), int(mean_r)]
 
                 zones.append({
                     "id": z["id"],
@@ -293,6 +295,7 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                     "color": z["color"],
                     "center_x": round(mean_c, 1),
                     "center_y": round(mean_r, 1),
+                    "bounds": z_bounds,
                     "cell_count": cell_count,
                     "area_ha": round(area_ha, 2)
                 })
