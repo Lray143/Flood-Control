@@ -171,13 +171,26 @@ def step_surface_water(state: SimulationState, dt: float):
                                    0.0)
         back_vol = back_vol_t * back_scale_node[nidx]   # apply per-cell scale
 
-        # ── Normal inflow ─────────────────────────────────────────────────────
-        # Surface water drains into the node
+        # ── Normal inflow — gated by pipe openness ────────────────────────
+        # A blocked pipe network means the node has nowhere to send water;
+        # cap inlet absorption proportionally to how open the connected pipes are.
         fwd_mask = (~back_mask) & (cell_h > 0)
-        fwd_vol  = np.where(fwd_mask,
+        fwd_vol_raw = np.where(fwd_mask,
                             np.minimum(INLET_CD * INLET_AREA * np.sqrt(2.0 * G * cell_h + 1e-9) * dt,
                                        cell_h * dx * dx),
                             0.0)
+
+        # Build per-node openness: 0.0 = all pipes 100% blocked, 1.0 = fully open
+        # Computed once and broadcast to inlet cells via nidx.
+        node_openness = np.ones(num_nodes)
+        for i, nid in enumerate(state._node_ids):
+            node = state.nodes[nid]
+            connected = [p for p in state.pipes if p.node_in == nid or p.node_out == nid]
+            if connected:
+                avg_blockage = sum(p.blockage for p in connected) / len(connected)
+                node_openness[i] = max(0.0, 1.0 - avg_blockage)
+
+        fwd_vol = fwd_vol_raw * node_openness[nidx]
 
         # ── Apply to surface ──────────────────────────────────────────────────
         np.add.at(new_h, (iy, ix), (back_vol - fwd_vol) / (dx * dx))

@@ -49,7 +49,7 @@ state.road_mask                      = road_mask
 state.roughness[road_mask]           = 0.013   # asphalt
 state.roughness[~road_mask]          = 0.040   # grass
 state.infiltration_rate[road_mask]   = 0.0
-state.infiltration_rate[~road_mask]  = 4e-6    # ~15 mm/hr
+state.infiltration_rate[~road_mask]  = 1.4e-6   # ~5 mm/hr — dense urban soil (compacted, concrete surrounds)
 
 # Wire boundary mask from GeoJSON (if loaded)
 if city_data.get("border_mask") is not None:
