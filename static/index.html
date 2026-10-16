@@ -1218,6 +1218,12 @@ async function pollState() {
             pBtn.textContent = playing ? '⏸ Pause' : '▶ Play';
             pBtn.className = playing ? 'paused' : '';
 
+            // Speed state sync
+            if (d.speed && simSpeed !== d.speed) {
+                simSpeed = d.speed;
+                document.getElementById('btn-speed').textContent = `⏩ ${simSpeed}×`;
+            }
+
             // Skip overlay
             const overlay = document.getElementById('skip-overlay');
             if (d.skip_progress !== null) {

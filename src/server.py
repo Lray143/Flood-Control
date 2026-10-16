@@ -108,17 +108,30 @@ def _physics_batch() -> dict:
     """
     Synchronous physics batch. Runs in a thread-pool worker.
     """
-    # Dynamic stability threshold for TRUE fast-forward speed
-    if sim_speed >= 10000:
+    # Dynamic stability threshold & step size for true speed scaling
+    if sim_speed >= 5000:
         max_dt = 10.0
+        step_dt = 10.0
     elif sim_speed >= 1000:
+        max_dt = 8.0
+        step_dt = 8.0
+    elif sim_speed >= 500:
         max_dt = 5.0
+        step_dt = 5.0
     elif sim_speed >= 100:
         max_dt = 2.0
+        step_dt = 2.0
+    elif sim_speed >= 25:
+        max_dt = 1.25
+        step_dt = 1.25
+    elif sim_speed >= 5:
+        max_dt = 0.25
+        step_dt = 0.25
     else:
-        max_dt = 0.5
-        
-    simulator.dt = 1.0   # 1s logical chunks for wall_budget checking
+        max_dt = 0.05
+        step_dt = 0.05
+
+    simulator.dt = step_dt
 
     wall_budget = 0.15          # seconds of real time we're allowed to use
     tick_start  = _time.perf_counter()
@@ -142,7 +155,7 @@ def _physics_batch() -> dict:
         mb_rain   += rain_vol
         mb_drain  += max(0.0, vol_before - vol_after + rain_vol)
 
-        if sim_speed < 25:      # at low speed, one step per tick is fine
+        if sim_speed <= 25:     # at normal speeds, one step per tick maintains true real-time pacing
             break
 
     return {"mb_rain": mb_rain, "mb_drain": mb_drain}
@@ -168,6 +181,7 @@ async def physics_loop():
             _state_json_sim_time   = -2.0  # invalidate full JSON cache
             reset_requested = False
             
+        batch_dur = 0.0
         if is_running and not time_skip_running:
             # auto-stop rain
             if rain_stop_at is not None and state.time >= rain_stop_at:
@@ -175,7 +189,9 @@ async def physics_loop():
                 rain_stop_at = None
 
             # run physics in thread (Numba releases GIL → true parallelism)
+            t_batch_start = _time.perf_counter()
             result = await asyncio.to_thread(_physics_batch)
+            batch_dur = _time.perf_counter() - t_batch_start
             if not reset_requested:
                 mb_rain_total  += result["mb_rain"]
                 mb_drain_total += result["mb_drain"]
@@ -204,10 +220,13 @@ async def physics_loop():
         # yield briefly so HTTP handlers can respond between batches
         await asyncio.sleep(0)
 
-
-
-        # Sleep short at high speed so we get called ~200x/sec; longer at low speed
-        await asyncio.sleep(0.005 if sim_speed >= 25 else 0.02)
+        # Precise pacing for 1x, 5x, 25x (~20 Hz tick), minimal sleep for fast-forward
+        if is_running and not time_skip_running:
+            if sim_speed <= 25:
+                sleep_sec = max(0.002, 0.050 - batch_dur)
+            else:
+                sleep_sec = 0.005
+            await asyncio.sleep(sleep_sec)
 
 
 def _fmt_time(t: float) -> str:
