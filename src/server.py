@@ -65,6 +65,9 @@ for i, z in enumerate(state.zones):
     state.zone_peaks[z["id"]] = 0.0
 
 MAIN_BLOCKAGE_PIPE_ID = city_data["main_blockage_id"]
+_zero_depth_list = [[0.0] * state.grid_shape[1] for _ in range(state.grid_shape[0])]
+_last_water_depth_time = -1.0
+_last_water_depth_list = None
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  2. SIMULATION LOOP STATE
@@ -149,6 +152,7 @@ async def physics_loop():
             for pipe in state.pipes: pipe.current_flow = 0.0
             mb_rain_total = 0.0; mb_drain_total = 0.0
             snapshots.clear()
+            _last_water_depth_time = -1.0  # invalidate depth cache
             reset_requested = False
             
         if is_running and not time_skip_running:
@@ -366,12 +370,23 @@ def get_state():
         for n in state.nodes.values()
     ]
 
+    global _last_water_depth_time, _last_water_depth_list
+    if state.time == _last_water_depth_time and _last_water_depth_list is not None:
+        depth_payload = _last_water_depth_list
+    else:
+        if max_d <= 0.04:
+            depth_payload = _zero_depth_list
+        else:
+            depth_payload = np.where(depth > 0.04, np.round(depth, 2), 0.0).tolist()
+        _last_water_depth_time = state.time
+        _last_water_depth_list = depth_payload
+
     return {
         "time":           round(state.time, 2),
         "time_label":     _fmt_time(state.time),
         "running":        is_running,
         "speed":          sim_speed,
-        "water_depth":    np.where(depth > 0.04, depth, 0.0).tolist(),
+        "water_depth":    depth_payload,
         "rainfall_mmhr":  round(state.rainfall_rate * 1000 * 3600, 1),
         "rain_stops_at":  rain_stop_at,
         "skip_progress":  time_skip_progress if time_skip_running else None,
@@ -574,14 +589,18 @@ def rewind(req: RewindRequest):
         if int_id in state.nodes:
             state.nodes[int_id].volume = vol
     # Pause so user can inspect the restored state
-    global is_running
+    global is_running, _last_water_depth_time, _last_water_depth_list
+    _last_water_depth_time = -1.0
+    _last_water_depth_list = None
     is_running = False
     return {"ok": True, "restored_to": best["time"], "label": best["label"]}
 
 # ── Reset ─────────────────────────────────────────────────────────────────────
 @app.post("/api/reset")
 def reset():
-    global rain_stop_at, mb_rain_total, mb_drain_total
+    global rain_stop_at, mb_rain_total, mb_drain_total, _last_water_depth_time, _last_water_depth_list
+    _last_water_depth_time = -1.0
+    _last_water_depth_list = None
     state.water_depth[:] = 0.0
     if hasattr(state, 'velocity_x'): state.velocity_x[:] = 0.0
     if hasattr(state, 'velocity_y'): state.velocity_y[:] = 0.0
