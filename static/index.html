@@ -113,6 +113,85 @@ button:hover { filter:brightness(1.15); }
 .pi-btn-row button { flex: 1; padding: 6px 0; font-size: 11px; margin-top: 0; border-radius: 6px; }
 #pi-btn-clear  { background: #27ae60; }
 #pi-btn-full   { background: #c0392b; }
+
+/* ── Barangay SitRep Dashboard ────────────────────────────────────── */
+#sitrep-panel {
+    position: absolute; top: 16px; left: 16px;
+    background: rgba(10, 18, 30, 0.92); backdrop-filter: blur(10px);
+    color: #dfe6ed; border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    width: 320px; max-height: calc(100vh - 32px);
+    overflow-y: auto; z-index: 400; font-family: 'Segoe UI', sans-serif;
+    transition: all 0.2s ease;
+}
+#sitrep-header {
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    display: flex; justify-content: space-between; align-items: flex-start;
+}
+#sitrep-header h2 {
+    font-size: 13px; letter-spacing: 1.5px; color: #5dade2;
+    text-transform: uppercase; margin: 0; line-height: 1.2;
+}
+#sitrep-header .brgy-sub {
+    font-size: 10.5px; color: #85929e; margin-top: 3px; font-weight: normal; letter-spacing: 0;
+}
+#sitrep-toggle-btn {
+    width: auto; padding: 2px 8px; font-size: 12px; margin: 0;
+    background: rgba(255,255,255,0.08); color: #aaa; border-radius: 4px;
+    font-weight: 700; cursor: pointer;
+}
+#sitrep-toggle-btn:hover { background: rgba(255,255,255,0.18); color: #fff; }
+
+.sitrep-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 12px;
+}
+.kpi-card {
+    background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+    padding: 8px 10px; border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.kpi-title { font-size: 9.5px; color: #85929e; text-transform: uppercase; letter-spacing: 0.5px; }
+.kpi-val { font-size: 15px; font-weight: 700; color: #ffffff; margin-top: 3px; }
+.kpi-sub { font-size: 9.5px; color: #7f8c8d; margin-top: 1px; }
+
+.worst-box {
+    margin: 0 12px 10px; padding: 8px 10px; border-radius: 8px;
+    background: rgba(231, 76, 60, 0.12); border: 1px solid rgba(231, 76, 60, 0.35);
+    display: flex; justify-content: space-between; align-items: center;
+}
+.worst-label { font-size: 9.5px; color: #e74c3c; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.worst-name { font-size: 11.5px; color: #fff; font-weight: 600; margin-top: 2px; }
+
+.zone-table-wrap { padding: 0 12px 12px; }
+.zone-table-title {
+    font-size: 10px; font-weight: 700; color: #85929e;
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px;
+    display: flex; justify-content: space-between;
+}
+.zone-table { width: 100%; border-collapse: collapse; }
+.zone-table th {
+    font-size: 9px; color: #7f8c8d; text-align: left;
+    padding: 5px 4px; border-bottom: 1px solid rgba(255,255,255,0.08);
+    text-transform: uppercase; font-weight: 600;
+}
+.zone-table td {
+    font-size: 10.5px; padding: 6px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.04); color: #dfe6ed;
+}
+.zone-row { cursor: pointer; transition: background 0.15s; }
+.zone-row:hover { background: rgba(93, 173, 226, 0.15); }
+.zone-color-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px;
+}
+.badge {
+    display: inline-block; padding: 2px 6px; border-radius: 4px;
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+}
+.badge-NORMAL { background: rgba(39, 174, 96, 0.2); color: #2ecc71; border: 1px solid rgba(39, 174, 96, 0.4); }
+.badge-ALERT { background: rgba(241, 196, 15, 0.2); color: #f1c40f; border: 1px solid rgba(241, 196, 15, 0.4); }
+.badge-WARNING { background: rgba(230, 126, 34, 0.25); color: #e67e22; border: 1px solid rgba(230, 126, 34, 0.4); }
+.badge-CRITICAL { background: rgba(231, 76, 60, 0.3); color: #ff6b6b; border: 1px solid rgba(231, 76, 60, 0.6); }
 </style>
 </head>
 <body>
@@ -122,6 +201,69 @@ button:hover { filter:brightness(1.15); }
     <div>Fast-Forwarding (Offline Physics)...</div>
     <div id="skip-progress" style="margin-top:10px; color:#5dade2; margin-bottom: 20px;">0%</div>
     <button id="btn-cancel-skip" style="width:150px; background:#e74c3c;">🛑 Cancel</button>
+</div>
+
+<!-- Barangay Disaster Risk & SitRep Dashboard -->
+<div id="sitrep-panel">
+    <div id="sitrep-header">
+        <div>
+            <h2>Barangay 168 (Deparo)</h2>
+            <div class="brgy-sub">Caloocan City • Flood Situational Report</div>
+        </div>
+        <button id="sitrep-toggle-btn" title="Minimize / Expand Panel">−</button>
+    </div>
+    <div id="sitrep-body">
+        <div class="sitrep-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">🌧 Rain Duration</div>
+                <div class="kpi-val" id="kpi-rain-dur">0m</div>
+                <div class="kpi-sub" id="kpi-rain-rate">0 mm/hr</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">🌊 Brgy Inundated</div>
+                <div class="kpi-val" id="kpi-brgy-pct">0.0%</div>
+                <div class="kpi-sub" id="kpi-brgy-cells">0 cells</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">📍 Flooded Areas</div>
+                <div class="kpi-val" id="kpi-flooded-count">0 / 7</div>
+                <div class="kpi-sub">Subdivisions Affected</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">⛰ Highest Peak</div>
+                <div class="kpi-val" id="kpi-peak-depth">0.00 m</div>
+                <div class="kpi-sub" id="kpi-peak-ft">0.0 ft</div>
+            </div>
+        </div>
+
+        <div class="worst-box" id="worst-box">
+            <div>
+                <div class="worst-label">🚨 Most Flooded Area</div>
+                <div class="worst-name" id="worst-name">None (Safe)</div>
+            </div>
+            <span class="badge badge-NORMAL" id="worst-badge">SAFE</span>
+        </div>
+
+        <div class="zone-table-wrap">
+            <div class="zone-table-title">
+                <span>Subdivision / Area</span>
+                <span>Peak / Flooded</span>
+            </div>
+            <table class="zone-table">
+                <thead>
+                    <tr>
+                        <th>Area</th>
+                        <th style="text-align:right;">Peak</th>
+                        <th style="text-align:right;">Flooded</th>
+                        <th style="text-align:right;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="zone-table-body">
+                    <!-- Populated dynamically via /api/state -->
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <!-- Pipe Inspector Panel -->
@@ -253,6 +395,18 @@ button:hover { filter:brightness(1.15); }
             🔴 Barangay Border
         </label>
         <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+            <input type="checkbox" id="chk-zone-borders" checked style="width:14px;height:14px;">
+            🔲 Zone Boundaries
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+            <input type="checkbox" id="chk-zone-labels" checked style="width:14px;height:14px;">
+            🏷 Area Labels (3D)
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+            <input type="checkbox" id="chk-map-labels" checked style="width:14px;height:14px;">
+            🗺️ Map & Road Labels
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
             <input type="checkbox" id="chk-pipes" checked style="width:14px;height:14px;">
             🔵 Drain Nodes
         </label>
@@ -287,10 +441,10 @@ scene.background = new THREE.Color(0x1a1a24);   // dark mode background
 scene.fog = new THREE.FogExp2(0x1a1a24, 0.0010);
 
 const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.5, 5000);
-camera.position.set(330, 420, 180.1);   // slightly offset Z prevents random rotation flip
+camera.position.set(345, 420, 190.1);   // slightly offset Z prevents random rotation flip
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(330, 8, 180);     // center of 660x360 grid
+controls.target.set(345, 8, 190);     // center of 690x380 grid (Barangay 168 Google Maps boundary)
 controls.enableDamping = true;
 controls.maxPolarAngle = Math.PI / 2;
 controls.enableRotate = false;        // start in 2D — no rotation
@@ -300,13 +454,13 @@ controls.update();
 // ─── LIGHTS ──────────────────────────────────────────────────────────
 scene.add(new THREE.HemisphereLight(0xc8e8ff, 0x8aaf70, 0.7));
 const sun = new THREE.DirectionalLight(0xfff5e0, 1.4);
-sun.position.set(330, 500, -100);
+sun.position.set(345, 500, -100);
 sun.castShadow = true;
 sun.shadow.mapSize.set(4096, 4096);
-sun.shadow.camera.left = -350; sun.shadow.camera.right = 350;
-sun.shadow.camera.top = 200; sun.shadow.camera.bottom = -200;
+sun.shadow.camera.left = -360; sun.shadow.camera.right = 360;
+sun.shadow.camera.top = 210; sun.shadow.camera.bottom = -210;
 scene.add(sun);
-sun.target.position.set(330, 0, 180);
+sun.target.position.set(345, 0, 190);
 scene.add(sun.target);
 scene.add(new THREE.DirectionalLight(0x8888ff, 0.3)).position.set(-80, 100, -80);
 
@@ -322,6 +476,15 @@ let waterDepthTex, waterDepthData;
 let gridHelper = null;
 let buildingMeshes = [];   // refs to InstancedMeshes so X-Ray can hide them
 
+let borderMesh = null;
+let zoneBorderLines = null;
+let zoneLabelsGroup = new THREE.Group();
+scene.add(zoneLabelsGroup);
+let zoneLabelSprites = {};
+let mapLabelsGroup = new THREE.Group();
+scene.add(mapLabelsGroup);
+let _lastTableUpdate = 0;
+
 // ─── LOAD TERRAIN ────────────────────────────────────────────────────
 fetch('/api/terrain?t=' + Date.now()).then(r=>r.json()).then(d=>{
     ny = d.shape[0]; nx = d.shape[1];
@@ -336,14 +499,19 @@ fetch('/api/terrain?t=' + Date.now()).then(r=>r.json()).then(d=>{
     buildPipes(d.nodes, d.pipes);
     buildBuildings(d);
     drawBorderLine(d);
+    drawZoneBorders(d);
+    buildZoneLabels(d.zones);
+    buildMapLabels(d.map_labels);
     document.getElementById('loading').style.display='none';
 });
 
 // ─── BUILDERS ────────────────────────────────────────────────────────
 function buildGrid() {
     // GridHelper at Y=0 — we'll use depthTest:false so it always renders on top
-    gridHelper = new THREE.GridHelper(Math.max(660,360), 66, 0xffffff, 0xffffff);
-    gridHelper.position.set(330, 0, 180);
+    const gSize = Math.max(nx, ny);
+    const gDiv  = Math.max(10, Math.round(gSize / 10));
+    gridHelper = new THREE.GridHelper(gSize, gDiv, 0xffffff, 0xffffff);
+    gridHelper.position.set(nx * 0.5, 0, ny * 0.5);
     gridHelper.material.opacity = 0.18;
     gridHelper.material.transparent = true;
     gridHelper.material.depthTest = false;   // Always draw on top of terrain
@@ -375,6 +543,31 @@ function buildTerrain(d) {
     // Prevent divide by zero if flat
     if(maxE === minE) maxE = minE + 1.0;
     
+    // Precompute anti-aliased smooth road coverage to eliminate pixelated/jagged edges
+    const rawRoadAlpha = new Float32Array(ny * nx);
+    for(let r = 0; r < ny; r++){
+        for(let c = 0; c < nx; c++){
+            if(d.road_mask && d.road_mask[r][c] > 0){
+                rawRoadAlpha[r * nx + c] = 1.0;
+            }
+        }
+    }
+    const smoothRoadAlpha = new Float32Array(ny * nx);
+    for(let r = 0; r < ny; r++){
+        const rPrev = Math.max(0, r - 1) * nx;
+        const rCurr = r * nx;
+        const rNext = Math.min(ny - 1, r + 1) * nx;
+        for(let c = 0; c < nx; c++){
+            const cPrev = Math.max(0, c - 1);
+            const cNext = Math.min(nx - 1, c + 1);
+            const val = 
+                rawRoadAlpha[rPrev + cPrev]*0.05 + rawRoadAlpha[rPrev + c]*0.10 + rawRoadAlpha[rPrev + cNext]*0.05 +
+                rawRoadAlpha[rCurr + cPrev]*0.10 + rawRoadAlpha[rCurr + c]*0.40 + rawRoadAlpha[rCurr + cNext]*0.10 +
+                rawRoadAlpha[rNext + cPrev]*0.05 + rawRoadAlpha[rNext + c]*0.10 + rawRoadAlpha[rNext + cNext]*0.05;
+            smoothRoadAlpha[rCurr + c] = Math.min(1.0, val * 1.5);
+        }
+    }
+
     for(let r=0; r<ny; r++){
         for(let c=0; c<nx; c++){
             const i = r*nx + c;
@@ -382,28 +575,53 @@ function buildTerrain(d) {
             pos[i*3+1] = terrainElev[i];
             pos[i*3+2] = r;
             
-            const isRoad = d.road_mask[r][c];
             const isInside = d.border_mask ? d.border_mask[r][c] : true;
             
-            const col = new THREE.Color();
-            if(!isInside){
-                col.setHex(0x8a9a70);
-            } else if(isRoad){
-                col.setHex(0x7a8794);
-            } else {
-                col.setHSL(0.28, 0.35, 0.42 + Math.random()*0.06);
-            }
-            origColors.set([col.r, col.g, col.b], i*3);
-
-            // Track road cell indices so the checkbox can hide/show them
-            if(isRoad && isInside) window.roadCells.push(i);
-            // Store a grass color for every cell (used to paint over roads when hidden)
+            // Store grass color for every cell
             const grassCol = new THREE.Color();
-            if(!isInside) grassCol.setHex(0x8a9a70);
-            else grassCol.setHSL(0.28, 0.35, 0.42);
+            if(!isInside){
+                grassCol.setHex(0x8a9a70);
+            } else {
+                grassCol.setHSL(0.28, 0.35, 0.42 + Math.random()*0.06);
+            }
             window.grassColors[i*3]   = grassCol.r;
             window.grassColors[i*3+1] = grassCol.g;
             window.grassColors[i*3+2] = grassCol.b;
+
+            const col = new THREE.Color();
+            const alpha = smoothRoadAlpha[i];
+            
+            if(!isInside){
+                col.copy(grassCol);
+            } else if(alpha > 0.03){
+                // Determine road hierarchy level (check current cell or adjacent road cells if on edge)
+                let lvl = (d.road_mask && d.road_mask[r][c]) ? Number(d.road_mask[r][c]) : 0;
+                if(lvl === 0 && d.road_mask){
+                    lvl = Math.max(
+                        d.road_mask[Math.max(0, r-1)][c] || 0,
+                        d.road_mask[Math.min(ny-1, r+1)][c] || 0,
+                        d.road_mask[r][Math.max(0, c-1)] || 0,
+                        d.road_mask[r][Math.min(nx-1, c+1)] || 0
+                    );
+                }
+                
+                // Natural, balanced asphalt palette (NOT pitch black)
+                const roadCol = new THREE.Color();
+                if (lvl >= 3) {
+                    roadCol.setHex(0x444f5c); // Arterial asphalt (Deparo Rd, Samson Ave, Camarin Rd)
+                } else if (lvl === 2) {
+                    roadCol.setHex(0x4e5b69); // Collector avenue (Kabatuhan Rd, Narra St, Alecon Drive)
+                } else {
+                    roadCol.setHex(0x5a6774); // Subdivision street (BF Homes, Casimiro, Natividad, etc.)
+                }
+                
+                // Smooth anti-aliased blend from grass to road
+                col.lerpColors(grassCol, roadCol, alpha);
+                window.roadCells.push(i);
+            } else {
+                col.copy(grassCol);
+            }
+            origColors.set([col.r, col.g, col.b], i*3);
             
             // Limit t to [0, 1] in case an outside cell is higher/lower than the barangay min/max
             let t = (terrainElev[i]-minE)/(maxE-minE);
@@ -429,52 +647,37 @@ function buildTerrain(d) {
         }
     }
 
+    const uvs = new Float32Array(ny * nx * 2);
+    for(let r=0; r<ny; r++){
+        for(let c=0; c<nx; c++){
+            const i = r*nx + c;
+            uvs[i*2] = c / (nx - 1);
+            uvs[i*2+1] = 1.0 - (r / (ny - 1));
+        }
+    }
+
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
     geo.setIndex(indices);
     geo.setAttribute('color', new THREE.BufferAttribute(origColors, 3));
     geo.computeVertexNormals();
 
-    // ── Procedural detail texture for close-up ground quality ────────────────
-    const sz = 512;
-    const cvs = document.createElement('canvas');
-    cvs.width = cvs.height = sz;
-    const ctx2d = cvs.getContext('2d');
+    // ── High-resolution smooth vector terrain textures ───────────────────────
+    const texLoader = new THREE.TextureLoader();
+    window.roadTexture = texLoader.load('/static/terrain_roads.png');
+    window.roadTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    window.roadTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    window.roadTexture.magFilter = THREE.LinearFilter;
 
-    // White base
-    ctx2d.fillStyle = '#ffffff';
-    ctx2d.fillRect(0, 0, sz, sz);
-
-    // Organic noise — random blobs of slight light/dark variation
-    const rng = (a,b) => Math.random()*(b-a)+a;
-    for(let i = 0; i < 8000; i++){
-        const v = Math.floor(rng(185, 245));
-        ctx2d.fillStyle = `rgb(${v},${v},${v})`;
-        ctx2d.beginPath();
-        ctx2d.arc(rng(0,sz), rng(0,sz), rng(0.5, 3.5), 0, Math.PI*2);
-        ctx2d.fill();
-    }
-    // Subtle grass blade strokes
-    for(let i = 0; i < 1500; i++){
-        const x = rng(0, sz), y = rng(0, sz);
-        const v = Math.floor(rng(160, 220));
-        ctx2d.strokeStyle = `rgba(${v},${v},${v},0.4)`;
-        ctx2d.lineWidth = rng(0.3, 1.2);
-        ctx2d.beginPath();
-        ctx2d.moveTo(x, y);
-        ctx2d.lineTo(x + rng(-6,6), y + rng(-8, 0));
-        ctx2d.stroke();
-    }
-
-    const detailTex = new THREE.CanvasTexture(cvs);
-    detailTex.wrapS = detailTex.wrapT = THREE.RepeatWrapping;
-    detailTex.repeat.set(nx / 5, ny / 5);   // one texture tile every 5 grid cells (25m)
-    detailTex.anisotropy = renderer.capabilities.getMaxAnisotropy();  // sharp at angle
+    window.grassTexture = texLoader.load('/static/terrain_grass.png');
+    window.grassTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    window.grassTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    window.grassTexture.magFilter = THREE.LinearFilter;
 
     const mat = new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        map: detailTex,          // detail texture multiplies with vertex color
-        roughness: 0.95,
-        metalness: 0.0,
+        map: window.roadTexture,
+        roughness: 0.90,
+        metalness: 0.05,
         transparent: true,
         opacity: 1.0
     });
@@ -899,6 +1102,80 @@ async function pollState() {
                 }
             });
         }
+
+        // ── Barangay SitRep Dashboard Update ─────────────────────────────
+        if (d.sitrep) {
+            const s = d.sitrep;
+            const kpiRainDur = document.getElementById('kpi-rain-dur');
+            const kpiRainRate = document.getElementById('kpi-rain-rate');
+            const kpiBrgyPct = document.getElementById('kpi-brgy-pct');
+            const kpiBrgyCells = document.getElementById('kpi-brgy-cells');
+            const kpiFloodedCount = document.getElementById('kpi-flooded-count');
+            const kpiPeakDepth = document.getElementById('kpi-peak-depth');
+            const kpiPeakFt = document.getElementById('kpi-peak-ft');
+
+            if (kpiRainDur) kpiRainDur.textContent = s.rain_duration_label;
+            if (kpiRainRate) kpiRainRate.textContent = Math.round(d.rainfall_mmhr) + ' mm/hr';
+            if (kpiBrgyPct) {
+                kpiBrgyPct.textContent = s.brgy_flooded_pct.toFixed(1) + '%';
+                kpiBrgyPct.style.color = s.brgy_flooded_pct > 30 ? '#ff6b6b' : (s.brgy_flooded_pct > 10 ? '#f1c40f' : '#ffffff');
+            }
+            if (kpiBrgyCells) kpiBrgyCells.textContent = s.brgy_flooded_cells.toLocaleString() + ' cells';
+            if (kpiFloodedCount) kpiFloodedCount.textContent = `${s.flooded_zones_count} / ${s.total_zones_count}`;
+            if (kpiPeakDepth) kpiPeakDepth.textContent = s.highest_peak_depth.toFixed(2) + ' m';
+            if (kpiPeakFt) kpiPeakFt.textContent = (s.highest_peak_depth * 3.28084).toFixed(1) + ' ft';
+
+            // Worst-hit area alert box
+            const worstEl = document.getElementById('worst-name');
+            const worstBadge = document.getElementById('worst-badge');
+            if (worstEl && worstBadge) {
+                if (s.highest_peak_depth > 0.05) {
+                    worstEl.textContent = s.worst_zone;
+                    if (s.highest_peak_depth >= 0.80) {
+                        worstBadge.className = 'badge badge-CRITICAL';
+                        worstBadge.textContent = 'CRITICAL';
+                    } else if (s.highest_peak_depth >= 0.30) {
+                        worstBadge.className = 'badge badge-WARNING';
+                        worstBadge.textContent = 'WARNING';
+                    } else {
+                        worstBadge.className = 'badge badge-ALERT';
+                        worstBadge.textContent = 'ALERT';
+                    }
+                } else {
+                    worstEl.textContent = 'None (Safe)';
+                    worstBadge.className = 'badge badge-NORMAL';
+                    worstBadge.textContent = 'SAFE';
+                }
+            }
+
+            // Update Zones Table (throttled every 250ms for buttery-smooth FPS)
+            const now = Date.now();
+            if (now - _lastTableUpdate > 250) {
+                _lastTableUpdate = now;
+                const tbody = document.getElementById('zone-table-body');
+                if (tbody && s.zones) {
+                    let html = '';
+                    s.zones.forEach(z => {
+                        const badgeClass = `badge-${z.status}`;
+                        html += `
+                            <tr class="zone-row" onclick="focusOnZone(${z.center_x}, ${z.center_y})" title="Click to fly camera to ${z.name}">
+                                <td>
+                                    <span class="zone-color-dot" style="background:${z.color};"></span>
+                                    <span style="font-weight:600;">${z.name}</span>
+                                </td>
+                                <td style="text-align:right; font-weight:700;">${z.peak_depth.toFixed(2)}m</td>
+                                <td style="text-align:right;">${z.pct_flooded.toFixed(1)}%</td>
+                                <td style="text-align:right;"><span class="badge ${badgeClass}">${z.status}</span></td>
+                            </tr>
+                        `;
+
+                        // Update 3D Floating Sprite Label
+                        updateZoneLabel(z.id, z.name, `${z.status} • Peak: ${z.peak_depth.toFixed(2)}m`, z.color);
+                    });
+                    tbody.innerHTML = html;
+                }
+            }
+        }
         
     } catch(e) { /* server briefly unavailable */ }
     setTimeout(pollState, 50);   // 20 fps polling — smooth real-time water
@@ -1021,29 +1298,285 @@ document.getElementById('pi-btn-full').onclick = () => {
     });
 };
 
-// ─── BARANGAY BORDER LINE ─────────────────────────────────────────────
+// ─── BARANGAY & ZONE VISUALS (LINES & 3D LABELS) ─────────────────────
 function drawBorderLine(d) {
-    if(!d.border_mask) return;
-    const points = [];
-    // Trace the border by finding edge cells
-    for(let r=1; r<ny-1; r++){
-        for(let c=1; c<nx-1; c++){
-            const inside = d.border_mask[r][c];
-            const neighbors = [
-                d.border_mask[r-1][c], d.border_mask[r+1][c],
-                d.border_mask[r][c-1], d.border_mask[r][c+1]
-            ];
-            if(inside && neighbors.includes(false)){
-                const elev = terrainElev[r*nx+c] + 1.0;
-                points.push(new THREE.Vector3(c, elev, r));
+    if (d.brgy_border && d.brgy_border.length > 0) {
+        const points = [];
+        for (const pt of d.brgy_border) {
+            const c = Math.max(0, Math.min(nx - 1, Math.round(pt[0])));
+            const r = Math.max(0, Math.min(ny - 1, Math.round(pt[1])));
+            const elev = terrainElev ? (terrainElev[r * nx + c] + 1.8) : 10;
+            points.push(new THREE.Vector3(pt[0], elev, pt[1]));
+        }
+        const geo = new THREE.BufferGeometry().setFromPoints(points);
+        const mat = new THREE.LineBasicMaterial({
+            color: 0xff2d20,
+            linewidth: 3,
+            transparent: true,
+            opacity: 1.0,
+            depthTest: false
+        });
+        borderMesh = new THREE.LineLoop(geo, mat);
+        borderMesh.renderOrder = 10;
+        borderMesh.userData = { isBorder: true };
+        scene.add(borderMesh);
+    } else if (d.border_mask) {
+        const points = [];
+        for(let r=1; r<ny-1; r++){
+            for(let c=1; c<nx-1; c++){
+                const inside = d.border_mask[r][c];
+                const neighbors = [
+                    d.border_mask[r-1][c], d.border_mask[r+1][c],
+                    d.border_mask[r][c-1], d.border_mask[r][c+1]
+                ];
+                if(inside && neighbors.includes(false)){
+                    const elev = terrainElev[r*nx+c] + 1.0;
+                    points.push(new THREE.Vector3(c, elev, r));
+                }
             }
         }
+        if(points.length > 0) {
+            const geo = new THREE.BufferGeometry().setFromPoints(points);
+            const mat = new THREE.PointsMaterial({ color: 0xff3b30, size: 2.0, sizeAttenuation: false });
+            borderMesh = new THREE.Points(geo, mat);
+            borderMesh.userData = { isBorder: true };
+            scene.add(borderMesh);
+        }
     }
-    if(points.length === 0) return;
-    const geo = new THREE.BufferGeometry().setFromPoints(points);
-    const mat = new THREE.PointsMaterial({ color: 0xff3300, size: 1.5, sizeAttenuation: false });
-    scene.add(new THREE.Points(geo, mat));
 }
+
+function drawZoneBorders(d) {
+    if (!d.zone_borders || d.zone_borders.length === 0) return;
+    const pts = d.zone_borders;
+    // Each segment is [x1,z1, x2,z2] — we render both endpoints as points
+    // Since WebGL ignores linewidth > 1, we use Points for guaranteed visibility.
+    const segCount = pts.length / 4;
+    const pointBuf = new Float32Array(segCount * 2 * 3); // 2 pts per seg, xyz each
+    let pi = 0;
+    for (let i = 0; i < segCount; i++) {
+        const x1 = pts[i * 4],     z1 = pts[i * 4 + 1];
+        const x2 = pts[i * 4 + 2], z2 = pts[i * 4 + 3];
+        const c1 = Math.max(0, Math.min(nx - 1, Math.round(x1)));
+        const r1 = Math.max(0, Math.min(ny - 1, Math.round(z1)));
+        const c2 = Math.max(0, Math.min(nx - 1, Math.round(x2)));
+        const r2 = Math.max(0, Math.min(ny - 1, Math.round(z2)));
+        const e1 = terrainElev ? (terrainElev[r1 * nx + c1] + 0.8) : 10;
+        const e2 = terrainElev ? (terrainElev[r2 * nx + c2] + 0.8) : 10;
+        pointBuf[pi++] = x1; pointBuf[pi++] = e1; pointBuf[pi++] = z1;
+        pointBuf[pi++] = x2; pointBuf[pi++] = e2; pointBuf[pi++] = z2;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pointBuf, 3));
+    const mat = new THREE.PointsMaterial({
+        color: 0xf9e400,      // bright yellow — clearly visible against terrain
+        size: 2.0,
+        sizeAttenuation: false,
+        transparent: true,
+        opacity: 0.9,
+        depthTest: false       // always on top of terrain
+    });
+    zoneBorderLines = new THREE.Points(geo, mat);
+    zoneBorderLines.renderOrder = 6;
+    zoneBorderLines.userData = { isZoneBorder: true };
+    scene.add(zoneBorderLines);
+}
+
+function createTextSprite(text, subtext, colorStr) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 160;
+    const ctx = canvas.getContext('2d');
+
+    function renderContent(title, sub, col) {
+        ctx.clearRect(0, 0, 512, 160);
+        // Rounded pill container
+        ctx.fillStyle = 'rgba(10, 18, 30, 0.88)';
+        ctx.strokeStyle = col || '#5dade2';
+        ctx.lineWidth = 5;
+        if (ctx.roundRect) {
+            ctx.roundRect(10, 10, 492, 140, 24);
+        } else {
+            ctx.rect(10, 10, 492, 140);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Area Title
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 34px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(title, 256, 54);
+
+        // Status / Peak Subtext
+        ctx.fillStyle = col || '#5dade2';
+        ctx.font = '700 24px "Segoe UI", sans-serif';
+        ctx.fillText(sub, 256, 110);
+    }
+
+    renderContent(text, subtext, colorStr);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    const mat = new THREE.SpriteMaterial({
+        map: texture,
+        depthTest: false,
+        transparent: true
+    });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(60, 18.75, 1);
+    sprite.renderOrder = 10;
+    return { sprite, canvas, ctx, texture, renderContent };
+}
+
+function buildZoneLabels(zones) {
+    if (!zones) return;
+    zoneLabelsGroup.clear();
+    zoneLabelSprites = {};
+
+    zones.forEach(z => {
+        const cx = z.center_x;
+        const cy = z.center_y;
+        const r = Math.max(0, Math.min(ny - 1, Math.floor(cy)));
+        const c = Math.max(0, Math.min(nx - 1, Math.floor(cx)));
+        const elev = terrainElev ? (terrainElev[r * nx + c] || 10) : 10;
+
+        const entry = createTextSprite(z.name, 'Normal • Peak 0.00m', z.color);
+        entry.sprite.position.set(cx, elev + 26, cy);
+        zoneLabelsGroup.add(entry.sprite);
+        zoneLabelSprites[z.id] = entry;
+    });
+}
+
+function updateZoneLabel(zId, text, subtext, color) {
+    const entry = zoneLabelSprites[zId];
+    if (!entry) return;
+    entry.renderContent(text, subtext, color);
+    entry.texture.needsUpdate = true;
+}
+
+function createMapLabelSprite(name, icon, type, color) {
+    const isRoad = (type === 'road');
+    const isHall = (type === 'hall');
+    const isSchool = (type === 'school');
+    const isCommercial = (type === 'commercial');
+
+    const displayText = (icon ? icon + '  ' : '') + name;
+
+    // Use a temporary canvas to measure exact text metrics
+    const probe = document.createElement('canvas').getContext('2d');
+    const fontSize = isHall ? 26 : (isRoad ? 20 : 22);
+    probe.font = `bold ${fontSize}px "Segoe UI", -apple-system, sans-serif`;
+    const textW = probe.measureText(displayText).width;
+
+    // Adaptive canvas size with 2x resolution for retina-crisp rendering
+    const canvasW = Math.max(isRoad ? 200 : 240, Math.ceil(textW + (isHall ? 56 : 40)));
+    const canvasH = isHall ? 84 : (isRoad ? 64 : 72);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    const ctx = canvas.getContext('2d');
+
+    // Rounded pill container
+    if (isHall) {
+        ctx.fillStyle = 'rgba(44, 18, 66, 0.95)';
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 3.5;
+    } else if (isRoad) {
+        ctx.fillStyle = 'rgba(15, 23, 38, 0.90)';
+        ctx.strokeStyle = '#5dade2';
+        ctx.lineWidth = 2.0;
+    } else if (isSchool) {
+        ctx.fillStyle = 'rgba(16, 42, 28, 0.92)';
+        ctx.strokeStyle = '#2ecc71';
+        ctx.lineWidth = 2.2;
+    } else if (isCommercial) {
+        ctx.fillStyle = 'rgba(46, 26, 12, 0.92)';
+        ctx.strokeStyle = '#e67e22';
+        ctx.lineWidth = 2.2;
+    } else {
+        // Residential / subdivision
+        ctx.fillStyle = 'rgba(18, 30, 48, 0.92)';
+        ctx.strokeStyle = color || '#3498db';
+        ctx.lineWidth = 2.2;
+    }
+
+    const pad = 3;
+    const w = canvasW - pad * 2;
+    const h = canvasH - pad * 2;
+    const radius = h / 2;
+
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(pad, pad, w, h, radius);
+    } else {
+        ctx.rect(pad, pad, w, h);
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    // Text & icon
+    ctx.fillStyle = isHall ? '#f1c40f' : '#ffffff';
+    ctx.font = `bold ${fontSize}px "Segoe UI", -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    ctx.shadowBlur = 5;
+    ctx.fillText(displayText, canvasW / 2, canvasH / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    const mat = new THREE.SpriteMaterial({
+        map: texture,
+        depthTest: false,
+        depthWrite: false,
+        transparent: true
+    });
+    const sprite = new THREE.Sprite(mat);
+
+    // World-space sizing based on aspect ratio
+    const aspect = canvasW / canvasH;
+    const worldH = isHall ? 10.5 : (isRoad ? 6.2 : 7.5);
+    const worldW = worldH * aspect;
+    sprite.scale.set(worldW, worldH, 1);
+    sprite.renderOrder = isHall ? 16 : (isRoad ? 12 : 14);
+
+    return sprite;
+}
+
+function buildMapLabels(labels) {
+    if (!labels) return;
+    mapLabelsGroup.clear();
+
+    labels.forEach(l => {
+        const cx = l.x;
+        const cy = l.y;
+        const r = Math.max(0, Math.min(ny - 1, Math.floor(cy)));
+        const c = Math.max(0, Math.min(nx - 1, Math.floor(cx)));
+        const elev = terrainElev ? (terrainElev[r * nx + c] || 10) : 10;
+
+        const sprite = createMapLabelSprite(l.name, l.icon, l.type, l.color);
+        const yOffset = (l.type === 'hall') ? 22 : ((l.type === 'road') ? 5 : 13);
+        sprite.position.set(cx, elev + yOffset, cy);
+        mapLabelsGroup.add(sprite);
+    });
+}
+
+window.focusOnZone = function(cx, cz) {
+    const r = Math.max(0, Math.min(ny - 1, Math.floor(cz)));
+    const c = Math.max(0, Math.min(nx - 1, Math.floor(cx)));
+    const elev = terrainElev ? (terrainElev[r * nx + c] || 0) : 0;
+    controls.target.set(cx, elev, cz);
+    if (is2DView) {
+        // Keep overhead height; just pan the camera X/Z to zone center
+        camera.position.set(cx, camera.position.y, cz);
+    } else {
+        // Isometric-style: above and slightly behind the zone
+        camera.position.set(cx, elev + 120, cz + 150);
+    }
+    controls.update();
+};
 
 
 // ─── RENDER LOOP ─────────────────────────────────────────────────────
@@ -1234,16 +1767,16 @@ document.getElementById('btn-view').onclick = () => {
     is2DView = !is2DView;
     if(!is2DView){
         // ── 3D mode: allow orbit rotation ────────────────────────────
-        camera.position.set(330, 350, 600);
-        controls.target.set(330, 0, 180);
+        camera.position.set(345, 350, 560);
+        controls.target.set(345, 0, 190);
         controls.enableRotate = true;
         controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
         document.getElementById('btn-view').textContent = '🗺 Switch to 2D View';
         document.getElementById('hint').textContent = 'Drag: rotate | Right-drag: pan | Scroll: zoom | Click pipe to configure';
     } else {
         // ── 2D mode: top-down, pan-only ──────────────────────────────
-        camera.position.set(330, 420, 180.1);
-        controls.target.set(330, 0, 180);
+        camera.position.set(345, 420, 190.1);
+        controls.target.set(345, 0, 190);
         controls.enableRotate = false;
         controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
         document.getElementById('btn-view').textContent = '📐 Switch to 3D View';
@@ -1261,7 +1794,18 @@ document.getElementById('btn-grid').onclick = () => {
 
 document.getElementById('btn-elev').onclick = () => {
     showElev = !showElev;
-    if(terrainMesh) terrainMesh.geometry.setAttribute('color', new THREE.BufferAttribute(showElev ? elevColors : origColors, 3));
+    if(terrainMesh) {
+        if(showElev) {
+            terrainMesh.material.map = null;
+            terrainMesh.material.vertexColors = true;
+            terrainMesh.geometry.setAttribute('color', new THREE.BufferAttribute(elevColors, 3));
+        } else {
+            terrainMesh.material.vertexColors = false;
+            const roadsOn = document.getElementById('chk-roads') ? document.getElementById('chk-roads').checked : true;
+            terrainMesh.material.map = roadsOn ? window.roadTexture : window.grassTexture;
+        }
+        terrainMesh.material.needsUpdate = true;
+    }
 };
 
 document.getElementById('btn-glass').onclick = () => {
@@ -1284,25 +1828,11 @@ document.getElementById('chk-buildings').onchange = e => {
 };
 
 document.getElementById('chk-roads').onchange = e => {
-    if (!terrainMesh || !window.roadCells.length || !window.roadColors) return;
-    const col = terrainMesh.geometry.attributes.color.array;
-
-    if (e.target.checked) {
-        // Restore road cells from the immutable snapshot (origColors is mutable/shared)
-        window.roadCells.forEach(idx => {
-            col[idx*3]   = window.roadColors[idx*3];
-            col[idx*3+1] = window.roadColors[idx*3+1];
-            col[idx*3+2] = window.roadColors[idx*3+2];
-        });
-    } else {
-        // Paint road cells with grass colour so roads disappear
-        window.roadCells.forEach(idx => {
-            col[idx*3]   = window.grassColors[idx*3];
-            col[idx*3+1] = window.grassColors[idx*3+1];
-            col[idx*3+2] = window.grassColors[idx*3+2];
-        });
+    if (!terrainMesh || !window.roadTexture || !window.grassTexture) return;
+    if (!showElev) {
+        terrainMesh.material.map = e.target.checked ? window.roadTexture : window.grassTexture;
+        terrainMesh.material.needsUpdate = true;
     }
-    terrainMesh.geometry.attributes.color.needsUpdate = true;
 };
 
 document.getElementById('chk-water').onchange = e => {
@@ -1310,8 +1840,39 @@ document.getElementById('chk-water').onchange = e => {
 };
 
 document.getElementById('chk-border').onchange = e => {
-    scene.children.filter(o => o.isPoints).forEach(o => o.visible = e.target.checked);
+    if (borderMesh) borderMesh.visible = e.target.checked;
 };
+
+const chkZoneBorders = document.getElementById('chk-zone-borders');
+if (chkZoneBorders) {
+    chkZoneBorders.onchange = e => {
+        if (zoneBorderLines) zoneBorderLines.visible = e.target.checked;
+    };
+}
+
+const chkZoneLabels = document.getElementById('chk-zone-labels');
+if (chkZoneLabels) {
+    chkZoneLabels.onchange = e => {
+        if (zoneLabelsGroup) zoneLabelsGroup.visible = e.target.checked;
+    };
+}
+
+const chkMapLabels = document.getElementById('chk-map-labels');
+if (chkMapLabels) {
+    chkMapLabels.onchange = e => {
+        if (mapLabelsGroup) mapLabelsGroup.visible = e.target.checked;
+    };
+}
+
+const sitrepToggleBtn = document.getElementById('sitrep-toggle-btn');
+const sitrepBody = document.getElementById('sitrep-body');
+if (sitrepToggleBtn && sitrepBody) {
+    sitrepToggleBtn.onclick = () => {
+        const isHidden = sitrepBody.style.display === 'none';
+        sitrepBody.style.display = isHidden ? 'block' : 'none';
+        sitrepToggleBtn.textContent = isHidden ? '−' : '+';
+    };
+}
 
 document.getElementById('chk-pipes').onchange = e => {
     const visible = e.target.checked;
