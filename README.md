@@ -13,24 +13,25 @@ A physics-based, dual-domain urban flood simulation digital twin for **Barangay 
 ## Table of Contents
 
 1. [System Architecture](#1-system-architecture)
-2. [How the Simulation Works (End-to-End Lifecycle)](#2-how-the-simulation-works-end-to-end-lifecycle)
-3. [Interactive 3D Digital Twin Manual & Features](#3-interactive-3d-digital-twin-manual--features)
-4. [Global Parameters & Constants](#4-global-parameters--constants)
-5. [Hydrologic & Hydraulic Physics Engine](#5-hydrologic--hydraulic-physics-engine)
-   - [5.1 Surface Runoff (2D Diffusive Wave)](#51-surface-runoff-2d-diffusive-wave)
-   - [5.2 Infiltration & Impervious Land Cover](#52-infiltration--impervious-land-cover)
-   - [5.3 Drain Inlet Coupling (Surface to Underground)](#53-drain-inlet-coupling-surface-to-underground)
-   - [5.4 Surcharge Backflow (Urban Geysering)](#54-surcharge-backflow-urban-geysering)
-   - [5.5 Conduit Network Hydraulics (1D Saint-Venant)](#55-conduit-network-hydraulics-1d-saint-venant)
-   - [5.6 Free Catchment Outfalls](#56-free-catchment-outfalls)
-   - [5.7 Dual-Domain Mass Conservation](#57-dual-domain-mass-conservation)
-6. [Simulation Timing & Speed Engine](#6-simulation-timing--speed-engine)
-7. [GIS & Urban Synthesis Pipeline](#7-gis--urban-synthesis-pipeline)
-8. [Emergency Management & SitRep Zones](#8-emergency-management--sitrep-zones)
-9. [System Performance & Optimization Stack](#9-system-performance--optimization-stack)
-10. [Directory & File Structure](#10-directory--file-structure)
-11. [REST API Specification](#11-rest-api-specification)
-12. [Installation & Verification](#12-installation--verification)
+2. [Technology Stack & Framework Matrix](#2-technology-stack--framework-matrix)
+3. [How the Simulation Works (End-to-End Lifecycle)](#3-how-the-simulation-works-end-to-end-lifecycle)
+4. [Interactive 3D Digital Twin Manual & Features](#4-interactive-3d-digital-twin-manual--features)
+5. [Global Parameters & Constants](#5-global-parameters--constants)
+6. [Hydrologic & Hydraulic Physics Engine](#6-hydrologic--hydraulic-physics-engine)
+   - [6.1 Surface Runoff (2D Diffusive Wave)](#61-surface-runoff-2d-diffusive-wave)
+   - [6.2 Infiltration & Impervious Land Cover](#62-infiltration--impervious-land-cover)
+   - [6.3 Drain Inlet Coupling (Surface to Underground)](#63-drain-inlet-coupling-surface-to-underground)
+   - [6.4 Surcharge Backflow (Urban Geysering)](#64-surcharge-backflow-urban-geysering)
+   - [6.5 Conduit Network Hydraulics (1D Saint-Venant)](#65-conduit-network-hydraulics-1d-saint-venant)
+   - [6.6 Free Catchment Outfalls](#66-free-catchment-outfalls)
+   - [6.7 Dual-Domain Mass Conservation](#67-dual-domain-mass-conservation)
+7. [Simulation Timing & Speed Engine](#7-simulation-timing--speed-engine)
+8. [GIS & Urban Synthesis Pipeline](#8-gis--urban-synthesis-pipeline)
+9. [Emergency Management & SitRep Zones](#9-emergency-management--sitrep-zones)
+10. [System Performance & Optimization Stack](#10-system-performance--optimization-stack)
+11. [Directory & File Structure](#11-directory--file-structure)
+12. [REST API Specification](#12-rest-api-specification)
+13. [Installation & Verification](#13-installation--verification)
 
 ---
 
@@ -54,7 +55,30 @@ graph TD
 
 ---
 
-## 2. How the Simulation Works (End-to-End Lifecycle)
+## 2. Technology Stack & Framework Matrix
+
+The system integrates modern numerical computing, an asynchronous web service, and an interactive 3D WebGL engine:
+
+| Layer / Subsystem | Technology | Version | Key Role & Implementation Rationale |
+| :--- | :--- | :---: | :--- |
+| **Numerical JIT Compiler** | **Numba** | `>= 0.68.0` | JIT-compiles 2D diffusive wave loops into parallel multi-threaded machine code (`@njit(parallel=True, nogil=True)`), bypassing the Python GIL for C-speed performance. |
+| **Array & Tensor Compute** | **NumPy** | `>= 2.0` | High-density 2D elevation, roughness, water depth, and mask arrays with zero-copy vectorized operations. |
+| **Scientific Interpolation** | **SciPy** | `>= 1.18.0` | Bivariate spline interpolation (`scipy.interpolate`) for elevation grid resampling from raw GeoTIFF DEMs. |
+| **Geospatial Processing** | **Rasterio & GDAL** | `>= 1.5.2` | Extraction of georeferenced raster elevation matrices from SRTM 30m satellite elevation models. |
+| **Vector GIS Geometry** | **Shapely** | `>= 2.0` | Spatial polygon clipping, road buffer unioning, and ray-casting point-in-polygon containment for barangay boundaries. |
+| **Asynchronous Web API** | **FastAPI** | `>= 0.110.0` | High-throughput asynchronous REST API serving terrain, simulation state, pipe controls, and telemetry endpoints. |
+| **ASGI Production Server** | **Uvicorn** | `>= 0.54.0` | High-performance ASGI web server handling HTTP requests concurrently with decoupled background physics workers. |
+| **Data Validation** | **Pydantic** | `>= 2.0` | Strict schema validation for pipe blockage, diameter sizing, scenario selection, and speed requests. |
+| **3D Graphics Engine** | **Three.js** | `r128` | WebGL 3D rendering pipeline: procedural terrain shaders, dynamic water elevation plane geometry, lighting, and camera orbit controls. |
+| **Camera & Navigation** | **OrbitControls** | — | Smooth 3D perspective rotation, panning, and elevation tracking alongside a 2D orthographic top-down map mode. |
+| **HUD & Billboard Sprites**| **HTML5 Canvas 2D** | — | Procedural dynamic texture synthesis for floating 3D subdivision risk labels and live color-coded status badges. |
+| **Frontend Architecture** | **Vanilla ES6+ JS** | — | Clean, zero-dependency async client with decoupled 10 Hz polling, requestAnimationFrame render loop, and GPU texture dirty-checking. |
+| **UI Styling & Layout** | **Modern CSS3** | — | Custom glassmorphic dark-theme design system, grid-based SitRep dashboards, and responsive control panels. |
+| **Verification & QA** | **Python `unittest`** | Built-in | 6-stage automated test suite (`tests/verify_full_engine.py`) verifying terrain, pipes, zero-state, rainfall accumulation, blockage throttling, and mass balance. |
+
+---
+
+## 3. How the Simulation Works (End-to-End Lifecycle)
 
 The system simulates the full physical path of urban stormwater from atmospheric cloudburst to river outfall:
 
@@ -94,29 +118,29 @@ The system simulates the full physical path of urban stormwater from atmospheric
 
 ---
 
-## 3. Interactive 3D Digital Twin Manual & Features
+## 4. Interactive 3D Digital Twin Manual & Features
 
 The WebGL frontend provides an interactive digital twin for disaster managers, urban planners, and civil engineers:
 
-### 3.1 Viewport Navigation & Camera Controls
+### 4.1 Viewport Navigation & Camera Controls
 - **3D Perspective vs. 2D Top View**: Toggle between a cinematic 3D perspective camera (orbit, pan, zoom) and an orthogonal top-down 2D map view via the **`Switch to 2D Top View`** button.
 - **Elevation Contour Heatmap**: Press **`Toggle Elevation Map`** to project a color-coded topographic terrain elevation gradient from lowland valleys (green/blue) to mountain ridges (yellow/brown/white).
 - **Ground X-Ray Mode**: Press **`X-Ray Ground`** to render the terrain semi-transparent, revealing underground manholes, conduits, flow velocities, and pipe fill levels.
 - **Layer Visibility Checkboxes**: Individually toggle 🏢 Buildings (9,971 structures), 🌲 Trees & Greenery (1,749 assets), 🛣️ Road Overlays, 💧 Dynamic Water, 🔴 Barangay Border, and 🔲 Subdivision Zone Boundaries.
 
-### 3.2 Interactive Pipe Network Inspector & Clog Modeling
+### 4.2 Interactive Pipe Network Inspector & Clog Modeling
 - **Click to Inspect**: Click on any underground conduit in 3D or 2D mode to inspect its properties:
   - Pipe ID, connected Node In $\to$ Node Out, Length, Base Diameter, Invert Elevation, and Hydraulic Slope.
   - Live instantaneous discharge rate ($Q$ in $\text{m}^3/\text{s}$) with directional flow indicator.
 - **Dynamic Blockage Slider**: Drag the slider ($0\% - 100\%$) to simulate localized trash or silt blockage. The engine immediately throttles inlet intake and models upstream ponding.
 - **Pipe Diameter Engineering Upgrade**: Type a new diameter ($0.1\text{ m} - 5.0\text{ m}$) and click **`Set Diameter`** to simulate the impact of widening municipal culverts.
 
-### 3.3 Bulk Pipe Engineering Controls
+### 4.3 Bulk Pipe Engineering Controls
 - Apply blockage or diameter resizing across entire geographic catchment sectors:
   - Regions: `All Pipes`, `North Basin`, `South Lowlands`, `East Ridges`, `West Outfalls`.
   - Useful for testing city-wide infrastructure master plans (e.g., *"What happens if all culverts in the South Lowlands are enlarged to 2.5m?"*).
 
-### 3.4 Weather Controls & Disaster Presets
+### 4.4 Weather Controls & Disaster Presets
 - **Preset Disaster Scenarios**:
   - `Typhoon Ondoy Peak (150 mm/hr)`: Extreme tropical storm cloudburst.
   - `Habagat Heavy Monsoon (80 mm/hr)`: Sustained monsoon downpour.
@@ -124,17 +148,17 @@ The WebGL frontend provides an interactive digital twin for disaster managers, u
   - `Main Culvert Failure (Pipe #0 Clogged 100%)`: Infrastructure failure scenario.
 - **Custom Rainfall Slider**: Set manual precipitation rates ($0 - 250\text{ mm/hr}$) with optional automatic timer cut-offs.
 
-### 3.5 Time Travel & Snapshot Rewind System
+### 4.5 Time Travel & Snapshot Rewind System
 - **Speed Multipliers**: Seamlessly toggle between `1x`, `5x`, `25x`, `100x`, `500x`, `1000x`, `2000x`, `5000x`, and `10000x`.
 - **Snapshot Rewind Dropdown**: The engine automatically records simulation snapshots every few minutes. Select any historical timestamp and click **`Go`** to instantaneously rewind the entire city state.
 
-### 3.6 Emergency SitRep Dashboard
+### 4.6 Emergency SitRep Dashboard
 - **Live Telemetry HUD**: Displays Simulation Time, Active Flooded Cells, Maximum Depth, Total Water Volume ($\text{m}^3$), and Mass Balance Error ($0.00\%$).
 - **Subdivision Risk Cards**: Real-time table ranking all 8 subdivision zones by inundation percentage and flood depth. Click any row to automatically focus the 3D camera onto that subdivision.
 
 ---
 
-## 4. Global Parameters & Constants
+## 5. Global Parameters & Constants
 
 All physical constants, coefficients, and numerical bounds across the engine are centralized in the matrix below:
 
@@ -155,9 +179,9 @@ All physical constants, coefficients, and numerical bounds across the engine are
 
 ---
 
-## 5. Hydrologic & Hydraulic Physics Engine
+## 6. Hydrologic & Hydraulic Physics Engine
 
-### 5.1 Surface Runoff (2D Diffusive Wave)
+### 6.1 Surface Runoff (2D Diffusive Wave)
 
 Overland flood flow is governed by the 2D Shallow Water Equations under the **diffusive wave approximation**. Bottom friction balances the hydraulic surface gradient:
 
@@ -191,7 +215,7 @@ Interface Flux Limiter:
 
 ---
 
-### 5.2 Infiltration & Impervious Land Cover
+### 6.2 Infiltration & Impervious Land Cover
 
 Rainfall losses into native soils are evaluated using localized Green-Ampt infiltration:
 
@@ -208,7 +232,7 @@ Infiltration Loss:
 
 ---
 
-### 5.3 Drain Inlet Coupling (Surface to Underground)
+### 6.3 Drain Inlet Coupling (Surface to Underground)
 
 Street storm grates capture surface ponding and route it into underground manholes:
 
@@ -234,7 +258,7 @@ Conduit Openness Factor:
 
 ---
 
-### 5.4 Surcharge Backflow (Urban Geysering)
+### 6.4 Surcharge Backflow (Urban Geysering)
 
 When pipe conduits are overloaded or backwater builds up, manhole water can rise above ground level:
 
@@ -268,7 +292,7 @@ Damped Volume Transferred:
 
 ---
 
-### 5.5 Conduit Network Hydraulics (1D Saint-Venant)
+### 6.5 Conduit Network Hydraulics (1D Saint-Venant)
 
 Underground storm pipes carry gravity-driven flow driven by the head difference between connected manholes:
 
@@ -302,7 +326,7 @@ Node volumes are guaranteed non-negative (`Volume_node >= 0`) at all times.
 
 ---
 
-### 5.6 Free Catchment Outfalls
+### 6.6 Free Catchment Outfalls
 
 The pipe network discharges into open creeks and rivers at **4 designated outlet nodes**:
 
@@ -316,7 +340,7 @@ Outfall volume clears freely to the atmosphere each step, simulating open-channe
 
 ---
 
-### 5.7 Dual-Domain Mass Conservation
+### 6.7 Dual-Domain Mass Conservation
 
 Total water across surface and subsurface domains is continuously tracked:
 
@@ -336,7 +360,7 @@ Mass Balance Error:
 
 ---
 
-## 6. Simulation Timing & Speed Engine
+## 7. Simulation Timing & Speed Engine
 
 The physics loop features calibrated pacing supporting true real-time and extreme fast-forward speeds:
 
@@ -353,7 +377,7 @@ The physics loop features calibrated pacing supporting true real-time and extrem
 
 ---
 
-## 7. GIS & Urban Synthesis Pipeline
+## 8. GIS & Urban Synthesis Pipeline
 
 All geography and urban assets are procedurally constructed from open geospatial data:
 
@@ -371,7 +395,7 @@ data/
 
 ---
 
-## 8. Emergency Management & SitRep Zones
+## 9. Emergency Management & SitRep Zones
 
 Barangay 168 is partitioned into 8 community subdivisions, continuously monitored on the emergency dashboard:
 
@@ -399,7 +423,7 @@ The SitRep dashboard dynamically updates community flood status based on **activ
 
 ---
 
-## 9. System Performance & Optimization Stack
+## 10. System Performance & Optimization Stack
 
 To maintain 60 FPS 3D rendering while running heavy 2D diffusive wave physics:
 
@@ -411,7 +435,7 @@ To maintain 60 FPS 3D rendering while running heavy 2D diffusive wave physics:
 
 ---
 
-## 10. Directory & File Structure
+## 11. Directory & File Structure
 
 ```
 Flood Control/
@@ -455,7 +479,7 @@ Flood Control/
 
 ---
 
-## 11. REST API Specification
+## 12. REST API Specification
 
 ### State & Geometry
 - `GET /api/terrain`: Grid dimensions, elevation array, road masks, buildings, pipe graph, and zones.
@@ -478,7 +502,7 @@ Flood Control/
 
 ---
 
-## 12. Installation & Verification
+## 13. Installation & Verification
 
 ### 1. Setup Environment
 
