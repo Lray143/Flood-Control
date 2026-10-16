@@ -1201,7 +1201,7 @@ async function pollState() {
             const d = await res.json();
             _lastParsed  = d;
             _lastSimTime = simTime;
-            nextPoll = 50;   // got fresh data → poll faster
+            nextPoll = 100;  // got fresh data → poll at 10 Hz (smooth enough, lighter GC)
 
             document.getElementById('s-time').textContent = d.time_label;
             document.getElementById('s-flood').textContent = d.telemetry.flooded_cells;
@@ -1693,6 +1693,12 @@ function buildZoneLabels(zones) {
 function updateZoneLabel(zId, text, subtext, color) {
     const entry = zoneLabelSprites[zId];
     if (!entry) return;
+    // Dirty-check: only re-render canvas texture when content has changed.
+    // Canvas 2D draws + GPU texture uploads are expensive; at 10Hz with 15+
+    // zones this was the primary source of main-thread lag during long runs.
+    if (entry._lastText === text && entry._lastSubtext === subtext) return;
+    entry._lastText    = text;
+    entry._lastSubtext = subtext;
     entry.renderContent(text, subtext, color);
     entry.texture.needsUpdate = true;
 }

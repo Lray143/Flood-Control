@@ -180,8 +180,9 @@ async def physics_loop():
                 mb_rain_total  += result["mb_rain"]
                 mb_drain_total += result["mb_drain"]
 
-            # snapshot
-            if state.time - _last_snap_time >= SNAPSHOT_INTERVAL:
+            # snapshot (scaled by sim_speed so we take ~1 snapshot per 2 real seconds at high speed)
+            snap_step = max(SNAPSHOT_INTERVAL, sim_speed * 2.0)
+            if state.time - _last_snap_time >= snap_step:
                 snap = {
                     "time":       round(state.time, 1),
                     "label":      _fmt_time(state.time),
@@ -397,13 +398,14 @@ def _build_state_payload() -> dict:
 
 @app.get("/api/state")
 def get_state():
-    """HTTP route — returns pre-built JSON bytes when sim tick hasn't changed."""
+    """HTTP route — returns pre-built JSON bytes when sim tick hasn't changed or <80ms elapsed."""
     global _state_json_bytes, _state_json_sim_time, _state_json_wall_time
-    if state.time != _state_json_sim_time:
+    now_wall = _time.monotonic()
+    if state.time != _state_json_sim_time and ((now_wall - _state_json_wall_time) >= 0.08 or _state_json_bytes is None):
         payload = _build_state_payload()
-        _state_json_bytes    = _json.dumps(payload).encode()
-        _state_json_sim_time = state.time
-        _state_json_wall_time = _time.monotonic()
+        _state_json_bytes     = _json.dumps(payload).encode()
+        _state_json_sim_time  = state.time
+        _state_json_wall_time = now_wall
     return Response(
         content=_state_json_bytes,
         media_type="application/json",
