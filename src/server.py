@@ -1,6 +1,6 @@
 """
-server.py — FastAPI backend for the Flood Control Simulation
-============================================================
+server.py — FastAPI backend for the Flood Simulation
+====================================================
 Architecture:
   - city_builder.py generates the terrain, roads, buildings, and pipe network
   - SimulationState holds all physics grids
@@ -30,7 +30,7 @@ from src.engine.state     import SimulationState
 from src.engine.simulator import Simulator
 from src.utils.city_builder import build_procedural_city
 
-app = FastAPI(title="Flood Control Simulation")
+app = FastAPI(title="Flood Simulation")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  1. WORLD SETUP

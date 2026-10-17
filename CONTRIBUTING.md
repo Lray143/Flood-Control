@@ -1,4 +1,4 @@
-# Contributing to Flood Control Simulation
+# Contributing to Flood Simulation
 
 Thank you for contributing! This project is a 2D diffusion wave flood simulation for Barangay 168, Caloocan City, Philippines.
 

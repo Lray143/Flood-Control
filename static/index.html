@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Flood Control Simulation</title>
+    <title>Flood Simulation</title>
     <script src="/static/lucide.min.js"></script>
     <style>
         @font-face {
@@ -1623,7 +1623,7 @@
                         <i data-lucide="droplet"></i>
                     </div>
                     <div>
-                        <div class="logo-title">FLOOD CONTROL</div>
+                        <div class="logo-title">FLOOD SIMULATION</div>
                     </div>
                 </div>
             </div>
@@ -2212,6 +2212,7 @@
             }
 
             geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.attributes.position.setUsage(THREE.DynamicDrawUsage);
             geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
             geo.setIndex(indices);
 
@@ -2245,7 +2246,7 @@
             varying vec2 vUv;
             void main(){
                 float d = texture2D(uDepthTex, vUv).r;
-                if(d < 0.04) discard; 
+                if(d < 0.02) discard; 
                 
                 float wave = (sin(vWorld.x*0.8+uTime*2.5)+sin(vWorld.z*0.7-uTime*1.8)+sin((vWorld.x+vWorld.z)*0.5+uTime*1.2))/3.0;
                 vec3 col = mix(uDeep, uShallow, (wave+1.0)*0.4);
@@ -2688,6 +2689,16 @@
                     if (window.lucide) lucide.createIcons();
                 }
 
+                // Sync Speed State from Server
+                if (d.speed && simSpeed !== d.speed) {
+                    simSpeed = d.speed;
+                    const sBtn = document.getElementById('btn-speed');
+                    if (sBtn) {
+                        sBtn.innerHTML = `<i data-lucide="fast-forward"></i> ${simSpeed}×`;
+                        if (window.lucide) lucide.createIcons();
+                    }
+                }
+
                 // Update Skip Overlay
                 const overlay = document.getElementById('skip-overlay');
                 if (d.skip_progress !== null) {
@@ -2721,15 +2732,17 @@
                     const VISUAL_SCALE = 1.0;
                     const pos = waterMesh.geometry.attributes.position.array;
                     const flatDepth = d.water_depth;
+                    const is2D = Array.isArray(flatDepth[0]);
+                    const total = nx * ny;
                     let anyWet = false;
-                    for (let r = 0; r < ny; r++) {
-                        for (let c = 0; c < nx; c++) {
-                            const i = r * nx + c;
-                            const val = flatDepth[r][c];
-                            if (val > 0) anyWet = true;
-                            waterDepthData[i] = val;
-                            pos[i * 3 + 1] = terrainElev[i] + (val * VISUAL_SCALE);
-                        }
+                    for (let i = 0; i < total; i++) {
+                        const r = Math.floor(i / nx);
+                        const c = i % nx;
+                        const rawVal = is2D ? (flatDepth[r] ? flatDepth[r][c] : 0.0) : flatDepth[i];
+                        const val = (rawVal && rawVal > 0.0) ? rawVal : 0.0;
+                        if (val > 0.02) anyWet = true;
+                        waterDepthData[i] = val;
+                        pos[i * 3 + 1] = terrainElev[i] + (val * VISUAL_SCALE);
                     }
                     waterDepthTex.needsUpdate = true;
                     waterMesh.geometry.attributes.position.needsUpdate = true;
