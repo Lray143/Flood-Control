@@ -2452,19 +2452,24 @@
 
         function buildPipes(nodes, pipes) {
             // ── Nodes (manholes) ──────────────────────────────────────────────
-            const nGeo = new THREE.SphereGeometry(1.2, 10, 10);
+            const nGeoNormal = new THREE.SphereGeometry(1.4, 12, 12);
+            const nGeoOutlet = new THREE.SphereGeometry(2.4, 16, 16);
+
             nodes.forEach(n => {
+                const isOutlet = n.is_outlet;
+                const mGeo = isOutlet ? nGeoOutlet : nGeoNormal;
                 const nMat = new THREE.MeshStandardMaterial({
-                    color: n.is_outlet ? 0x06b6d4 : 0x64748b,
-                    emissive: n.is_outlet ? 0x0891b2 : 0x0,
-                    emissiveIntensity: n.is_outlet ? 0.6 : 0.0,
-                    roughness: 0.4,
-                    metalness: 0.6,
+                    // Outlets: luminous cyan beacons; Normal manholes: bright platinum chrome with cyan emissive rim
+                    color: isOutlet ? 0x00f2fe : 0xf8fafc,
+                    emissive: isOutlet ? 0x00e5ff : 0x0284c7,
+                    emissiveIntensity: isOutlet ? 1.0 : 0.45,
+                    roughness: 0.25,
+                    metalness: 0.8,
                 });
-                const m = new THREE.Mesh(nGeo, nMat);
-                const nodeY = terrainElev[n.y * nx + n.x] - 1.0;   // sit just below surface
+                const m = new THREE.Mesh(mGeo, nMat);
+                const nodeY = terrainElev[n.y * nx + n.x] - 0.4;   // sit crisp & proud on surface
                 m.position.set(n.x, nodeY, n.y);
-                m.userData = { isDrainNode: true, nodeId: n.id, isOutlet: n.is_outlet };
+                m.userData = { isDrainNode: true, nodeId: n.id, isOutlet: isOutlet };
                 scene.add(m);
                 nodeMeshMap[n.id] = m;
             });

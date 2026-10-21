@@ -855,16 +855,16 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
             if u in node_remap and v in node_remap
         ]
 
-        # ── Pass 4: designate outlets at the 4 geographic drainage exits ─────
-        # 1. West exit (Kabatuhan / Altezza outfall)
+        # ── Pass 4: designate outlets at 7 strategic catchment river/creek exits ─
+        # 1. West exit (Kabatuhan / Altezza outfall into Marilao tributary)
         west_cands = [i for i, p in enumerate(merged_pts) if p[0] < 120 and p[1] < 220]
         west_out = min(west_cands, key=lambda i: merged_pts[i][0]) if west_cands else None
 
-        # 2. South exit (Teofilo Samson Ave outfall)
+        # 2. South exit (Teofilo Samson Ave outfall into Tullahan basin)
         south_cands = [i for i, p in enumerate(merged_pts) if 140 <= p[0] <= 240 and p[1] > 230]
         south_out = max(south_cands, key=lambda i: merged_pts[i][1]) if south_cands else None
 
-        # 3. Southeast exit (Deparo Rd Sentro outfall)
+        # 3. Southeast exit (Deparo Rd Sentro outfall into Deparo creek)
         se_cands = [i for i, p in enumerate(merged_pts) if 480 <= p[0] <= 550 and p[1] > 270]
         se_out = max(se_cands, key=lambda i: merged_pts[i][1]) if se_cands else None
 
@@ -872,7 +872,19 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
         east_cands = [i for i, p in enumerate(merged_pts) if p[0] > 570 and p[1] > 180]
         east_out = max(east_cands, key=lambda i: merged_pts[i][1]) if east_cands else None
 
-        outlet_ids = set(filter(None, [west_out, south_out, se_out, east_out]))
+        # 5. North exit (Nova Romania / Bagumbong creek depression outfall)
+        north_cands = [i for i, p in enumerate(merged_pts) if 140 <= p[0] <= 230 and p[1] < 130]
+        north_out = min(north_cands, key=lambda i: merged_pts[i][1]) if north_cands else None
+
+        # 6. Southwest exit (Woodridge / Alecon lowland valley outfall)
+        sw_cands = [i for i, p in enumerate(merged_pts) if 50 <= p[0] <= 130 and p[1] > 190]
+        sw_out = max(sw_cands, key=lambda i: merged_pts[i][1]) if sw_cands else None
+
+        # 7. Northeast exit (Vicas Market / North Caloocan outfall)
+        ne_cands = [i for i, p in enumerate(merged_pts) if p[0] > 620 and p[1] < 130]
+        ne_out = min(ne_cands, key=lambda i: merged_pts[i][1]) if ne_cands else None
+
+        outlet_ids = set(filter(None, [west_out, south_out, se_out, east_out, north_out, sw_out, ne_out]))
         if not outlet_ids:
             outlet_ids.add(0)
 
