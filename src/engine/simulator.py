@@ -26,10 +26,19 @@ class Simulator:
 
     def step(self, max_stable_dt=0.5):
         """
-        Advance the simulation by self.dt seconds.
-        Sub-steps internally to stay within the CFL limit, but max_stable_dt 
-        can be increased at high fast-forward speeds because we implemented absolute 
-        volume caps in both surface and underground physics (unconditional stability).
+        Advance the coupled dual-domain simulation by self.dt seconds.
+        -------------------------------------------------------------
+        Courant-Friedrichs-Lewy (CFL) Condition:
+          dt_cfl <= dx / (sqrt(g * h) + |u|)
+          For dx = 5.0m, g = 9.81 m/s^2, max depth h ~ 1.5m, wave celerity c ~ 3.8 m/s,
+          yielding maximum stable explicit time-step dt_cfl ~ 1.3 seconds.
+
+        The simulator sub-steps internally to stay within the physical CFL limit:
+          sub_dt = min(remaining, max_stable_dt)
+        Coupled Execution per sub-step:
+          1. 2D Surface: Rainfall addition + Infiltration loss + Manning overland diffusion
+          2. Dual Coupling: Curb inlet weir/orifice intake + pressurized surcharge geysering
+          3. 1D Underground: Manning conduit transport + backwater head propagation
         """
         remaining = self.dt
         while remaining > 1e-6:

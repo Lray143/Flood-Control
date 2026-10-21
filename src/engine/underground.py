@@ -131,7 +131,16 @@ def step_underground_network(state, dt: float):
 
         R_eff = A_eff / (math.pi * pipe.diameter * (1.0 - pipe.blockage) + 1e-9)
 
-        # Manning's Q = (A * R^(2/3) * Sf^(1/2)) / n
+        # ---------------------------------------------------------------------
+        # Manning's Pipe Flow Equation (Gravity & Pressurized Conduit Flow):
+        #   Q = (A_eff * R_eff^(2/3) * Sf^(1/2)) / n_pipe
+        # where:
+        #   dh = H_in - H_out = (z_inv,in + V_in/A_shaft) - (z_inv,out + V_out/A_shaft)
+        #   Sf = |dh| / L  (hydraulic friction slope)
+        #   A_eff = (pi * D^2 / 4) * (1 - Blockage)
+        #   R_eff = A_eff / P_eff = (D / 4)  (hydraulic radius)
+        #   n_pipe = 0.013 (Manning's roughness for reinforced concrete culvert)
+        # ---------------------------------------------------------------------
         Q_manning = (A_eff * R_eff**(2.0/3.0) * math.sqrt(Sf + 1e-9)) / pipe.roughness_n
 
         # Determine direction

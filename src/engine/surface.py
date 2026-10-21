@@ -22,6 +22,35 @@ INLET_AREA  = 0.05     # grate area (m²)
 
 @njit(parallel=True, cache=True)
 def _numba_surface_flow(h, z, roughness, road_mask, border_mask, rain_rate, infil_rate, dt, dx):
+    """
+    2D Diffusive Wave Shallow Water Equations (SWE) Numerical Solver
+    ================================================================
+    Governing Mass Conservation (Continuity Equation):
+      dh/dt + d(qx)/dx + d(qy)/dy = R(t) - I(t)
+      where:
+        h = water depth (m)
+        qx, qy = unit width discharge fluxes (m^2/s)
+        R(t) = rainfall intensity rate (m/s)
+        I(t) = infiltration loss rate (m/s)
+
+    Diffusive Wave Momentum Equation (Friction Slope balances Hydraulic Slope):
+      Sf_x = -d(eta)/dx = -d(z + h)/dx
+      Sf_y = -d(eta)/dy = -d(z + h)/dy
+      where:
+        eta = water surface elevation = z + h (m)
+        z = ground bed elevation (m)
+
+    Manning's 2D Shallow Water Discharge (Friction Law):
+      qx = (1 / n) * h_interface^(5/3) * sqrt(|Sf_x|) * sgn(Sf_x)
+      qy = (1 / n) * h_interface^(5/3) * sqrt(|Sf_y|) * sgn(Sf_y)
+      where:
+        n = Manning's roughness coefficient (0.013 road, 0.040 soil)
+        h_interface = interface water depth = 0.5 * (h_i + h_{i+1}) (m)
+
+    Numerical Stability & Flux Limiting:
+      Flux_max = FLOW_CAP * h_source = 0.10 * h_source
+      Prevents cell depletion and guarantees positive depth unconditionally.
+    """
     ny, nx = h.shape
     new_h = h.copy()
     
@@ -159,7 +188,15 @@ def step_surface_water(state: SimulationState, dt: float):
         cell_node_vol  = node_vols[nidx]
         cell_node_rim  = state._node_zrim[nidx]
 
-        # ── Surcharge backflow ────────────────────────────────────────────────
+        # ---------------------------------------------------------------------
+        # Surcharge Backflow (Pressurized Urban Geysering):
+        #   Q_surcharge = C_d * A_inlet * sqrt(2 * g * (H_node - eta_surf)) * F_damp
+        # Active only when:
+        #   1. Piezometric head exceeds street rim (H_node >= z_rim)
+        #   2. Head exceeds surface water head (H_node >= eta_surf)
+        #   3. Manhole shaft contains positive volume (V_node > 0)
+        # Surcharge volume is damped by F_damp = 0.10 per step to prevent resonance.
+        # ---------------------------------------------------------------------
         # Water can ONLY be pushed UP onto the street when the manhole shaft is
         # actually full to the rim (cell_node_head >= cell_node_rim), contains water,
         # and has greater piezometric head than the local street surface.
@@ -185,7 +222,14 @@ def step_surface_water(state: SimulationState, dt: float):
                                    0.0)
         back_vol = back_vol_t * back_scale_node[nidx]   # apply per-cell scale
 
-        # ── Normal inflow — gated by pipe openness and available node capacity ──
+        # ---------------------------------------------------------------------
+        # Curb Drain Inlet Intake (Surface-to-Underground Orifice Coupling):
+        #   Q_inlet = min(C_d * A_inlet * sqrt(2 * g * (eta_surf - H_node)), Vol_cell / dt)
+        # Gated by:
+        #   1. Surface head exceeding node head (eta_surf >= H_node)
+        #   2. Downstream pipe openness: Openness = 1.0 - Blockage
+        #   3. Available manhole shaft storage capacity: Margin = z_rim - H_node
+        # ---------------------------------------------------------------------
         # Prevent ping-pong resonance: an inlet can only accept inflow if:
         # 1. The surface hydraulic head is higher than the node's hydraulic head
         # 2. Total inflow per node is scaled to the node's available shaft capacity
