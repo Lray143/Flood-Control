@@ -767,6 +767,78 @@
             background: #c0392b;
         }
 
+        /* ── Pipe Hover Tooltip ───────────────────────────────────────────── */
+        #pipe-hover-tooltip {
+            display: none;
+            position: fixed;
+            pointer-events: none;
+            z-index: 10000;
+            background: rgba(10, 18, 27, 0.94);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(93, 173, 226, 0.5);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #dfe6ed;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(93, 173, 226, 0.25);
+            font-family: inherit;
+            min-width: 170px;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .pht-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #5dade2;
+            text-transform: uppercase;
+        }
+
+        .pht-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .pht-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #2ecc71;
+            box-shadow: 0 0 6px #2ecc71;
+            display: inline-block;
+        }
+
+        .pht-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 5px;
+            font-size: 10px;
+            color: #85929e;
+        }
+
+        .pht-meta span b {
+            color: #ffffff;
+        }
+
+        .pht-hint {
+            margin-top: 5px;
+            font-size: 9px;
+            font-weight: 600;
+            color: #5dade2;
+            opacity: 0.85;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
         /* ── Barangay SitRep Dashboard ────────────────────────────────────── */
         #sitrep-panel {
             position: absolute;
@@ -1584,11 +1656,30 @@
         </div>
     </div>
 
+    <!-- Pipe Hover Tooltip -->
+    <div id="pipe-hover-tooltip">
+        <div class="pht-header">
+            <span id="pht-id">PIPE #0</span>
+            <span class="pht-status-badge">
+                <span class="pht-dot" id="pht-dot"></span>
+                <span id="pht-status-text">CLEAR</span>
+            </span>
+        </div>
+        <div class="pht-meta">
+            <span>Ø <b id="pht-diam">0.8m</b></span>
+            <span>•</span>
+            <span><b id="pht-block">0%</b> Block</span>
+            <span>•</span>
+            <span id="pht-flow">0.000 m³/s</span>
+        </div>
+        <div class="pht-hint">Click to inspect & edit</div>
+    </div>
+
     <!-- Pipe Inspector Panel -->
     <div id="pipe-inspector">
         <h3>
             <span style="display:inline-flex; align-items:center; gap:6px;">
-                <i data-lucide="git-commit"></i> Pipe Inspector
+                <i data-lucide="git-commit"></i> <span id="pi-title-text">Pipe Inspector</span>
             </span>
             <button id="pi-close" title="Close"><i data-lucide="x"></i></button>
         </h3>
@@ -1667,9 +1758,11 @@
                     <div class="select-wrap">
                         <select id="sel-scenario">
                             <option value="none">-- Custom (Manual) --</option>
-                            <option value="s1">Heavy Rain (100mm/h, 6h, 95% blocked)</option>
-                            <option value="s2">Typhoon (250mm/h, 12h, 100% blocked)</option>
-                            <option value="s3">Light Rain (20mm/h, 24h, 50% blocked)</option>
+                            <option value="light">Light Rain (2.5 mm/h, 24h, 20% blocked)</option>
+                            <option value="moderate">Moderate Rain (5 mm/h, 12h, 40% blocked)</option>
+                            <option value="heavy">Heavy Rain (30 mm/h, 6h, 65% blocked)</option>
+                            <option value="typhoon">Typhoon (55 mm/h, 12h, 85% blocked)</option>
+                            <option value="super_typhoon">Super Typhoon (100 mm/h, 12h, 100% blocked)</option>
                         </select>
                         <i data-lucide="chevron-down" class="select-arrow"></i>
                     </div>
@@ -1696,7 +1789,7 @@
                             style="font-size:10.5px; font-weight:700; color:#9cb3c9; letter-spacing:0.5px; text-transform:uppercase;">INTENSITY
                             — <span id="val-rain" style="color:#5dade2;">0</span> mm/h</span>
                     </div>
-                    <input type="range" id="slider-rain" min="0" max="1000" value="0" class="custom-slider">
+                    <input type="range" id="slider-rain" min="0" max="1000" step="0.5" value="0" class="custom-slider">
                 </div>
             </div>
 
@@ -1833,9 +1926,6 @@
         <button id="btn-view" class="map-ctrl-btn" data-tooltip="Switch to 3D View">
             <i data-lucide="box"></i>
         </button>
-        <button id="btn-grid" class="map-ctrl-btn active" data-tooltip="Toggle Grid">
-            <i data-lucide="grid-3x3"></i>
-        </button>
         <button id="btn-elev" class="map-ctrl-btn" data-tooltip="Elevation Heatmap">
             <i data-lucide="mountain"></i>
         </button>
@@ -1898,10 +1988,14 @@
                 <input type="checkbox" id="chk-pipes" checked>
                 <i data-lucide="circle-dot"></i> Drain Nodes
             </label>
+            <label class="layer-row">
+                <input type="checkbox" id="chk-grid" checked>
+                <i data-lucide="grid-3x3"></i> Grid Overlay
+            </label>
         </div>
     </div>
 
-    <div id="hint">Drag: pan | Scroll: zoom | Click a pipe to inspect &amp; configure</div>
+    <div id="hint">Drag: pan | Scroll: zoom | Click pipe to inspect (Shift+Click: multi-select)</div>
 
     <script type="importmap">
 {"imports":{
@@ -1998,6 +2092,10 @@
             buildZoneLabels(d.zones);
             buildMapLabels(d.map_labels);
             document.getElementById('loading').style.display = 'none';
+        }).catch(err => {
+            console.error('Initialization error:', err);
+            const l = document.getElementById('loading');
+            if (l) l.style.display = 'none';
         });
 
         // ─── BUILDERS ────────────────────────────────────────────────────────
@@ -2011,7 +2109,8 @@
             gridHelper.material.transparent = true;
             gridHelper.material.depthTest = false;   // Always draw on top of terrain
             gridHelper.renderOrder = 2;
-            gridHelper.visible = true;               // Visible by default in 2D
+            const chkG = document.getElementById('chk-grid');
+            gridHelper.visible = chkG ? chkG.checked : true;
             scene.add(gridHelper);
         }
 
@@ -2219,6 +2318,8 @@
             const wUni = {
                 uTime: { value: 0 },
                 uDepthTex: { value: waterDepthTex },
+                uGridSize: { value: new THREE.Vector2(nx, ny) },
+                uGlassMode: { value: 0.0 },
                 uDeep: { value: new THREE.Color(0x0d47a1) },
                 uShallow: { value: new THREE.Color(0x29b6f6) },
                 uFoam: { value: new THREE.Color(0xdff2ff) },
@@ -2241,17 +2342,54 @@
                 fragmentShader: `
             uniform float uTime;
             uniform sampler2D uDepthTex;
+            uniform vec2 uGridSize;
+            uniform float uGlassMode;
             uniform vec3 uDeep, uShallow, uFoam;
             varying vec3 vWorld;
             varying vec2 vUv;
-            void main(){
-                float d = texture2D(uDepthTex, vUv).r;
-                if(d < 0.02) discard; 
+
+            // Smooth bilinear + Hermite filter to eliminate blocky square pixel edges
+            float getSmoothDepth(vec2 uv) {
+                vec2 texSize = uGridSize;
+                vec2 pixel = uv * texSize - 0.5;
+                vec2 f = fract(pixel);
+                vec2 w = f * f * (3.0 - 2.0 * f);
                 
-                float wave = (sin(vWorld.x*0.8+uTime*2.5)+sin(vWorld.z*0.7-uTime*1.8)+sin((vWorld.x+vWorld.z)*0.5+uTime*1.2))/3.0;
-                vec3 col = mix(uDeep, uShallow, (wave+1.0)*0.4);
-                if(wave > 0.75) col = mix(col, uFoam, (wave-0.75)*4.0);
-                gl_FragColor = vec4(col, 0.85);
+                vec2 p00 = clamp((floor(pixel) + vec2(0.5, 0.5)) / texSize, vec2(0.0), vec2(1.0));
+                vec2 p10 = clamp((floor(pixel) + vec2(1.5, 0.5)) / texSize, vec2(0.0), vec2(1.0));
+                vec2 p01 = clamp((floor(pixel) + vec2(0.5, 1.5)) / texSize, vec2(0.0), vec2(1.0));
+                vec2 p11 = clamp((floor(pixel) + vec2(1.5, 1.5)) / texSize, vec2(0.0), vec2(1.0));
+
+                float d00 = texture2D(uDepthTex, p00).r;
+                float d10 = texture2D(uDepthTex, p10).r;
+                float d01 = texture2D(uDepthTex, p01).r;
+                float d11 = texture2D(uDepthTex, p11).r;
+
+                return mix(mix(d00, d10, w.x), mix(d01, d11, w.x), w.y);
+            }
+
+            void main(){
+                float d = getSmoothDepth(vUv);
+                if (d < 0.005) discard; 
+                
+                // Natural shoreline edge feathering: softens transition between water and dry land
+                float shoreAlpha = smoothstep(0.005, 0.035, d);
+                float maxAlpha = uGlassMode > 0.5 ? 0.20 : 0.85;
+                float alpha = shoreAlpha * maxAlpha;
+                if (alpha < 0.01) discard;
+
+                float wave = (sin(vWorld.x * 0.8 + uTime * 2.5) + sin(vWorld.z * 0.7 - uTime * 1.8) + sin((vWorld.x + vWorld.z) * 0.5 + uTime * 1.2)) / 3.0;
+                
+                // Realistic water depth coloring: deeper water is deep ocean blue, shallow edges are turquoise
+                float depthFactor = clamp(d / 0.6, 0.0, 1.0);
+                vec3 col = mix(uShallow, uDeep, depthFactor);
+                col = mix(col, uShallow, (wave + 1.0) * 0.25);
+                
+                if (wave > 0.75) {
+                    col = mix(col, uFoam, (wave - 0.75) * 3.5);
+                }
+                
+                gl_FragColor = vec4(col, alpha);
             }
         `
             });
@@ -2297,9 +2435,12 @@
 
         // ─── PIPE INTERACTION STATE ────────────────────────────────────────
         let selectedPipeId = null;
+        let selectedPipeIds = new Set();
+        let hoveredPipeId = null;
         let pipeMeshMap = {};   // pipe_id → { mesh, data }
         let nodeMeshMap = {};   // node_id → mesh
         let pipeClickables = [];   // array of pipe meshes for raycasting
+        const pipeHoverTooltip = document.getElementById('pipe-hover-tooltip');
 
         // Color helper: blockage % → hex color
         function blockageColor(pct) {
@@ -2361,8 +2502,8 @@
                 const dist = v1.distanceTo(v2);
 
                 const cyl = new THREE.CylinderGeometry(
-                    Math.max(p.diameter / 2, 0.3),
-                    Math.max(p.diameter / 2, 0.3),
+                    Math.max(p.diameter / 2, 0.4),
+                    Math.max(p.diameter / 2, 0.4),
                     dist, 8, 1, false
                 );
                 cyl.rotateX(Math.PI / 2);
@@ -2402,7 +2543,7 @@
             if (!entry) return;
             const { mesh } = entry;
 
-            const r = Math.max(newDiameter / 2, 0.3);
+            const r = Math.max(newDiameter / 2, 0.4);
 
             // Recover the pipe length: the cylinder was placed between two nodes.
             // After rotateX(PI/2) + lookAt(), the original cylinder height equals
@@ -2664,10 +2805,34 @@
         }
 
         // ─── POLLING & SYNC ──────────────────────────────────────────────────
+        let pollTimer = null;
+        let pollInFlight = false;
+        let lastRenderedSimTime = -1.0;
+
+        function scheduleNextPoll(delayMs = 50) {
+            if (pollTimer) clearTimeout(pollTimer);
+            pollTimer = setTimeout(pollState, delayMs);
+        }
+
+        function triggerImmediatePoll() {
+            lastRenderedSimTime = -1.0;
+            if (pollTimer) clearTimeout(pollTimer);
+            pollInFlight = false;
+            pollState();
+        }
+
         async function pollState() {
+            if (pollInFlight) return;
+            pollInFlight = true;
             try {
                 const res = await fetch('/api/state');
                 const d = await res.json();
+
+                // Drop out-of-order network responses that arrive late and cause flickering
+                if (lastRenderedSimTime >= 0.0 && d.time < lastRenderedSimTime && (lastRenderedSimTime - d.time) < 15.0) {
+                    return;
+                }
+                lastRenderedSimTime = d.time;
 
                 document.getElementById('s-time').textContent = d.time_label;
                 document.getElementById('s-flood').textContent = d.telemetry.flooded_cells;
@@ -2710,9 +2875,10 @@
 
                 // Update Sliders if not dragging
                 currentRain = d.rainfall_mmhr;
-                document.getElementById('val-rain').textContent = Math.round(currentRain);
+                const rainDisplay = (currentRain % 1 === 0) ? Math.round(currentRain) : currentRain.toFixed(1);
+                document.getElementById('val-rain').textContent = rainDisplay;
                 const rb = document.getElementById('rain-badge');
-                if (rb) rb.textContent = `${Math.round(currentRain)} mm/h`;
+                if (rb) rb.textContent = `${rainDisplay} mm/h`;
                 document.getElementById('slider-rain').value = currentRain;
 
                 // Snapshots dropdown
@@ -2740,7 +2906,7 @@
                         const c = i % nx;
                         const rawVal = is2D ? (flatDepth[r] ? flatDepth[r][c] : 0.0) : flatDepth[i];
                         const val = (rawVal && rawVal > 0.0) ? rawVal : 0.0;
-                        if (val > 0.02) anyWet = true;
+                        if (val > 0.005) anyWet = true;
                         waterDepthData[i] = val;
                         pos[i * 3 + 1] = terrainElev[i] + (val * VISUAL_SCALE);
                     }
@@ -2756,18 +2922,16 @@
                     d.pipes.forEach(p => {
                         const entry = pipeMeshMap[p.id];
                         if (!entry) return;
-                        const col = new THREE.Color(blockageColor(p.blockage));
-                        // Selected pipe glows white-ish; others follow blockage color
-                        if (selectedPipeId === p.id) {
-                            entry.mesh.material.color.set(0xffffff);
-                            entry.mesh.material.emissiveIntensity = 0.5;
-                        } else {
-                            entry.mesh.material.color.copy(col);
-                            entry.mesh.material.emissiveIntensity = 0.0;
-                        }
-                        entry.mesh.material.emissive.copy(col);
-                        // Update inspector panel if this pipe is selected
-                        if (selectedPipeId === p.id) {
+                        entry.data.blockage = p.blockage / 100.0;
+                        entry.data.flow = p.flow;
+                        updatePipeVisual(p.id);
+                    });
+
+                    // Update inspector panel if single pipe is selected
+                    if (selectedPipeIds.size === 1) {
+                        const pid = Array.from(selectedPipeIds)[0];
+                        const p = d.pipes.find(x => x.id === pid);
+                        if (p) {
                             document.getElementById('pi-block-pct').textContent = p.blockage.toFixed(1) + '%';
                             document.getElementById('pi-flow').textContent = p.flow >= 0
                                 ? `${p.flow.toFixed(4)} m³/s`
@@ -2785,7 +2949,23 @@
                                 document.getElementById('pi-blockage-val').textContent = p.blockage.toFixed(0) + '%';
                             }
                         }
-                    });
+                    } else if (selectedPipeIds.size > 1) {
+                        // Multi-pipe stats in inspector panel
+                        const selPipes = d.pipes.filter(x => selectedPipeIds.has(x.id));
+                        if (selPipes.length > 0) {
+                            const avgBlock = selPipes.reduce((acc, x) => acc + x.blockage, 0) / selPipes.length;
+                            const totFlow = selPipes.reduce((acc, x) => acc + Math.abs(x.flow), 0);
+                            document.getElementById('pi-block-pct').textContent = `${avgBlock.toFixed(1)}% (avg)`;
+                            document.getElementById('pi-flow').textContent = `${totFlow.toFixed(4)} m³/s (total)`;
+                            const fill = document.getElementById('pi-fill');
+                            fill.style.width = avgBlock + '%';
+                            fill.style.background = avgBlock >= 80 ? '#e74c3c' : avgBlock >= 50 ? '#e67e22' : avgBlock >= 20 ? '#f1c40f' : '#2ecc71';
+                            if (!piSliderDragging) {
+                                document.getElementById('pi-slider').value = avgBlock;
+                                document.getElementById('pi-blockage-val').textContent = avgBlock.toFixed(0) + '%';
+                            }
+                        }
+                    }
                 }
 
                 // ── Barangay SitRep Dashboard Update ─────────────────────────────
@@ -2800,7 +2980,10 @@
                     const kpiPeakFt = document.getElementById('kpi-peak-ft');
 
                     if (kpiRainDur) kpiRainDur.textContent = s.rain_duration_label;
-                    if (kpiRainRate) kpiRainRate.textContent = Math.round(d.rainfall_mmhr) + ' mm/hr';
+                    if (kpiRainRate) {
+                        const rateDisplay = (d.rainfall_mmhr % 1 === 0) ? Math.round(d.rainfall_mmhr) : d.rainfall_mmhr.toFixed(1);
+                        kpiRainRate.textContent = rateDisplay + ' mm/hr';
+                    }
                     if (kpiBrgyPct) {
                         kpiBrgyPct.textContent = s.brgy_flooded_pct.toFixed(1) + '%';
                         kpiBrgyPct.style.color = s.brgy_flooded_pct > 30 ? '#ff6b6b' : (s.brgy_flooded_pct > 10 ? '#f1c40f' : '#ffffff');
@@ -2871,9 +3054,12 @@
                 }
 
             } catch (e) { /* server briefly unavailable */ }
-            setTimeout(pollState, 50);   // 20 fps polling — smooth real-time water
+            finally {
+                pollInFlight = false;
+                scheduleNextPoll(50);   // 20 fps polling — smooth real-time water
+            }
         }
-        setTimeout(pollState, 800);
+        scheduleNextPoll(800);
 
         // ─── PIPE INSPECTOR LOGIC ──────────────────────────────────────────────
         const piPanel = document.getElementById('pipe-inspector');
@@ -2889,39 +3075,216 @@
         // Store terrain data when it loads (for pipe inspector coordinate display)
         const _origFetch = window._terrainFetchHook;
 
-        function selectPipe(pipeId) {
-            // Deselect previous
-            if (selectedPipeId !== null && pipeMeshMap[selectedPipeId]) {
-                pipeMeshMap[selectedPipeId].mesh.material.emissiveIntensity = 0.0;
-            }
-            selectedPipeId = pipeId;
-            if (pipeId === null) {
+        function updateInspectorContent() {
+            if (selectedPipeIds.size === 0) {
                 piPanel.style.display = 'none';
                 return;
             }
+
+            if (selectedPipeIds.size === 1) {
+                const pid = Array.from(selectedPipeIds)[0];
+                selectedPipeId = pid;
+                const entry = pipeMeshMap[pid];
+                if (!entry) return;
+
+                const p = entry.data;
+                const titleEl = document.getElementById('pi-title-text');
+                if (titleEl) titleEl.textContent = 'Pipe Inspector';
+                document.getElementById('pi-id').textContent = `#${p.id}`;
+                document.getElementById('pi-nodes').textContent = `${p.in} → ${p.out}`;
+                document.getElementById('pi-diam').textContent = `${p.diameter.toFixed(2)} m`;
+                document.getElementById('pi-block-pct').textContent = (p.blockage * 100).toFixed(1) + '%';
+                document.getElementById('pi-flow').textContent = p.flow !== undefined ? `${p.flow.toFixed(4)} m³/s` : '—';
+                piSlider.value = p.blockage * 100;
+                document.getElementById('pi-blockage-val').textContent = (p.blockage * 100).toFixed(0) + '%';
+                document.getElementById('pi-diam-input').value = p.diameter.toFixed(1);
+
+                const fill = document.getElementById('pi-fill');
+                const bPct = p.blockage * 100;
+                fill.style.width = bPct + '%';
+                fill.style.background = bPct >= 80 ? '#e74c3c' : bPct >= 50 ? '#e67e22' : bPct >= 20 ? '#f1c40f' : '#2ecc71';
+            } else {
+                selectedPipeId = Array.from(selectedPipeIds)[0];
+                const count = selectedPipeIds.size;
+                const entries = Array.from(selectedPipeIds).map(id => pipeMeshMap[id]).filter(Boolean);
+                const pids = Array.from(selectedPipeIds);
+                const idDisplay = pids.length <= 4 ? pids.map(id => `#${id}`).join(', ') : `${count} pipes (#${pids[0]}..#${pids[pids.length - 1]})`;
+
+                const titleEl = document.getElementById('pi-title-text');
+                if (titleEl) titleEl.textContent = `Multi-Select (${count} pipes)`;
+                document.getElementById('pi-id').textContent = idDisplay;
+                document.getElementById('pi-nodes').textContent = `${count} segments`;
+
+                const diams = entries.map(e => e.data.diameter);
+                const allSameDiam = diams.length > 0 && diams.every(d => Math.abs(d - diams[0]) < 1e-3);
+                document.getElementById('pi-diam').textContent = allSameDiam ? `${diams[0].toFixed(2)} m` : `Varies (${Math.min(...diams).toFixed(1)}–${Math.max(...diams).toFixed(1)}m)`;
+                document.getElementById('pi-diam-input').value = allSameDiam ? diams[0].toFixed(1) : (diams.reduce((a,b)=>a+b,0)/diams.length).toFixed(1);
+
+                const blockages = entries.map(e => e.data.blockage * 100);
+                const avgBlock = blockages.length > 0 ? (blockages.reduce((a,b)=>a+b,0) / blockages.length) : 0;
+                const allSameBlock = blockages.length > 0 && blockages.every(b => Math.abs(b - blockages[0]) < 1e-1);
+                document.getElementById('pi-block-pct').textContent = allSameBlock ? `${blockages[0].toFixed(0)}%` : `${avgBlock.toFixed(0)}% (avg)`;
+                piSlider.value = avgBlock;
+                document.getElementById('pi-blockage-val').textContent = avgBlock.toFixed(0) + '%';
+                document.getElementById('pi-flow').textContent = '—';
+
+                const fill = document.getElementById('pi-fill');
+                fill.style.width = avgBlock + '%';
+                fill.style.background = avgBlock >= 80 ? '#e74c3c' : avgBlock >= 50 ? '#e67e22' : avgBlock >= 20 ? '#f1c40f' : '#2ecc71';
+            }
+        }
+
+        // Unified Pipe Visual Styler: handles normal, hovered, and selected states cleanly
+        function updatePipeVisual(pipeId) {
             const entry = pipeMeshMap[pipeId];
             if (!entry) return;
+            const isSelected = selectedPipeIds.has(pipeId);
+            const isHovered = (hoveredPipeId === pipeId);
+            const blk = entry.data.blockage !== undefined ? entry.data.blockage * 100 : 0;
+            const col = new THREE.Color(blockageColor(blk));
 
-            const p = entry.data;
-            document.getElementById('pi-id').textContent = `#${p.id}`;
-            document.getElementById('pi-nodes').textContent = `${p.in} → ${p.out}`;
-            document.getElementById('pi-diam').textContent = `${p.diameter} m`;
-            document.getElementById('pi-block-pct').textContent = (p.blockage * 100).toFixed(1) + '%';
-            document.getElementById('pi-flow').textContent = '—';
-            piSlider.value = p.blockage * 100;
-            document.getElementById('pi-blockage-val').textContent = (p.blockage * 100).toFixed(0) + '%';
-            document.getElementById('pi-diam-input').value = p.diameter.toFixed(1);
+            if (isHovered) {
+                // Hover highlight: radial expansion (1.35x) + cyber cyan glow
+                entry.mesh.scale.set(1.35, 1.35, 1.0);
+                entry.mesh.renderOrder = 20;
+                entry.mesh.material.depthTest = false;
+                if (isSelected) {
+                    entry.mesh.material.color.set(0xffffff);
+                    entry.mesh.material.emissive.set(0xffffff);
+                    entry.mesh.material.emissiveIntensity = 0.85;
+                } else {
+                    entry.mesh.material.color.set(0x5dade2);
+                    entry.mesh.material.emissive.set(0x5dade2);
+                    entry.mesh.material.emissiveIntensity = 0.55;
+                }
+            } else if (isSelected) {
+                // Selected: prominent white highlight
+                entry.mesh.scale.set(1.0, 1.0, 1.0);
+                entry.mesh.renderOrder = glassMode ? 15 : 0;
+                entry.mesh.material.depthTest = !glassMode;
+                entry.mesh.material.color.set(0xffffff);
+                entry.mesh.material.emissive.copy(col);
+                entry.mesh.material.emissiveIntensity = 0.6;
+            } else {
+                // Normal: natural blockage color
+                entry.mesh.scale.set(1.0, 1.0, 1.0);
+                entry.mesh.renderOrder = glassMode ? 12 : 0;
+                entry.mesh.material.depthTest = !glassMode;
+                entry.mesh.material.color.copy(col);
+                entry.mesh.material.emissive.copy(col);
+                entry.mesh.material.emissiveIntensity = 0.0;
+            }
+        }
 
-            // Highlight selected
-            entry.mesh.material.color.set(0xffffff);
-            entry.mesh.material.emissiveIntensity = 0.5;
+        function setHoveredPipe(pipeId) {
+            if (!glassMode) pipeId = null;
+            if (hoveredPipeId === pipeId) return;
+            const prevId = hoveredPipeId;
+            hoveredPipeId = pipeId;
+            if (prevId !== null) updatePipeVisual(prevId);
+            if (hoveredPipeId !== null) updatePipeVisual(hoveredPipeId);
+
+            if (hoveredPipeId !== null) {
+                renderer.domElement.style.cursor = 'pointer';
+                const entry = pipeMeshMap[hoveredPipeId];
+                if (entry && pipeHoverTooltip) {
+                    const blkPct = (entry.data.blockage * 100).toFixed(0);
+                    const diam = (entry.data.diameter || 0.8).toFixed(1);
+                    const flow = entry.data.flow !== undefined ? entry.data.flow : 0;
+                    const hexColor = blockageColor(parseFloat(blkPct));
+                    const hexStr = '#' + hexColor.toString(16).padStart(6, '0');
+                    const statusText = blkPct >= 80 ? 'CRITICAL' : blkPct >= 50 ? 'HEAVY' : blkPct >= 20 ? 'MODERATE' : 'CLEAR';
+
+                    const phtId = document.getElementById('pht-id');
+                    if (phtId) phtId.textContent = `PIPE #${hoveredPipeId}`;
+                    const dot = document.getElementById('pht-dot');
+                    if (dot) {
+                        dot.style.background = hexStr;
+                        dot.style.boxShadow = `0 0 6px ${hexStr}`;
+                    }
+                    const st = document.getElementById('pht-status-text');
+                    if (st) {
+                        st.textContent = statusText;
+                        st.style.color = hexStr;
+                    }
+                    const diamEl = document.getElementById('pht-diam');
+                    if (diamEl) diamEl.textContent = `${diam}m`;
+                    const blockEl = document.getElementById('pht-block');
+                    if (blockEl) blockEl.textContent = `${blkPct}%`;
+                    const flowEl = document.getElementById('pht-flow');
+                    if (flowEl) {
+                        flowEl.textContent = flow >= 0 ? `${flow.toFixed(3)} m³/s` : `⬆ ${Math.abs(flow).toFixed(3)} m³/s`;
+                    }
+                    pipeHoverTooltip.style.display = 'block';
+                }
+            } else {
+                renderer.domElement.style.cursor = 'default';
+                if (pipeHoverTooltip) pipeHoverTooltip.style.display = 'none';
+            }
+        }
+
+        function updateHoverTooltipPosition(clientX, clientY) {
+            if (!pipeHoverTooltip || hoveredPipeId === null) return;
+            const pw = 175, ph = 60;
+            let lx = clientX + 12, ly = clientY + 12;
+            if (lx + pw > window.innerWidth) lx = clientX - pw - 12;
+            if (ly + ph > window.innerHeight) ly = window.innerHeight - ph - 12;
+            pipeHoverTooltip.style.left = lx + 'px';
+            pipeHoverTooltip.style.top = ly + 'px';
+        }
+
+        function togglePipeSelection(pipeId, isShift, screenX, screenY) {
+            if (!glassMode) pipeId = null;
+            if (pipeId === null) {
+                // Deselect all
+                const prev = Array.from(selectedPipeIds);
+                selectedPipeIds.clear();
+                selectedPipeId = null;
+                prev.forEach(id => updatePipeVisual(id));
+                piPanel.style.display = 'none';
+                return;
+            }
+
+            if (isShift) {
+                if (selectedPipeIds.has(pipeId)) {
+                    selectedPipeIds.delete(pipeId);
+                } else {
+                    selectedPipeIds.add(pipeId);
+                }
+                updatePipeVisual(pipeId);
+            } else {
+                const prev = Array.from(selectedPipeIds);
+                selectedPipeIds.clear();
+                selectedPipeIds.add(pipeId);
+                prev.forEach(id => updatePipeVisual(id));
+                updatePipeVisual(pipeId);
+            }
+
+            if (selectedPipeIds.size > 0) {
+                updateInspectorContent();
+                // Don't show/move the panel while Shift is held (multi-select mode)
+                if (!shiftInspectorHidden) {
+                    if (screenX !== undefined && screenY !== undefined) {
+                        showInspectorAt(screenX, screenY);
+                    } else {
+                        piPanel.style.display = 'block';
+                    }
+                }
+            } else {
+                piPanel.style.display = 'none';
+                selectedPipeId = null;
+            }
+        }
+
+        function selectPipe(pipeId) {
+            togglePipeSelection(pipeId, false);
         }
 
         function showInspectorAt(screenX, screenY) {
             const panel = piPanel;
             panel.style.display = 'block';
             // Clamp so panel doesn't go off-screen
-            const pw = 224, ph = 240;
+            const pw = 230, ph = 260;
             let lx = screenX + 14, ly = screenY - ph / 2;
             if (lx + pw > window.innerWidth) lx = screenX - pw - 14;
             if (ly < 8) ly = 8;
@@ -2930,15 +3293,65 @@
             panel.style.top = ly + 'px';
         }
 
+        let isPointerDown = false;
         let pointerDownPos = { x: 0, y: 0 };
         renderer.domElement.addEventListener('pointerdown', e => {
+            isPointerDown = true;
             pointerDownPos.x = e.clientX;
             pointerDownPos.y = e.clientY;
         });
 
-        // Click to select pipe, area, or landmark
+        window.addEventListener('pointerup', () => {
+            isPointerDown = false;
+        });
+
+        // Hover detection on pointermove
+        renderer.domElement.addEventListener('pointermove', e => {
+            // Only allow pipe hover & tooltip in X-Ray mode
+            if (!glassMode) {
+                if (hoveredPipeId !== null) setHoveredPipe(null);
+                return;
+            }
+
+            // Ignore hover when dragging camera
+            if (isPointerDown) {
+                const dragDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+                if (dragDist > 6) {
+                    setHoveredPipe(null);
+                    return;
+                }
+            }
+
+            // Respect layer visibility
+            const chkPipes = document.getElementById('chk-pipes');
+            if (chkPipes && !chkPipes.checked) {
+                setHoveredPipe(null);
+                return;
+            }
+
+            const rect = renderer.domElement.getBoundingClientRect();
+            pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(pointer, camera);
+
+            const hits = raycaster.intersectObjects(pipeClickables, false);
+            if (hits.length > 0) {
+                const hit = hits[0];
+                const pid = hit.object.userData.pipeId;
+                setHoveredPipe(pid);
+                updateHoverTooltipPosition(e.clientX, e.clientY);
+            } else {
+                setHoveredPipe(null);
+            }
+        });
+
+        renderer.domElement.addEventListener('pointerleave', () => {
+            setHoveredPipe(null);
+        });
+
+        // Click to select pipe, area, or landmark (Shift+Click for multiselect)
         renderer.domElement.addEventListener('click', e => {
-            // Ignore clicks on the UI panels
+            // Ignore clicks on UI panels
             if (e.target !== renderer.domElement) return;
 
             // Ignore mouse drags (orbit/pan)
@@ -2950,23 +3363,49 @@
             pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
             raycaster.setFromCamera(pointer, camera);
 
-            // 1. Check if user clicked a Pipe
-            const hits = raycaster.intersectObjects(pipeClickables, false);
-            if (hits.length > 0) {
-                const hit = hits[0];
-                const pid = hit.object.userData.pipeId;
-                selectPipe(pid);
-                showInspectorAt(e.clientX, e.clientY);
-                e.stopPropagation();
-                return;
+            // 1. Check if user clicked a Pipe (only in X-Ray mode)
+            if (glassMode) {
+                const hits = raycaster.intersectObjects(pipeClickables, false);
+                if (hits.length > 0) {
+                    const hit = hits[0];
+                    const pid = hit.object.userData.pipeId;
+                    // Sync shift-hide state from the actual event (covers held-shift-then-click)
+                    if (e.shiftKey && !shiftInspectorHidden) {
+                        shiftInspectorHidden = true;
+                        piPanel.style.display = 'none';
+                    }
+                    togglePipeSelection(pid, e.shiftKey, e.clientX, e.clientY);
+                    e.stopPropagation();
+                    return;
+                }
             }
 
-            // Click on empty space — deselect pipe
-            selectPipe(null);
+            // Click on empty space — deselect all unless Shift is held
+            if (!e.shiftKey) {
+                togglePipeSelection(null, false);
+            }
         });
 
         // Inspector controls
-        document.getElementById('pi-close').onclick = () => selectPipe(null);
+        document.getElementById('pi-close').onclick = () => togglePipeSelection(null, false);
+
+        // ── Shift-key: hide inspector while multi-selecting, restore on release ──
+        let shiftInspectorHidden = false;
+        window.addEventListener('keydown', e => {
+            if (e.key === 'Shift' && !shiftInspectorHidden && selectedPipeIds.size > 0) {
+                shiftInspectorHidden = true;
+                piPanel.style.display = 'none';
+            }
+        });
+        window.addEventListener('keyup', e => {
+            if (e.key === 'Shift' && shiftInspectorHidden) {
+                shiftInspectorHidden = false;
+                if (selectedPipeIds.size > 0) {
+                    updateInspectorContent();
+                    piPanel.style.display = 'block';
+                }
+            }
+        });
 
         piSlider.addEventListener('mousedown', () => { piSliderDragging = true; });
         piSlider.addEventListener('mouseup', () => { piSliderDragging = false; });
@@ -2975,33 +3414,69 @@
         piSlider.oninput = e => {
             const v = parseFloat(e.target.value);
             document.getElementById('pi-blockage-val').textContent = v.toFixed(0) + '%';
-            if (selectedPipeId !== null) {
-                fetch(`/api/pipe/${selectedPipeId}/blockage`, {
+            if (selectedPipeIds.size === 1) {
+                const pid = Array.from(selectedPipeIds)[0];
+                if (pipeMeshMap[pid]) pipeMeshMap[pid].data.blockage = v / 100.0;
+                fetch(`/api/pipe/${pid}/blockage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ blockage: v / 100.0 })
+                });
+            } else if (selectedPipeIds.size > 1) {
+                const pids = Array.from(selectedPipeIds);
+                pids.forEach(id => {
+                    if (pipeMeshMap[id]) pipeMeshMap[id].data.blockage = v / 100.0;
+                });
+                fetch('/api/pipes/bulk_blockage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pipe_ids: pids, blockage: v / 100.0 })
                 });
             }
         };
 
         document.getElementById('pi-btn-clear').onclick = () => {
-            if (selectedPipeId === null) return;
+            if (selectedPipeIds.size === 0) return;
             piSlider.value = 0;
             document.getElementById('pi-blockage-val').textContent = '0%';
-            fetch(`/api/pipe/${selectedPipeId}/blockage`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ blockage: 0.0 })
+            const pids = Array.from(selectedPipeIds);
+            pids.forEach(id => {
+                if (pipeMeshMap[id]) pipeMeshMap[id].data.blockage = 0.0;
             });
+            if (pids.length === 1) {
+                fetch(`/api/pipe/${pids[0]}/blockage`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blockage: 0.0 })
+                });
+            } else {
+                fetch('/api/pipes/bulk_blockage', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pipe_ids: pids, blockage: 0.0 })
+                });
+            }
+            updateInspectorContent();
         };
 
         document.getElementById('pi-btn-full').onclick = () => {
-            if (selectedPipeId === null) return;
+            if (selectedPipeIds.size === 0) return;
             piSlider.value = 100;
             document.getElementById('pi-blockage-val').textContent = '100%';
-            fetch(`/api/pipe/${selectedPipeId}/blockage`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ blockage: 1.0 })
+            const pids = Array.from(selectedPipeIds);
+            pids.forEach(id => {
+                if (pipeMeshMap[id]) pipeMeshMap[id].data.blockage = 1.0;
             });
+            if (pids.length === 1) {
+                fetch(`/api/pipe/${pids[0]}/blockage`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blockage: 1.0 })
+                });
+            } else {
+                fetch('/api/pipes/bulk_blockage', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pipe_ids: pids, blockage: 1.0 })
+                });
+            }
+            updateInspectorContent();
         };
 
         // ─── BARANGAY & ZONE VISUALS (LINES & 3D LABELS) ─────────────────────
@@ -3419,11 +3894,12 @@
         };
 
         document.getElementById('slider-rain').oninput = e => {
-            const v = e.target.value;
-            document.getElementById('val-rain').textContent = v;
+            const v = parseFloat(e.target.value);
+            const displayVal = (v % 1 === 0) ? Math.round(v) : v.toFixed(1);
+            document.getElementById('val-rain').textContent = displayVal;
             const rb = document.getElementById('rain-badge');
-            if (rb) rb.textContent = `${v} mm/h`;
-            fetch('/api/rainfall', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mm_per_hr: parseFloat(v) }) });
+            if (rb) rb.textContent = `${displayVal} mm/h`;
+            fetch('/api/rainfall', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mm_per_hr: v }) });
             document.getElementById('sel-scenario').value = 'none';
         };
 
@@ -3529,31 +4005,71 @@
             }
         };
 
-        // Single-pipe diameter Set button (in inspector)
+        // Pipe diameter Set button (in inspector)
         document.getElementById('pi-btn-set-diam').onclick = () => {
-            if (selectedPipeId === null) return;
+            if (selectedPipeIds.size === 0) return;
             const d = parseFloat(document.getElementById('pi-diam-input').value);
             if (isNaN(d) || d < 0.1) return;
-            fetch(`/api/pipe/${selectedPipeId}/diameter`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ diameter: d })
-            }).then(() => {
-                // Immediately rebuild geometry and update inspector readout
-                updatePipeDiameter(selectedPipeId, d);
-                document.getElementById('pi-diam').textContent = `${d.toFixed(2)} m`;
-            });
+            const pids = Array.from(selectedPipeIds);
+            if (pids.length === 1) {
+                const pid = pids[0];
+                fetch(`/api/pipe/${pid}/diameter`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ diameter: d })
+                }).then(() => {
+                    updatePipeDiameter(pid, d);
+                    document.getElementById('pi-diam').textContent = `${d.toFixed(2)} m`;
+                });
+            } else {
+                fetch('/api/pipes/bulk_diameter', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pipe_ids: pids, diameter: d })
+                }).then(() => {
+                    pids.forEach(id => updatePipeDiameter(id, d));
+                    document.getElementById('pi-diam').textContent = `${d.toFixed(2)} m (${pids.length} pipes)`;
+                });
+            }
         };
 
         // Scenarios
-        document.getElementById('sel-scenario').onchange = e => {
+        document.getElementById('sel-scenario').onchange = async e => {
             const v = e.target.value;
             if (v === 'none') return;
             let payload = {};
-            if (v === 's1') payload = { rainfall_mm_hr: 100, duration_sim_hours: 6, pipe_blockage_pct: 95, reset_first: true };
-            if (v === 's2') payload = { rainfall_mm_hr: 250, duration_sim_hours: 12, pipe_blockage_pct: 100, reset_first: true };
-            if (v === 's3') payload = { rainfall_mm_hr: 20, duration_sim_hours: 24, pipe_blockage_pct: 50, reset_first: true };
-            fetch('/api/scenario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (v === 'light' || v === 's3') {
+                payload = { scenario_id: 'light', rainfall_mm_hr: 2.5, duration_sim_hours: 24, pipe_blockage_pct: 20, reset_first: false };
+            } else if (v === 'moderate') {
+                payload = { scenario_id: 'moderate', rainfall_mm_hr: 5, duration_sim_hours: 12, pipe_blockage_pct: 40, reset_first: false };
+            } else if (v === 'heavy' || v === 's1') {
+                payload = { scenario_id: 'heavy', rainfall_mm_hr: 30, duration_sim_hours: 6, pipe_blockage_pct: 65, reset_first: false };
+            } else if (v === 'typhoon' || v === 'typhone' || v === 's2') {
+                payload = { scenario_id: 'typhoon', rainfall_mm_hr: 55, duration_sim_hours: 12, pipe_blockage_pct: 85, reset_first: false };
+            } else if (v === 'super_typhoon' || v === 'super_typhone') {
+                payload = { scenario_id: 'super_typhoon', rainfall_mm_hr: 100, duration_sim_hours: 12, pipe_blockage_pct: 100, reset_first: false };
+            } else {
+                return;
+            }
+
+            // Immediately reflect in UI slider and badges
+            const rainVal = payload.rainfall_mm_hr;
+            const displayVal = (rainVal % 1 === 0) ? Math.round(rainVal) : rainVal.toFixed(1);
+            document.getElementById('val-rain').textContent = displayVal;
+            const rb = document.getElementById('rain-badge');
+            if (rb) rb.textContent = `${displayVal} mm/h`;
+            document.getElementById('slider-rain').value = rainVal;
+
+            try {
+                await fetch('/api/scenario', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                triggerImmediatePoll();
+            } catch (err) {
+                console.error("Failed to apply scenario:", err);
+            }
         };
 
         // Time Skips — helper
@@ -3571,13 +4087,29 @@
 
 
         // Rewind
-        document.getElementById('btn-rewind').onclick = () => {
+        document.getElementById('btn-rewind').onclick = async () => {
             const t = parseFloat(document.getElementById('sel-snapshot').value);
             if (isNaN(t)) return;
-            fetch('/api/rewind', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ time: t }) });
+            await fetch('/api/rewind', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ time: t }) });
+            triggerImmediatePoll();
         };
 
-        document.getElementById('btn-reset').onclick = () => fetch('/api/reset', { method: 'POST' });
+        document.getElementById('btn-reset').onclick = async () => {
+            await fetch('/api/reset', { method: 'POST' });
+            document.getElementById('sel-scenario').value = 'none';
+            document.getElementById('val-rain').textContent = '0';
+            const rb = document.getElementById('rain-badge');
+            if (rb) rb.textContent = '0 mm/h';
+            document.getElementById('slider-rain').value = 0;
+            // Immediately switch play button to paused state — no wait for next poll
+            playing = false;
+            const pBtnR = document.getElementById('btn-play');
+            pBtnR.dataset.state = 'playing';
+            pBtnR.innerHTML = '<i data-lucide="play"></i> Play';
+            pBtnR.className = '';
+            if (window.lucide) lucide.createIcons();
+            triggerImmediatePoll();
+        };
 
         // View Toggles (Floating Google Maps Style Toolbar)
         const btnView = document.getElementById('btn-view');
@@ -3593,7 +4125,7 @@
                 btnView.innerHTML = '<i data-lucide="map"></i>';
                 btnView.setAttribute('data-tooltip', 'Switch to 2D View');
                 btnView.classList.add('active');
-                document.getElementById('hint').textContent = 'Drag: rotate | Right-drag: pan | Scroll: zoom | Click pipe to configure';
+                document.getElementById('hint').textContent = 'Drag: rotate | Right-drag: pan | Scroll: zoom | Click pipe to configure (Shift+Click: multi-select)';
             } else {
                 // ── 2D mode: top-down, pan-only ──────────────────────────────
                 camera.position.set(345, 400, 190.1);
@@ -3604,19 +4136,12 @@
                 btnView.innerHTML = '<i data-lucide="box"></i>';
                 btnView.setAttribute('data-tooltip', 'Switch to 3D View');
                 btnView.classList.remove('active');
-                document.getElementById('hint').textContent = 'Drag: pan | Scroll: zoom | Click a pipe to inspect & configure';
+                document.getElementById('hint').textContent = 'Drag: pan | Scroll: zoom | Click pipe to inspect (Shift+Click: multi-select)';
             }
             if (window.lucide) lucide.createIcons();
         };
 
-        const btnGrid = document.getElementById('btn-grid');
-        btnGrid.onclick = () => {
-            if (gridHelper) {
-                gridHelper.visible = !gridHelper.visible;
-                btnGrid.classList.toggle('active', gridHelper.visible);
-                btnGrid.setAttribute('data-tooltip', gridHelper.visible ? 'Hide Grid' : 'Show Grid');
-            }
-        };
+
 
         const btnElev = document.getElementById('btn-elev');
         btnElev.onclick = () => {
@@ -3643,13 +4168,55 @@
             btnGlass.classList.toggle('active', glassMode);
             btnGlass.innerHTML = glassMode ? '<i data-lucide="eye-off"></i>' : '<i data-lucide="eye"></i>';
             btnGlass.setAttribute('data-tooltip', glassMode ? 'Exit X-Ray' : 'Underground X-Ray');
-            if (terrainMesh) {
-                terrainMesh.material.transparent = glassMode;
-                terrainMesh.material.opacity = glassMode ? 0.25 : 1.0;
-                terrainMesh.material.depthWrite = !glassMode;
+
+            // When exiting X-Ray mode, immediately clear pipe hover, close inspector, and deselect pipes
+            if (!glassMode) {
+                setHoveredPipe(null);
+                if (selectedPipeIds.size > 0 || selectedPipeId !== null) {
+                    togglePipeSelection(null, false);
+                }
+                if (pipeHoverTooltip) pipeHoverTooltip.style.display = 'none';
+                renderer.domElement.style.cursor = 'default';
             }
-            buildingMeshes.forEach(m => { m.visible = !glassMode; });
-            treeMeshes.forEach(m => { m.visible = !glassMode; });
+
+            // 1. Terrain transparency + depthWrite + needsUpdate
+            if (terrainMesh) {
+                terrainMesh.material.transparent = true;
+                terrainMesh.material.opacity = glassMode ? 0.22 : 1.0;
+                terrainMesh.material.depthWrite = !glassMode;
+                terrainMesh.material.needsUpdate = true;
+            }
+
+            // 2. Translucent water in X-Ray mode so water never occludes pipes
+            if (waterMesh && window.wUni && window.wUni.uGlassMode) {
+                window.wUni.uGlassMode.value = glassMode ? 1.0 : 0.0;
+                waterMesh.material.depthWrite = !glassMode;
+            }
+
+            // 3. Pipes and manhole nodes shine cleanly through transparent terrain & water
+            const chkPipes = document.getElementById('chk-pipes');
+            const pipesVisible = chkPipes ? chkPipes.checked : true;
+
+            Object.values(pipeMeshMap).forEach(entry => {
+                entry.mesh.visible = pipesVisible;
+                updatePipeVisual(entry.data.id);
+            });
+
+            scene.children.filter(o => o.isMesh && o.userData && o.userData.isDrainNode).forEach(m => {
+                m.material.depthTest = !glassMode;
+                m.renderOrder = glassMode ? 12 : 0;
+                m.visible = pipesVisible;
+            });
+
+            // 4. Respect layer checkboxes for buildings & trees without conflict
+            const chkBuildings = document.getElementById('chk-buildings');
+            const chkTrees = document.getElementById('chk-trees');
+            const showBuildings = !glassMode && (!chkBuildings || chkBuildings.checked);
+            const showTrees = !glassMode && (!chkTrees || chkTrees.checked);
+
+            buildingMeshes.forEach(m => { m.visible = showBuildings; });
+            treeMeshes.forEach(m => { m.visible = showTrees; });
+
             if (window.lucide) lucide.createIcons();
         };
 
@@ -3685,7 +4252,7 @@
 
         const layerCheckboxIds = [
             'chk-buildings', 'chk-trees', 'chk-roads', 'chk-water',
-            'chk-border', 'chk-zone-borders', 'chk-zone-labels', 'chk-map-labels', 'chk-pipes'
+            'chk-border', 'chk-zone-borders', 'chk-zone-labels', 'chk-map-labels', 'chk-pipes', 'chk-grid'
         ];
 
         document.getElementById('btn-layers-all').onclick = () => {
@@ -3710,11 +4277,13 @@
 
         // ─── LAYER VISIBILITY ─────────────────────────────────────────────────
         document.getElementById('chk-buildings').onchange = e => {
-            buildingMeshes.forEach(m => m.visible = e.target.checked);
+            const show = e.target.checked && !glassMode;
+            buildingMeshes.forEach(m => m.visible = show);
         };
 
         document.getElementById('chk-trees').onchange = e => {
-            treeMeshes.forEach(m => m.visible = e.target.checked);
+            const show = e.target.checked && !glassMode;
+            treeMeshes.forEach(m => m.visible = show);
         };
 
         document.getElementById('chk-roads').onchange = e => {
@@ -3778,9 +4347,19 @@
             Object.values(pipeMeshMap).forEach(entry => {
                 entry.mesh.visible = visible;
             });
-            // Close inspector if hidden
-            if (!visible && selectedPipeId !== null) selectPipe(null);
+            // Clear hover and close inspector if hidden
+            if (!visible) {
+                setHoveredPipe(null);
+                if (selectedPipeId !== null) selectPipe(null);
+            }
         };
+
+        const chkGrid = document.getElementById('chk-grid');
+        if (chkGrid) {
+            chkGrid.onchange = e => {
+                if (gridHelper) gridHelper.visible = e.target.checked;
+            };
+        }
 
         // Collapsible Left Panel Accordion Cards
         document.querySelectorAll('.collapsible-header').forEach(header => {

@@ -25,16 +25,20 @@ def _numba_surface_flow(h, z, roughness, road_mask, border_mask, rain_rate, infi
     ny, nx = h.shape
     new_h = h.copy()
     
-    # 1 & 2: Rainfall and infiltration
+    # 1 & 2: Rainfall, infiltration, and post-storm puddle drying
     for r in prange(ny):
         for c in range(nx):
             # Rainfall
             new_h[r, c] += rain_rate * dt
             
-            # Infiltration
+            # Infiltration on soil; natural micro-drainage/evaporation on roads when dry
             if not road_mask[r, c]:
                 infil = min(new_h[r, c], infil_rate[r, c] * dt)
                 new_h[r, c] -= infil
+            elif rain_rate == 0.0 and new_h[r, c] > 0.0:
+                # Road depression drying: gently clears shallow stagnant film/potholes
+                dry_rate = min(new_h[r, c], 3e-6 * dt)
+                new_h[r, c] -= dry_rate
                 
     # We need a stable copy to compute fluxes from
     h_flux = new_h.copy()
@@ -181,17 +185,18 @@ def step_surface_water(state: SimulationState, dt: float):
                                    0.0)
         back_vol = back_vol_t * back_scale_node[nidx]   # apply per-cell scale
 
-        # ── Normal inflow — gated by pipe openness ────────────────────────
-        # A blocked pipe network means the node has nowhere to send water;
-        # cap inlet absorption proportionally to how open the connected pipes are.
-        fwd_mask = (~back_mask) & (cell_h > 0)
+        # ── Normal inflow — gated by pipe openness and available node capacity ──
+        # Prevent ping-pong resonance: an inlet can only accept inflow if:
+        # 1. The surface hydraulic head is higher than the node's hydraulic head
+        # 2. Total inflow per node is scaled to the node's available shaft capacity
+        fwd_mask = (~back_mask) & (cell_h > 0.001) & (surf_head >= cell_node_head)
+        head_diff = np.maximum(0.0, surf_head - cell_node_head)
         fwd_vol_raw = np.where(fwd_mask,
-                            np.minimum(INLET_CD * INLET_AREA * np.sqrt(2.0 * G * cell_h + 1e-9) * dt,
+                            np.minimum(INLET_CD * INLET_AREA * np.sqrt(2.0 * G * head_diff + 1e-9) * dt,
                                        cell_h * dx * dx),
                             0.0)
 
         # Build per-node openness: 0.0 = all pipes 100% blocked, 1.0 = fully open
-        # Computed once and broadcast to inlet cells via nidx.
         node_openness = np.ones(num_nodes)
         for i, nid in enumerate(state._node_ids):
             node = state.nodes[nid]
@@ -200,7 +205,16 @@ def step_surface_water(state: SimulationState, dt: float):
                 avg_blockage = sum(p.blockage for p in connected) / len(connected)
                 node_openness[i] = max(0.0, 1.0 - avg_blockage)
 
-        fwd_vol = fwd_vol_raw * node_openness[nidx]
+        # Scale forward intake across all cells mapped to each node so they cannot
+        # overfill the node beyond its ground rim in a single step
+        node_fwd_want = np.zeros(num_nodes)
+        np.add.at(node_fwd_want, nidx, fwd_vol_raw)
+        node_head_margin = np.maximum(0.0, state._node_zrim - node_heads)
+        node_fwd_limit = node_head_margin * state._node_area * 0.25 + 0.05 * dt
+        fwd_scale_node = np.where(node_fwd_want > 1e-12,
+                                  np.minimum(node_fwd_limit, node_fwd_want) / (node_fwd_want + 1e-12),
+                                  0.0)
+        fwd_vol = fwd_vol_raw * fwd_scale_node[nidx] * node_openness[nidx]
 
         # ── Apply to surface ──────────────────────────────────────────────────
         np.add.at(new_h, (iy, ix), (back_vol - fwd_vol) / (dx * dx))

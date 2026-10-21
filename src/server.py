@@ -103,27 +103,18 @@ import time as _time
 
 # Thread-safe reset flag
 reset_requested = False
+state_lock = threading.Lock()
 
 def _physics_batch() -> dict:
     """
     Synchronous physics batch. Runs in a thread-pool worker.
+    Maintains CFL numerical stability at any speed setting by capping max_dt <= 1.0s
+    and executing multiple stable sub-steps within the allocated wall-time budget.
     """
-    # Dynamic stability threshold & step size for true speed scaling
-    if sim_speed >= 5000:
-        max_dt = 10.0
-        step_dt = 10.0
-    elif sim_speed >= 1000:
-        max_dt = 8.0
-        step_dt = 8.0
-    elif sim_speed >= 500:
-        max_dt = 5.0
-        step_dt = 5.0
-    elif sim_speed >= 100:
-        max_dt = 2.0
-        step_dt = 2.0
-    elif sim_speed >= 25:
-        max_dt = 1.25
-        step_dt = 1.25
+    # Keep max_dt mathematically stable (<= 1.0s) so physics never explodes or glitches
+    if sim_speed >= 25:
+        max_dt = 1.0
+        step_dt = 1.0
     elif sim_speed >= 5:
         max_dt = 0.25
         step_dt = 0.25
@@ -133,27 +124,33 @@ def _physics_batch() -> dict:
 
     simulator.dt = step_dt
 
-    wall_budget = 0.15          # seconds of real time we're allowed to use
+    wall_budget = 0.12          # seconds of real time we're allowed to use
     tick_start  = _time.perf_counter()
     mb_rain = mb_drain = 0.0
     n_cells = state.grid_shape[0] * state.grid_shape[1]
     active_cells = state.brgy_cell_count if getattr(state, "border_mask", None) is not None else n_cells
     area    = state.dx ** 2
 
-    while _time.perf_counter() - tick_start < wall_budget:
+    steps_target = max(1, int(sim_speed * 0.05 / step_dt))
+    steps_done = 0
+
+    while (_time.perf_counter() - tick_start < wall_budget) and (steps_done < steps_target):
         if reset_requested:
             break
             
-        vol_before = float(state.water_depth.sum()) * area + sum(n.volume for n in state.nodes.values())
-        try:
-            simulator.step(max_stable_dt=max_dt)
-        except Exception:
-            import traceback; traceback.print_exc()
-            break
-        vol_after  = float(state.water_depth.sum()) * area + sum(n.volume for n in state.nodes.values())
+        with state_lock:
+            vol_before = float(state.water_depth.sum()) * area + sum(n.volume for n in state.nodes.values())
+            try:
+                simulator.step(max_stable_dt=max_dt)
+            except Exception:
+                import traceback; traceback.print_exc()
+                break
+            vol_after  = float(state.water_depth.sum()) * area + sum(n.volume for n in state.nodes.values())
+
         rain_vol   = state.rainfall_rate * area * active_cells * simulator.dt
         mb_rain   += rain_vol
         mb_drain  += max(0.0, vol_before - vol_after + rain_vol)
+        steps_done += 1
 
         if sim_speed <= 25:     # at normal speeds, one step per tick maintains true real-time pacing
             break
@@ -165,6 +162,7 @@ async def physics_loop():
     global is_running, sim_speed, rain_stop_at
     global snapshots, _last_snap_time
     global mb_rain_total, mb_drain_total, reset_requested
+    global _last_water_depth_time, _last_water_depth_flat, _state_json_sim_time, _state_json_bytes
 
     while True:
         if reset_requested:
@@ -179,6 +177,7 @@ async def physics_loop():
             _last_water_depth_time = -1.0  # invalidate depth cache
             _last_water_depth_flat = None
             _state_json_sim_time   = -2.0  # invalidate full JSON cache
+            _state_json_bytes      = None
             reset_requested = False
             
         batch_dur = 0.0
@@ -299,15 +298,19 @@ def _build_state_payload() -> dict:
     global _last_water_depth_time, _last_water_depth_flat
     global _last_pipes_time, _pipes_live_cache, _nodes_live_cache
 
-    depth    = state.water_depth
-    sim_time = state.time
+    with state_lock:
+        depth    = state.water_depth.copy()
+        sim_time = state.time
+        rain_sec = state.rain_duration_sec
+        node_vols_total = sum(n.volume for n in state.nodes.values())
+
     now_wall = _time.monotonic()
 
     max_d         = float(depth.max())
     total_vol     = float(depth.sum()) * state.dx ** 2
     flooded_cells = int((depth > 0.04).sum())
 
-    total_domain_vol = total_vol + sum(n.volume for n in state.nodes.values())
+    total_domain_vol = total_vol + node_vols_total
     expected_in      = mb_rain_total - mb_drain_total
     norm_base        = max(mb_rain_total, total_domain_vol, 1.0)
     mb_error         = abs(total_domain_vol - expected_in) / norm_base * 100.0
@@ -355,16 +358,16 @@ def _build_state_payload() -> dict:
         })
     zones_stat_sorted = sorted(zones_stat, key=lambda x: (x["peak_depth"], x["pct_flooded"]), reverse=True)
 
-    hrs  = int(state.rain_duration_sec // 3600)
-    mins = int((state.rain_duration_sec % 3600) // 60)
+    hrs  = int(rain_sec // 3600)
+    mins = int((rain_sec % 3600) // 60)
     rain_dur_label = f"{hrs}h {mins:02d}m" if hrs > 0 else f"{mins}m"
 
     # Water depth flat 1D (cached per sim tick)
     if sim_time != _last_water_depth_time or _last_water_depth_flat is None:
-        if max_d <= 0.04:
+        if max_d <= 0.01:
             _last_water_depth_flat = _zero_depth_flat
         else:
-            _last_water_depth_flat = np.where(depth > 0.04, np.round(depth, 2), 0.0).ravel().tolist()
+            _last_water_depth_flat = np.where(depth > 0.01, np.round(depth, 2), 0.0).ravel().tolist()
         _last_water_depth_time = sim_time
 
     # Pipes + nodes throttled to 2 Hz
@@ -422,7 +425,7 @@ def get_state():
     """HTTP route — returns pre-built JSON bytes when sim tick hasn't changed or <80ms elapsed."""
     global _state_json_bytes, _state_json_sim_time, _state_json_wall_time
     now_wall = _time.monotonic()
-    if state.time != _state_json_sim_time and ((now_wall - _state_json_wall_time) >= 0.08 or _state_json_bytes is None):
+    if (state.time != _state_json_sim_time or _state_json_bytes is None) and ((now_wall - _state_json_wall_time) >= 0.08 or _state_json_bytes is None):
         payload = _build_state_payload()
         _state_json_bytes     = _json.dumps(payload).encode()
         _state_json_sim_time  = state.time
@@ -475,11 +478,12 @@ class BlockageRequest(BaseModel):
 
 @app.post("/api/pipe/{pipe_id}/blockage")
 def set_pipe_blockage(pipe_id: int, req: BlockageRequest):
-    global _state_json_sim_time, _last_pipes_time
+    global _state_json_sim_time, _last_pipes_time, _state_json_bytes
     for p in state.pipes:
         if p.id == pipe_id:
             p.blockage = max(0.0, min(1.0, req.blockage))
             _state_json_sim_time = -2.0
+            _state_json_bytes = None
             _last_pipes_time = 0.0
             return {"ok": True}
     return {"error": "not found"}, 404
@@ -490,7 +494,7 @@ class BulkBlockageRequest(BaseModel):
 
 @app.post("/api/pipes/bulk_blockage")
 def set_bulk_blockage(req: BulkBlockageRequest):
-    global _state_json_sim_time, _last_pipes_time
+    global _state_json_sim_time, _last_pipes_time, _state_json_bytes
     block_val = max(0.0, min(1.0, req.blockage))
     updated = 0
     pipe_set = set(req.pipe_ids)
@@ -499,6 +503,7 @@ def set_bulk_blockage(req: BulkBlockageRequest):
             p.blockage = block_val
             updated += 1
     _state_json_sim_time = -2.0
+    _state_json_bytes = None
     _last_pipes_time = 0.0
     return {"ok": True, "updated": updated}
 
@@ -508,11 +513,12 @@ class DiameterRequest(BaseModel):
 
 @app.post("/api/pipe/{pipe_id}/diameter")
 def set_pipe_diameter(pipe_id: int, req: DiameterRequest):
-    global _state_json_sim_time, _last_pipes_time
+    global _state_json_sim_time, _last_pipes_time, _state_json_bytes
     for p in state.pipes:
         if p.id == pipe_id:
             p.set_diameter(max(0.1, min(5.0, req.diameter)))
             _state_json_sim_time = -2.0
+            _state_json_bytes = None
             _last_pipes_time = 0.0
             return {"ok": True, "diameter": p.diameter}
     return {"error": "not found"}, 404
@@ -523,7 +529,7 @@ class BulkDiameterRequest(BaseModel):
 
 @app.post("/api/pipes/bulk_diameter")
 def set_bulk_diameter(req: BulkDiameterRequest):
-    global _state_json_sim_time, _last_pipes_time
+    global _state_json_sim_time, _last_pipes_time, _state_json_bytes
     diam_val = max(0.1, min(5.0, req.diameter))
     updated = 0
     pipe_set = set(req.pipe_ids)
@@ -532,26 +538,107 @@ def set_bulk_diameter(req: BulkDiameterRequest):
             p.set_diameter(diam_val)
             updated += 1
     _state_json_sim_time = -2.0
+    _state_json_bytes = None
     _last_pipes_time = 0.0
     return {"ok": True, "updated": updated}
 
 # ── Configure Scenario ────────────────────────────────────────────────────────
+SCENARIO_PRESETS = {
+    "light": {
+        "name": "Light Rain",
+        "rainfall_mm_hr": 2.5,
+        "duration_sim_hours": 24.0,
+        "pipe_blockage_pct": 20.0,
+        "description": "PAGASA Light Rain (<2.5 mm/hr). Intermittent light drizzle; green surface infiltration handles most runoff."
+    },
+    "moderate": {
+        "name": "Moderate Rain",
+        "rainfall_mm_hr": 5.0,
+        "duration_sim_hours": 12.0,
+        "pipe_blockage_pct": 40.0,
+        "description": "PAGASA Moderate Rain (2.5–7.5 mm/hr). Steady precipitation; minor street puddles form."
+    },
+    "heavy": {
+        "name": "Heavy Rain",
+        "rainfall_mm_hr": 30.0,
+        "duration_sim_hours": 6.0,
+        "pipe_blockage_pct": 65.0,
+        "description": "PAGASA Heavy / Torrential Warning (≥30 mm/hr, Red Warning threshold). Rapid runoff overwhelms infiltration."
+    },
+    "typhoon": {
+        "name": "Typhoon",
+        "rainfall_mm_hr": 55.0,
+        "duration_sim_hours": 12.0,
+        "pipe_blockage_pct": 85.0,
+        "description": "Typhoon (e.g., Ondoy/Ketsana sustained rate ~55 mm/hr). Heavy flooding in low-lying zones, choked pipes."
+    },
+    "super_typhoon": {
+        "name": "Super Typhoon",
+        "rainfall_mm_hr": 100.0,
+        "duration_sim_hours": 12.0,
+        "pipe_blockage_pct": 100.0,
+        "description": "Super Typhoon (e.g., Carina/Gaemi peak convective bands ~100 mm/hr). Complete drain failure and critical inundation."
+    },
+}
+# Aliases for backwards compatibility and spelling variations
+SCENARIO_PRESETS["s1"] = SCENARIO_PRESETS["heavy"]
+SCENARIO_PRESETS["s2"] = SCENARIO_PRESETS["typhoon"]
+SCENARIO_PRESETS["s3"] = SCENARIO_PRESETS["light"]
+SCENARIO_PRESETS["typhone"] = SCENARIO_PRESETS["typhoon"]
+SCENARIO_PRESETS["super_typhone"] = SCENARIO_PRESETS["super_typhoon"]
+
 class ScenarioRequest(BaseModel):
-    rainfall_mm_hr:       float   = 100.0
-    duration_sim_hours:   float   = 6.0
-    pipe_blockage_pct:    float   = 95.0    # applied to main blockage pipe
-    reset_first:          bool    = True
+    scenario_id:          Optional[str]   = None
+    rainfall_mm_hr:       Optional[float] = None
+    duration_sim_hours:   Optional[float] = None
+    pipe_blockage_pct:    Optional[float] = None    # applied to main blockage pipe
+    reset_first:          bool            = True
+
+@app.get("/api/scenarios")
+def get_scenarios():
+    return {
+        k: v for k, v in SCENARIO_PRESETS.items()
+        if k not in ("s1", "s2", "s3", "typhone", "super_typhone")
+    }
 
 @app.post("/api/scenario")
 def apply_scenario(req: ScenarioRequest):
-    global rain_stop_at, reset_requested
+    global rain_stop_at, reset_requested, _state_json_sim_time, _state_json_bytes, _last_pipes_time, _last_water_depth_time, _last_water_depth_flat
+
+    # Resolve preset defaults if scenario_id provided
+    preset = SCENARIO_PRESETS.get(req.scenario_id, {}) if req.scenario_id else {}
+    rainfall_mm_hr = req.rainfall_mm_hr if req.rainfall_mm_hr is not None else preset.get("rainfall_mm_hr", 100.0)
+    duration_sim_hours = req.duration_sim_hours if req.duration_sim_hours is not None else preset.get("duration_sim_hours", 6.0)
+    pipe_blockage_pct = req.pipe_blockage_pct if req.pipe_blockage_pct is not None else preset.get("pipe_blockage_pct", 95.0)
+
     if req.reset_first:
         reset_requested = True
+        state.water_depth[:] = 0.0
+        if hasattr(state, 'velocity_x'): state.velocity_x[:] = 0.0
+        if hasattr(state, 'velocity_y'): state.velocity_y[:] = 0.0
+        state.time = 0.0
+        state.rain_duration_sec = 0.0
+        for z in state.zones: state.zone_peaks[z["id"]] = 0.0
+        for node in state.nodes.values(): node.volume = 0.0
+        for pipe in state.pipes: pipe.current_flow = 0.0
+        snapshots.clear()
+        _last_water_depth_time = -1.0
+        _last_water_depth_flat = None
+        rain_stop_at = duration_sim_hours * 3600
+    else:
+        rain_stop_at = state.time + duration_sim_hours * 3600
 
-    state.rainfall_rate = req.rainfall_mm_hr / 1_000 / 3600
-    rain_stop_at = state.time + req.duration_sim_hours * 3600
-    state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage = req.pipe_blockage_pct / 100
-    return {"ok": True}
+    state.rainfall_rate = rainfall_mm_hr / 1_000 / 3600
+    state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage = pipe_blockage_pct / 100
+    _state_json_sim_time = -2.0
+    _state_json_bytes = None
+    _last_pipes_time = 0.0
+    return {
+        "ok": True,
+        "rainfall_mm_hr": rainfall_mm_hr,
+        "duration_sim_hours": duration_sim_hours,
+        "pipe_blockage_pct": pipe_blockage_pct
+    }
 
 # ── Time Skip (offline fast-forward) ─────────────────────────────────────────
 @app.post("/api/timeskip/cancel")
@@ -633,16 +720,19 @@ def rewind(req: RewindRequest):
 # ── Reset ─────────────────────────────────────────────────────────────────────
 @app.post("/api/reset")
 def reset():
-    global rain_stop_at, mb_rain_total, mb_drain_total, _last_water_depth_time, _last_water_depth_flat, _state_json_sim_time
+    global rain_stop_at, mb_rain_total, mb_drain_total, _last_water_depth_time, _last_water_depth_flat, _state_json_sim_time, _state_json_bytes, _last_pipes_time
     _last_water_depth_time = -1.0
     _last_water_depth_flat = None
     _state_json_sim_time   = -2.0
+    _state_json_bytes      = None
+    _last_pipes_time       = 0.0
     state.water_depth[:] = 0.0
     if hasattr(state, 'velocity_x'): state.velocity_x[:] = 0.0
     if hasattr(state, 'velocity_y'): state.velocity_y[:] = 0.0
     state.time           = 0.0
     state.rainfall_rate  = 0.0
     state.rain_duration_sec = 0.0
+    state.running        = False   # always pause on reset
     for z in state.zones: state.zone_peaks[z["id"]] = 0.0
     rain_stop_at         = None
     mb_rain_total        = 0.0

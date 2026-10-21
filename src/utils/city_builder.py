@@ -657,6 +657,14 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
             'mangga', 'bayabas', 'melon', 'interneighborhood'
         ]
 
+        # Subdivision residential streets & local roads (Street-level laterals)
+        LOCAL_HW = {
+            'residential':    {'diam': 0.60, 'spacing_m': 90},
+            'living_street':  {'diam': 0.50, 'spacing_m': 90},
+            'unclassified':   {'diam': 0.60, 'spacing_m': 90},
+            'service':        {'diam': 0.50, 'spacing_m': 100},
+        }
+
         # Snap tolerance: merge nodes within ~50m (10 grid cells)
         SNAP_DIST = 10
 
@@ -690,16 +698,21 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
 
             is_main = hw in MAIN_HW
             is_collector = any(k in name.lower() for k in COLLECTOR_KEYWORDS) and (hw in {'residential', 'unclassified', 'service'})
-            if not (is_main or is_collector):
+            is_local = hw in LOCAL_HW
+            if not (is_main or is_collector or is_local):
                 continue
 
             if is_main:
                 cfg = MAIN_HW[hw]
                 diam = cfg['diam']
                 spacing = cfg['spacing_m']
-            else:
+            elif is_collector:
                 diam = 0.75
-                spacing = 90
+                spacing = 85
+            else:
+                cfg = LOCAL_HW[hw]
+                diam = cfg['diam']
+                spacing = cfg['spacing_m']
 
             def _emit(lat, lon):
                 cx, cy = geo_to_grid_f(lat, lon)
@@ -870,6 +883,9 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
         # ── Pass 5: build Pipe objects ───────────────────────────────────────
         pipe_id = 0
         for (ma, mb, diam, length_m) in final_segs:
+            # Orient pipe downhill so gravity flow naturally aligns with forward direction
+            if nodes_list[ma].z_invert < nodes_list[mb].z_invert:
+                ma, mb = mb, ma
             pipes.append(Pipe(
                 pipe_id     = pipe_id,
                 node_in     = ma,

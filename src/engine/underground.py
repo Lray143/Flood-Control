@@ -180,7 +180,10 @@ def step_underground_network(state, dt: float):
         if node.volume < 0.0:
             node.volume = 0.0
 
-    # ── 3. Outlets drain freely ───────────────────────────────────────────────
+    # ── 3. Outlets drain freely & sump percolation when dry ───────────────────
     for node in nodes.values():
         if node.is_outlet:
             node.volume = 0.0
+        elif getattr(state, "rainfall_rate", 0.0) == 0.0 and node.volume > 0.0:
+            # Baseline sump subsoil percolation after rain has ended
+            node.volume = max(0.0, node.volume - 0.005 * dt)
