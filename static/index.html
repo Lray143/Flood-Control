@@ -2452,19 +2452,19 @@
 
         function buildPipes(nodes, pipes) {
             // ── Nodes (manholes) ──────────────────────────────────────────────
-            const nGeoNormal = new THREE.SphereGeometry(0.65, 10, 10);
-            const nGeoOutlet = new THREE.SphereGeometry(1.1, 12, 12);
+            const nGeoNormal = new THREE.SphereGeometry(1.4, 12, 12);
+            const nGeoOutlet = new THREE.SphereGeometry(2.4, 16, 16);
 
             nodes.forEach(n => {
                 const isOutlet = n.is_outlet;
                 const mGeo = isOutlet ? nGeoOutlet : nGeoNormal;
                 const nMat = new THREE.MeshStandardMaterial({
-                    // Outlets: luminous cyan beacons; Normal manholes: subtle steel grey with faint blue glow
-                    color: isOutlet ? 0x00e5ff : 0xb0c4d8,
-                    emissive: isOutlet ? 0x00b4d8 : 0x1e6fa0,
-                    emissiveIntensity: isOutlet ? 0.9 : 0.3,
-                    roughness: 0.45,
-                    metalness: 0.65,
+                    // Outlets: luminous cyan beacons; Normal manholes: bright platinum chrome with cyan emissive rim
+                    color: isOutlet ? 0x00f2fe : 0xf8fafc,
+                    emissive: isOutlet ? 0x00e5ff : 0x0284c7,
+                    emissiveIntensity: isOutlet ? 1.0 : 0.45,
+                    roughness: 0.25,
+                    metalness: 0.8,
                 });
                 const m = new THREE.Mesh(mGeo, nMat);
                 const nodeY = terrainElev[n.y * nx + n.x] - 0.4;   // sit crisp & proud on surface
@@ -2508,20 +2508,20 @@
                 const v2 = new THREE.Vector3(n2.x, y2, n2.y);
                 const dist = v1.distanceTo(v2);
 
-                const pipeR = Math.max(p.diameter * 0.28, 0.22);
+                const pipeR = Math.max(p.diameter * 0.55, 0.45);
                 const cyl = new THREE.CylinderGeometry(
                     pipeR,
                     pipeR,
-                    dist, 6, 1, false
+                    dist, 8, 1, false
                 );
                 cyl.rotateX(Math.PI / 2);
 
                 const pMat = new THREE.MeshStandardMaterial({
                     color: blockageColor(p.blockage * 100),
-                    roughness: 0.75,
-                    metalness: 0.1,
-                    emissive: blockageColor(p.blockage * 100),
-                    emissiveIntensity: 0.12,
+                    roughness: 0.5,
+                    metalness: 0.3,
+                    emissive: 0x000000,
+                    emissiveIntensity: 0.0,
                 });
 
                 const mesh = new THREE.Mesh(cyl, pMat);
