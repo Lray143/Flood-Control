@@ -2442,22 +2442,24 @@
         let pipeClickables = [];   // array of pipe meshes for raycasting
         const pipeHoverTooltip = document.getElementById('pipe-hover-tooltip');
 
-        // Color helper: blockage % → hex color
+        // Color helper: blockage % → hex color (professional civil infrastructure palette)
         function blockageColor(pct) {
-            if (pct >= 80) return 0xe74c3c;   // red
-            if (pct >= 50) return 0xe67e22;   // orange
-            if (pct >= 20) return 0xf1c40f;   // yellow
-            return 0x2ecc71;                   // green
+            if (pct >= 80) return 0xef4444;   // critical red
+            if (pct >= 50) return 0xf97316;   // severe orange
+            if (pct >= 20) return 0xf59e0b;   // warning amber
+            return 0x38bdf8;                   // clear flow (sleek conduit cyan)
         }
 
         function buildPipes(nodes, pipes) {
             // ── Nodes (manholes) ──────────────────────────────────────────────
-            const nGeo = new THREE.SphereGeometry(1.8, 8, 8);
+            const nGeo = new THREE.SphereGeometry(1.2, 10, 10);
             nodes.forEach(n => {
                 const nMat = new THREE.MeshStandardMaterial({
-                    color: n.is_outlet ? 0x3498db : 0xd35400,
-                    emissive: n.is_outlet ? 0x1a5276 : 0x0,
-                    emissiveIntensity: n.is_outlet ? 0.4 : 0.0,
+                    color: n.is_outlet ? 0x06b6d4 : 0x64748b,
+                    emissive: n.is_outlet ? 0x0891b2 : 0x0,
+                    emissiveIntensity: n.is_outlet ? 0.6 : 0.0,
+                    roughness: 0.4,
+                    metalness: 0.6,
                 });
                 const m = new THREE.Mesh(nGeo, nMat);
                 const nodeY = terrainElev[n.y * nx + n.x] - 1.0;   // sit just below surface
@@ -2501,9 +2503,10 @@
                 const v2 = new THREE.Vector3(n2.x, y2, n2.y);
                 const dist = v1.distanceTo(v2);
 
+                const pipeR = Math.max(p.diameter * 0.55, 0.45);
                 const cyl = new THREE.CylinderGeometry(
-                    Math.max(p.diameter / 2, 0.4),
-                    Math.max(p.diameter / 2, 0.4),
+                    pipeR,
+                    pipeR,
                     dist, 8, 1, false
                 );
                 cyl.rotateX(Math.PI / 2);

@@ -639,7 +639,7 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
         with open(osm_path) as f:
             osm = _json.load(f)
 
-        # Primary and secondary arterial roads
+        # 1. Primary & secondary arterial roads (Trunk network)
         MAIN_HW = {
             'primary':        {'diam': 1.40, 'spacing_m': 70},
             'trunk':          {'diam': 1.40, 'spacing_m': 70},
@@ -649,24 +649,19 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
             'tertiary_link':  {'diam': 0.80, 'spacing_m': 80},
         }
 
-        # Key collector avenues & main subdivision access corridors covering all 8 sectors
-        COLLECTOR_KEYWORDS = [
+        # 2. Curated subdivision collector spines & major neighborhood access corridors
+        SUBDIVISION_KEYWORDS = [
             'main road', 'avenue', 'ave', 'drive', 'dr', 'blvd', 'boulevard',
-            'saint mary', 'alecon', 'ruby', 'casimiro', 'thomas', 'dolmar', 'celina', 'narra',
+            'saint mary', 'altezza', 'alecon', 'ruby', 'casimiro', 'thomas', 'dolmar', 'celina', 'narra',
             'joyville', 'don mariano', 'azucena', 'cedar', 'taurus', 'virgo', 'leo', 'gemini',
-            'mangga', 'bayabas', 'melon', 'interneighborhood'
+            'mangga', 'bayabas', 'melon', 'interneighborhood', 'maranaw', 'saint peter', 'saint paul',
+            'saint john', 'diamond', 'redwood', 'rainbow', 'golden shower', 'vista verde', 'selecta',
+            'yellow bell', 'camella', 'woodridge', 'natividad', 'sentro'
         ]
 
-        # Subdivision residential streets & local roads (Street-level laterals)
-        LOCAL_HW = {
-            'residential':    {'diam': 0.60, 'spacing_m': 90},
-            'living_street':  {'diam': 0.50, 'spacing_m': 90},
-            'unclassified':   {'diam': 0.60, 'spacing_m': 90},
-            'service':        {'diam': 0.50, 'spacing_m': 100},
-        }
-
-        # Snap tolerance: merge nodes within ~50m (10 grid cells)
-        SNAP_DIST = 10
+        # Tight snap tolerance: 3.5 grid cells (17.5m)
+        # Prevents merging manholes across parallel residential streets or through houses.
+        SNAP_DIST = 3.5
 
         # Distance transform to snap boundary roads (e.g. Camarin Rd) directly to interior border
         from scipy.ndimage import distance_transform_edt as _edt
@@ -683,7 +678,7 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                  _math.sin(dlon / 2) ** 2)
             return 2 * R * _math.asin(_math.sqrt(a))
 
-        # ── Pass 1: sample manholes along centerlines of main roads ──────────
+        # ── Pass 1: sample manholes strictly along centerlines of road spines ─
         raw_nodes = []
         raw_segs  = []
 
@@ -697,22 +692,23 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                 continue
 
             is_main = hw in MAIN_HW
-            is_collector = any(k in name.lower() for k in COLLECTOR_KEYWORDS) and (hw in {'residential', 'unclassified', 'service'})
-            is_local = hw in LOCAL_HW
-            if not (is_main or is_collector or is_local):
+            is_subdiv = any(k in name.lower() for k in SUBDIVISION_KEYWORDS) and (hw in {'residential', 'unclassified', 'service'})
+            seg_len_total = sum(_haversine_m(geom[i]['lat'], geom[i]['lon'], geom[i+1]['lat'], geom[i+1]['lon']) for i in range(len(geom)-1))
+            is_major_spine = (hw in {'residential', 'unclassified'}) and (seg_len_total >= 250.0)
+
+            if not (is_main or is_subdiv or is_major_spine):
                 continue
 
             if is_main:
                 cfg = MAIN_HW[hw]
                 diam = cfg['diam']
                 spacing = cfg['spacing_m']
-            elif is_collector:
-                diam = 0.75
-                spacing = 85
+            elif is_subdiv:
+                diam = 0.80
+                spacing = 80
             else:
-                cfg = LOCAL_HW[hw]
-                diam = cfg['diam']
-                spacing = cfg['spacing_m']
+                diam = 0.70
+                spacing = 85
 
             def _emit(lat, lon):
                 cx, cy = geo_to_grid_f(lat, lon)
@@ -763,9 +759,9 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
                     geom[-1]['lat'], geom[-1]['lon'])
                 raw_segs.append((last_idx, end_idx, diam, max(seg_len, 1.0)))
 
-        # ── Pass 2: merge nearby nodes at intersections ──────────────────────
+        # ── Pass 2: merge nearby nodes strictly at street intersections ──────
         if not raw_nodes:
-            raise RuntimeError("No road nodes sampled — check boundary/road data")
+            raise RuntimeError('No road nodes sampled — check boundary/road data')
 
         coords_arr = np.array([(n[0], n[1]) for n in raw_nodes])
         snap_kd    = _KDTree(coords_arr)
@@ -801,7 +797,7 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
             seen_pairs.add(key)
             final_segs.append((ma, mb, diam, length_m))
 
-        # ── Pass 3: bridge disjoint components so the network is unified ─────
+        # ── Pass 3: bridge subdivision entrances to the main trunk network ───
         adj = {i: [] for i in range(len(merged_pts))}
         for (ma, mb, _, _) in final_segs:
             adj[ma].append(mb)
@@ -825,24 +821,39 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
             components.append(comp)
 
         components.sort(key=len, reverse=True)
-        if len(components) > 1:
-            main_comp = set(components[0])
-            for secondary in components[1:]:
-                best_dist = float('inf')
-                best_pair = None
-                for u in secondary:
-                    u_x, u_y = merged_pts[u][0], merged_pts[u][1]
-                    for v in main_comp:
-                        v_x, v_y = merged_pts[v][0], merged_pts[v][1]
-                        dist_sq = (u_x - v_x)**2 + (u_y - v_y)**2
-                        if dist_sq < best_dist:
-                            best_dist = dist_sq
-                            best_pair = (u, v)
-                if best_pair is not None:
+        main_comp = set(components[0])
+
+        for secondary in components[1:]:
+            if len(secondary) < 3:
+                continue
+            best_dist = float('inf')
+            best_pair = None
+            for u in secondary:
+                u_x, u_y = merged_pts[u][0], merged_pts[u][1]
+                for v in main_comp:
+                    v_x, v_y = merged_pts[v][0], merged_pts[v][1]
+                    dist_sq = (u_x - v_x)**2 + (u_y - v_y)**2
+                    if dist_sq < best_dist:
+                        best_dist = dist_sq
+                        best_pair = (u, v)
+            if best_pair is not None:
+                dist_m = float(_math.sqrt(best_dist)) * dx
+                # Only bridge if within intersection proximity (<= 75m)
+                # This connects subdivision gate entrances to the avenue without cutting across blocks!
+                if dist_m <= 75.0:
                     u, v = best_pair
-                    dist_m = float(_math.sqrt(best_dist)) * dx
                     final_segs.append((u, v, 0.75, max(dist_m, 1.0)))
                     main_comp.update(secondary)
+
+        # Retain only connected network nodes and remap cleanly
+        active_nodes = sorted(list(main_comp))
+        node_remap = {old_id: new_id for new_id, old_id in enumerate(active_nodes)}
+        merged_pts = [merged_pts[i] for i in active_nodes]
+        final_segs = [
+            (node_remap[u], node_remap[v], diam, length_m)
+            for (u, v, diam, length_m) in final_segs
+            if u in node_remap and v in node_remap
+        ]
 
         # ── Pass 4: designate outlets at the 4 geographic drainage exits ─────
         # 1. West exit (Kabatuhan / Altezza outfall)
