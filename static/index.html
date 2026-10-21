@@ -2552,8 +2552,8 @@
                 pipeMeshMap[p.id] = { mesh, data: p, v1, v2, dist };
                 pipeClickables.push(mesh);
 
-                // Setup flow pulse particles for active water transport
-                const numPulses = dist > 45 ? 3 : 2;
+                // Setup flow pulse particles for active water transport (continuous smooth stream)
+                const numPulses = Math.max(3, Math.min(6, Math.round(dist / 11)));
                 const phases = [];
                 for (let k = 0; k < numPulses; k++) phases.push(k / numPulses);
                 pipeFlowList.push({ id: p.id, data: p, v1, v2, dist, numPulses, phases });
@@ -2562,19 +2562,20 @@
             // Single shared InstancedMesh for all pipe water flow streams (1 draw call = 0 lag)
             const totalPulses = pipeFlowList.reduce((acc, it) => acc + it.numPulses, 0);
             if (totalPulses > 0) {
-                const flowGeo = new THREE.SphereGeometry(1.0, 8, 8);
+                const flowGeo = new THREE.SphereGeometry(1.0, 10, 8);
                 const flowMat = new THREE.MeshStandardMaterial({
-                    color: 0x00f0ff,
-                    emissive: 0x00e5ff,
-                    emissiveIntensity: 1.25,
-                    roughness: 0.15,
-                    metalness: 0.1,
+                    // Ultra-visible bright white-cyan incandescent water pulse
+                    color: 0xffffff,
+                    emissive: 0x00ffff,
+                    emissiveIntensity: 2.4,
+                    roughness: 0.1,
+                    metalness: 0.05,
                     transparent: true,
-                    opacity: 0.90,
+                    opacity: 0.95,
                     depthTest: !glassMode
                 });
                 pipeFlowInstanced = new THREE.InstancedMesh(flowGeo, flowMat, totalPulses);
-                pipeFlowInstanced.renderOrder = glassMode ? 14 : 0;
+                pipeFlowInstanced.renderOrder = glassMode ? 25 : 0;
                 pipeFlowInstanced.castShadow = false;
                 pipeFlowInstanced.receiveShadow = false;
 
@@ -3940,7 +3941,7 @@
                 rainMesh.material.uniforms.uRain.value = currentRain;
             }
 
-            // ── Dynamic Pipe Water Flow Pulses (zero lag, 1 draw call) ────────
+            // ── Dynamic Pipe Water Flow Pulses (zero lag, continuous dt integration) ──
             if (pipeFlowInstanced && pipeFlowList.length > 0) {
                 const chkPipes = document.getElementById('chk-pipes');
                 const pipesVis = !chkPipes || chkPipes.checked;
@@ -3949,7 +3950,6 @@
                 } else {
                     if (!pipeFlowInstanced.visible) pipeFlowInstanced.visible = true;
                     const dummy = new THREE.Object3D();
-                    const now = performance.now() * 0.001;
                     let instIdx = 0;
 
                     for (let i = 0; i < pipeFlowList.length; i++) {
@@ -3964,19 +3964,24 @@
                                 dummy.updateMatrix();
                                 pipeFlowInstanced.setMatrixAt(instIdx++, dummy.matrix);
                             } else {
-                                // Flow speed scales smoothly with flow rate (1.2 to 5.0 m/s)
-                                const speed = Math.max(1.2, Math.min(5.0, Math.abs(flow) * 12.0 + 1.2));
-                                const phase = (item.phases[p] + (now * speed) / item.dist) % 1.0;
+                                // Flow speed scales smoothly with flow rate (1.5 to 6.5 m/s)
+                                const speed = Math.max(1.5, Math.min(6.5, Math.abs(flow) * 14.0 + 1.5));
+                                // Continuous dt integration: never stutters or jumps when flow value changes
+                                item.phases[p] = (item.phases[p] + (speed * dt) / item.dist) % 1.0;
+                                const phase = item.phases[p];
 
-                                // Flow direction: positive flow is v1 -> v2, reverse backpressure is v2 -> v1
+                                // Direction: positive flow is v1 -> v2, reverse backpressure is v2 -> v1
                                 const fromV = flow >= 0 ? item.v1 : item.v2;
                                 const toV = flow >= 0 ? item.v2 : item.v1;
                                 dummy.position.copy(fromV).lerp(toV, phase);
                                 dummy.lookAt(toV);
 
-                                // Stream capsule size scaled with pipe diameter
-                                const r = Math.max(item.data.diameter * 0.40, 0.32);
-                                dummy.scale.set(r, r, r * 2.4);
+                                // Smooth entrance and exit envelope (emerges and disappears seamlessly at manholes)
+                                const envelope = Math.pow(Math.sin(phase * Math.PI), 0.45);
+
+                                // Distinct, high-visibility stream capsule sized to fill the pipe conduit cleanly
+                                const r = Math.max(item.data.diameter * 0.55, 0.42) * envelope;
+                                dummy.scale.set(r, r, r * 3.2);
                                 dummy.updateMatrix();
                                 pipeFlowInstanced.setMatrixAt(instIdx++, dummy.matrix);
                             }
@@ -4321,7 +4326,7 @@
 
             if (pipeFlowInstanced) {
                 pipeFlowInstanced.material.depthTest = !glassMode;
-                pipeFlowInstanced.renderOrder = glassMode ? 14 : 0;
+                pipeFlowInstanced.renderOrder = glassMode ? 25 : 0;
                 pipeFlowInstanced.visible = pipesVisible;
             }
 
