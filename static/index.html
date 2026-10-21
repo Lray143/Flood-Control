@@ -2437,9 +2437,11 @@
         let selectedPipeId = null;
         let selectedPipeIds = new Set();
         let hoveredPipeId = null;
-        let pipeMeshMap = {};   // pipe_id → { mesh, data }
+        let pipeMeshMap = {};   // pipe_id → { mesh, data, v1, v2, dist }
         let nodeMeshMap = {};   // node_id → mesh
         let pipeClickables = [];   // array of pipe meshes for raycasting
+        let pipeFlowInstanced = null;
+        let pipeFlowList = [];
         const pipeHoverTooltip = document.getElementById('pipe-hover-tooltip');
 
         // Color helper: blockage % → hex color (professional civil infrastructure palette)
@@ -2451,6 +2453,15 @@
         }
 
         function buildPipes(nodes, pipes) {
+            // Clean up existing flow instanced mesh if re-building
+            if (pipeFlowInstanced) {
+                scene.remove(pipeFlowInstanced);
+                if (pipeFlowInstanced.geometry) pipeFlowInstanced.geometry.dispose();
+                if (pipeFlowInstanced.material) pipeFlowInstanced.material.dispose();
+                pipeFlowInstanced = null;
+            }
+            pipeFlowList = [];
+
             // ── Nodes (manholes) ──────────────────────────────────────────────
             const nGeoNormal = new THREE.SphereGeometry(1.4, 12, 12);
             const nGeoOutlet = new THREE.SphereGeometry(2.4, 16, 16);
@@ -2538,9 +2549,45 @@
                 mesh.castShadow = false;
                 scene.add(mesh);
 
-                pipeMeshMap[p.id] = { mesh, data: p };
+                pipeMeshMap[p.id] = { mesh, data: p, v1, v2, dist };
                 pipeClickables.push(mesh);
+
+                // Setup flow pulse particles for active water transport
+                const numPulses = dist > 45 ? 3 : 2;
+                const phases = [];
+                for (let k = 0; k < numPulses; k++) phases.push(k / numPulses);
+                pipeFlowList.push({ id: p.id, data: p, v1, v2, dist, numPulses, phases });
             });
+
+            // Single shared InstancedMesh for all pipe water flow streams (1 draw call = 0 lag)
+            const totalPulses = pipeFlowList.reduce((acc, it) => acc + it.numPulses, 0);
+            if (totalPulses > 0) {
+                const flowGeo = new THREE.SphereGeometry(1.0, 8, 8);
+                const flowMat = new THREE.MeshStandardMaterial({
+                    color: 0x00f0ff,
+                    emissive: 0x00e5ff,
+                    emissiveIntensity: 1.25,
+                    roughness: 0.15,
+                    metalness: 0.1,
+                    transparent: true,
+                    opacity: 0.90,
+                    depthTest: !glassMode
+                });
+                pipeFlowInstanced = new THREE.InstancedMesh(flowGeo, flowMat, totalPulses);
+                pipeFlowInstanced.renderOrder = glassMode ? 14 : 0;
+                pipeFlowInstanced.castShadow = false;
+                pipeFlowInstanced.receiveShadow = false;
+
+                const initDummy = new THREE.Object3D();
+                initDummy.position.set(0, -9999, 0);
+                initDummy.scale.set(0, 0, 0);
+                initDummy.updateMatrix();
+                for (let i = 0; i < totalPulses; i++) {
+                    pipeFlowInstanced.setMatrixAt(i, initDummy.matrix);
+                }
+                pipeFlowInstanced.instanceMatrix.needsUpdate = true;
+                scene.add(pipeFlowInstanced);
+            }
         }
 
         // Rebuild a pipe's cylinder geometry to reflect a new diameter immediately.
@@ -3174,13 +3221,23 @@
                 entry.mesh.material.emissive.copy(col);
                 entry.mesh.material.emissiveIntensity = 0.6;
             } else {
-                // Normal: natural blockage color
+                // Normal: natural blockage color + water flow energy indicator
                 entry.mesh.scale.set(1.0, 1.0, 1.0);
                 entry.mesh.renderOrder = glassMode ? 12 : 0;
                 entry.mesh.material.depthTest = !glassMode;
                 entry.mesh.material.color.copy(col);
-                entry.mesh.material.emissive.copy(col);
-                entry.mesh.material.emissiveIntensity = 0.0;
+                const flowVal = entry.data.flow !== undefined ? entry.data.flow : 0;
+                if (Math.abs(flowVal) > 0.0003) {
+                    // Pipe carries stormwater: luminous aqua conduit glow
+                    const flowGlow = Math.min(0.45, 0.18 + Math.abs(flowVal) * 0.25);
+                    const flowEmissive = new THREE.Color(col).lerp(new THREE.Color(0x00e5ff), 0.5);
+                    entry.mesh.material.emissive.copy(flowEmissive);
+                    entry.mesh.material.emissiveIntensity = flowGlow;
+                } else {
+                    // Dry pipe: zero emissive glow
+                    entry.mesh.material.emissive.copy(col);
+                    entry.mesh.material.emissiveIntensity = 0.0;
+                }
             }
         }
 
@@ -3883,6 +3940,52 @@
                 rainMesh.material.uniforms.uRain.value = currentRain;
             }
 
+            // ── Dynamic Pipe Water Flow Pulses (zero lag, 1 draw call) ────────
+            if (pipeFlowInstanced && pipeFlowList.length > 0) {
+                const chkPipes = document.getElementById('chk-pipes');
+                const pipesVis = !chkPipes || chkPipes.checked;
+                if (!pipesVis) {
+                    if (pipeFlowInstanced.visible) pipeFlowInstanced.visible = false;
+                } else {
+                    if (!pipeFlowInstanced.visible) pipeFlowInstanced.visible = true;
+                    const dummy = new THREE.Object3D();
+                    const now = performance.now() * 0.001;
+                    let instIdx = 0;
+
+                    for (let i = 0; i < pipeFlowList.length; i++) {
+                        const item = pipeFlowList[i];
+                        const flow = item.data.flow !== undefined ? item.data.flow : 0;
+                        const isFlowing = Math.abs(flow) > 0.0003;
+
+                        for (let p = 0; p < item.numPulses; p++) {
+                            if (!isFlowing) {
+                                dummy.position.set(0, -9999, 0);
+                                dummy.scale.set(0, 0, 0);
+                                dummy.updateMatrix();
+                                pipeFlowInstanced.setMatrixAt(instIdx++, dummy.matrix);
+                            } else {
+                                // Flow speed scales smoothly with flow rate (1.2 to 5.0 m/s)
+                                const speed = Math.max(1.2, Math.min(5.0, Math.abs(flow) * 12.0 + 1.2));
+                                const phase = (item.phases[p] + (now * speed) / item.dist) % 1.0;
+
+                                // Flow direction: positive flow is v1 -> v2, reverse backpressure is v2 -> v1
+                                const fromV = flow >= 0 ? item.v1 : item.v2;
+                                const toV = flow >= 0 ? item.v2 : item.v1;
+                                dummy.position.copy(fromV).lerp(toV, phase);
+                                dummy.lookAt(toV);
+
+                                // Stream capsule size scaled with pipe diameter
+                                const r = Math.max(item.data.diameter * 0.40, 0.32);
+                                dummy.scale.set(r, r, r * 2.4);
+                                dummy.updateMatrix();
+                                pipeFlowInstanced.setMatrixAt(instIdx++, dummy.matrix);
+                            }
+                        }
+                    }
+                    pipeFlowInstanced.instanceMatrix.needsUpdate = true;
+                }
+            }
+
             _updateLabelZoomScales();
             _updateZoneLabelVisibility();
             renderer.render(scene, camera);
@@ -4216,6 +4319,12 @@
                 m.visible = pipesVisible;
             });
 
+            if (pipeFlowInstanced) {
+                pipeFlowInstanced.material.depthTest = !glassMode;
+                pipeFlowInstanced.renderOrder = glassMode ? 14 : 0;
+                pipeFlowInstanced.visible = pipesVisible;
+            }
+
             // 4. Respect layer checkboxes for buildings & trees without conflict
             const chkBuildings = document.getElementById('chk-buildings');
             const chkTrees = document.getElementById('chk-trees');
@@ -4355,6 +4464,7 @@
             Object.values(pipeMeshMap).forEach(entry => {
                 entry.mesh.visible = visible;
             });
+            if (pipeFlowInstanced) pipeFlowInstanced.visible = visible;
             // Clear hover and close inspector if hidden
             if (!visible) {
                 setHoveredPipe(null);
