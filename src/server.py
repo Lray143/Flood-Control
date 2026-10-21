@@ -111,20 +111,33 @@ def _physics_batch() -> dict:
     Maintains CFL numerical stability at any speed setting by capping max_dt <= 1.0s
     and executing multiple stable sub-steps within the allocated wall-time budget.
     """
-    # Keep max_dt mathematically stable (<= 1.0s) so physics never explodes or glitches
-    if sim_speed >= 25:
+    # Calibrated dt pacing maintains stability while delivering true physical speed acceleration
+    if sim_speed >= 50:
+        max_dt = 2.0
+        step_dt = 2.0
+        wall_budget = 0.16
+    elif sim_speed >= 25:
         max_dt = 1.0
         step_dt = 1.0
+        wall_budget = 0.12
+    elif sim_speed >= 10:
+        max_dt = 0.50
+        step_dt = 0.50
+        wall_budget = 0.08
     elif sim_speed >= 5:
         max_dt = 0.25
         step_dt = 0.25
+        wall_budget = 0.06
+    elif sim_speed >= 2:
+        max_dt = 0.10
+        step_dt = 0.10
+        wall_budget = 0.05
     else:
         max_dt = 0.05
         step_dt = 0.05
+        wall_budget = 0.04
 
     simulator.dt = step_dt
-
-    wall_budget = 0.12          # seconds of real time we're allowed to use
     tick_start  = _time.perf_counter()
     mb_rain = mb_drain = 0.0
     n_cells = state.grid_shape[0] * state.grid_shape[1]
@@ -152,7 +165,7 @@ def _physics_batch() -> dict:
         mb_drain  += max(0.0, vol_before - vol_after + rain_vol)
         steps_done += 1
 
-        if sim_speed <= 25:     # at normal speeds, one step per tick maintains true real-time pacing
+        if sim_speed <= 50:     # maintain true calibrated real-time pacing
             break
 
     return {"mb_rain": mb_rain, "mb_drain": mb_drain}
@@ -221,7 +234,7 @@ async def physics_loop():
 
         # Precise pacing for 1x, 5x, 25x (~20 Hz tick), minimal sleep for fast-forward
         if is_running and not time_skip_running:
-            if sim_speed <= 25:
+            if sim_speed <= 50:
                 sleep_sec = max(0.002, 0.050 - batch_dur)
             else:
                 sleep_sec = 0.005

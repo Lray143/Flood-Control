@@ -4022,7 +4022,7 @@
         document.getElementById('btn-play').onclick = () => fetch('/api/control', { method: 'POST' });
 
         document.getElementById('btn-speed').onclick = () => {
-            const steps = [1, 5, 25, 100, 500, 1000, 2000, 5000, 10000];
+            const steps = [1, 2, 5, 10, 25, 50];
             const idx = steps.indexOf(simSpeed);
             simSpeed = steps[(idx + 1) % steps.length];
             document.getElementById('btn-speed').innerHTML = `<i data-lucide="fast-forward"></i> ${simSpeed}×`;
