@@ -2172,18 +2172,19 @@ import * as THREE from 'three';
             if (v === 'none') return;
             let payload = {};
             if (v === 'light' || v === 's3') {
-                payload = { scenario_id: 'light', rainfall_mm_hr: 2.5, duration_sim_hours: 24, pipe_blockage_pct: 20, reset_first: false };
+                payload = { scenario_id: 'light', rainfall_mm_hr: 2.5, duration_sim_hours: 24, reset_first: false };
             } else if (v === 'moderate') {
-                payload = { scenario_id: 'moderate', rainfall_mm_hr: 5, duration_sim_hours: 12, pipe_blockage_pct: 40, reset_first: false };
+                payload = { scenario_id: 'moderate', rainfall_mm_hr: 5, duration_sim_hours: 12, reset_first: false };
             } else if (v === 'heavy' || v === 's1') {
-                payload = { scenario_id: 'heavy', rainfall_mm_hr: 30, duration_sim_hours: 6, pipe_blockage_pct: 65, reset_first: false };
+                payload = { scenario_id: 'heavy', rainfall_mm_hr: 30, duration_sim_hours: 6, reset_first: false };
             } else if (v === 'typhoon' || v === 'typhone' || v === 's2') {
-                payload = { scenario_id: 'typhoon', rainfall_mm_hr: 55, duration_sim_hours: 12, pipe_blockage_pct: 85, reset_first: false };
+                payload = { scenario_id: 'typhoon', rainfall_mm_hr: 55, duration_sim_hours: 12, reset_first: false };
             } else if (v === 'super_typhoon' || v === 'super_typhone') {
-                payload = { scenario_id: 'super_typhoon', rainfall_mm_hr: 100, duration_sim_hours: 12, pipe_blockage_pct: 100, reset_first: false };
+                payload = { scenario_id: 'super_typhoon', rainfall_mm_hr: 100, duration_sim_hours: 12, reset_first: false };
             } else {
                 return;
             }
+
 
             // Immediately reflect in UI slider and badges
             const rainVal = payload.rainfall_mm_hr;

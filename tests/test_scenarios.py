@@ -14,7 +14,6 @@ class TestRainScenarios(unittest.TestCase):
             self.assertIn(sc, data, f"Missing scenario preset: {sc}")
             self.assertIn("rainfall_mm_hr", data[sc])
             self.assertIn("duration_sim_hours", data[sc])
-            self.assertIn("pipe_blockage_pct", data[sc])
             self.assertGreater(data[sc]["rainfall_mm_hr"], 0)
 
         # Check accurate values
@@ -29,36 +28,31 @@ class TestRainScenarios(unittest.TestCase):
         self.assertTrue(resp["ok"])
         self.assertEqual(resp["rainfall_mm_hr"], 2.5)
         self.assertEqual(resp["duration_sim_hours"], 24.0)
-        self.assertEqual(resp["pipe_blockage_pct"], 20.0)
         
         # Check backend state
         expected_rate = 2.5 / 1000.0 / 3600.0
         self.assertAlmostEqual(state.rainfall_rate, expected_rate, places=9)
-        self.assertAlmostEqual(state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage, 0.20, places=2)
 
     def test_apply_moderate_scenario(self):
         resp = apply_scenario(ScenarioRequest(scenario_id="moderate"))
         self.assertEqual(resp["rainfall_mm_hr"], 5.0)
         self.assertAlmostEqual(state.rainfall_rate, 5.0 / 1000.0 / 3600.0, places=9)
-        self.assertAlmostEqual(state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage, 0.40, places=2)
 
     def test_apply_heavy_scenario(self):
         resp = apply_scenario(ScenarioRequest(scenario_id="heavy"))
         self.assertEqual(resp["rainfall_mm_hr"], 30.0)
         self.assertAlmostEqual(state.rainfall_rate, 30.0 / 1000.0 / 3600.0, places=9)
-        self.assertAlmostEqual(state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage, 0.65, places=2)
 
     def test_apply_typhoon_scenario(self):
         resp = apply_scenario(ScenarioRequest(scenario_id="typhoon"))
         self.assertEqual(resp["rainfall_mm_hr"], 55.0)
         self.assertAlmostEqual(state.rainfall_rate, 55.0 / 1000.0 / 3600.0, places=9)
-        self.assertAlmostEqual(state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage, 0.85, places=2)
 
     def test_apply_super_typhoon_scenario(self):
         resp = apply_scenario(ScenarioRequest(scenario_id="super_typhoon"))
         self.assertEqual(resp["rainfall_mm_hr"], 100.0)
         self.assertAlmostEqual(state.rainfall_rate, 100.0 / 1000.0 / 3600.0, places=9)
-        self.assertAlmostEqual(state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage, 1.0, places=2)
+
 
     def test_legacy_scenarios_backward_compatibility(self):
         # s1 -> heavy, s2 -> typhoon, s3 -> light

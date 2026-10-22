@@ -671,36 +671,31 @@ SCENARIO_PRESETS = {
         "name": "Light Rain",
         "rainfall_mm_hr": 2.5,
         "duration_sim_hours": 24.0,
-        "pipe_blockage_pct": 20.0,
         "description": "PAGASA Light Rain (<2.5 mm/hr). Intermittent light drizzle; green surface infiltration handles most runoff."
     },
     "moderate": {
         "name": "Moderate Rain",
         "rainfall_mm_hr": 5.0,
         "duration_sim_hours": 12.0,
-        "pipe_blockage_pct": 40.0,
         "description": "PAGASA Moderate Rain (2.5–7.5 mm/hr). Steady precipitation; minor street puddles form."
     },
     "heavy": {
         "name": "Heavy Rain",
         "rainfall_mm_hr": 30.0,
         "duration_sim_hours": 6.0,
-        "pipe_blockage_pct": 65.0,
         "description": "PAGASA Heavy / Torrential Warning (≥30 mm/hr, Red Warning threshold). Rapid runoff overwhelms infiltration."
     },
     "typhoon": {
         "name": "Typhoon",
         "rainfall_mm_hr": 55.0,
         "duration_sim_hours": 12.0,
-        "pipe_blockage_pct": 85.0,
-        "description": "Typhoon (e.g., Ondoy/Ketsana sustained rate ~55 mm/hr). Heavy flooding in low-lying zones, choked pipes."
+        "description": "Typhoon (e.g., Ondoy/Ketsana sustained rate ~55 mm/hr). Heavy flooding across low-lying zones."
     },
     "super_typhoon": {
         "name": "Super Typhoon",
         "rainfall_mm_hr": 100.0,
         "duration_sim_hours": 12.0,
-        "pipe_blockage_pct": 100.0,
-        "description": "Super Typhoon (e.g., Carina/Gaemi peak convective bands ~100 mm/hr). Complete drain failure and critical inundation."
+        "description": "Super Typhoon (e.g., Carina/Gaemi peak convective bands ~100 mm/hr). Critical inundation across low-lying zones."
     },
 }
 SCENARIO_PRESETS["s1"] = SCENARIO_PRESETS["heavy"]
@@ -729,7 +724,6 @@ def apply_scenario(req: ScenarioRequest, request: Request = None):
     preset = SCENARIO_PRESETS.get(req.scenario_id, {}) if req.scenario_id else {}
     rainfall_mm_hr = req.rainfall_mm_hr if req.rainfall_mm_hr is not None else preset.get("rainfall_mm_hr", 100.0)
     duration_sim_hours = req.duration_sim_hours if req.duration_sim_hours is not None else preset.get("duration_sim_hours", 6.0)
-    pipe_blockage_pct = req.pipe_blockage_pct if req.pipe_blockage_pct is not None else preset.get("pipe_blockage_pct", 95.0)
 
     if req.reset_first:
         session.do_reset()
@@ -738,16 +732,21 @@ def apply_scenario(req: ScenarioRequest, request: Request = None):
         session.rain_stop_at = session.state.time + duration_sim_hours * 3600
 
     session.state.rainfall_rate = rainfall_mm_hr / 1_000 / 3600
-    session.state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage = pipe_blockage_pct / 100
+
+    # Only modify pipe blockage if explicitly provided in request
+    if req.pipe_blockage_pct is not None:
+        session.state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage = req.pipe_blockage_pct / 100
+        session.last_pipes_time = 0.0
+
     session.state_json_sim_time = -2.0
     session.state_json_bytes = b""
-    session.last_pipes_time = 0.0
     return {
         "ok": True,
         "rainfall_mm_hr": rainfall_mm_hr,
         "duration_sim_hours": duration_sim_hours,
-        "pipe_blockage_pct": pipe_blockage_pct
+        "pipe_blockage_pct": req.pipe_blockage_pct
     }
+
 
 # ── Time Skip ─────────────────────────────────────────────────────────────────
 @app.post("/api/timeskip/cancel")

@@ -943,8 +943,9 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
             no = nodes_list[p.node_out]
             if not ni.is_outlet and not no.is_outlet and p.diameter >= SECONDARY_DIAM:
                 MAIN_BLOCKAGE = p.id
-                p.blockage = 0.95
+                p.blockage = 0.0
                 break
+
 
         print(f"[city_builder] OSM pipe network: {len(nodes_list)} manhole nodes "
               f"({len(outlet_ids)} outlets)")
