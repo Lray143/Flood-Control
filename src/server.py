@@ -17,12 +17,14 @@ Time System:
 """
 import asyncio
 import threading
+import gzip as _gzip
 import time as _time
 import json as _json
 import numpy as np
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 from typing import Optional
 
@@ -31,6 +33,7 @@ from src.engine.simulator import Simulator
 from src.utils.city_builder import build_procedural_city
 
 app = FastAPI(title="Flood Simulation")
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  1. WORLD SETUP
@@ -76,6 +79,7 @@ _nodes_live_cache = None
 
 # Full /api/state JSON response cache — avoids re-encoding 1.3 MB every 50ms
 _state_json_bytes: bytes = b""
+_state_json_gz_bytes: bytes = b""
 _state_json_sim_time: float = -2.0   # sim time when cache was built
 _state_json_wall_time: float = 0.0   # wall time when cache was built
 
@@ -191,6 +195,7 @@ async def physics_loop():
             _last_water_depth_flat = None
             _state_json_sim_time   = -2.0  # invalidate full JSON cache
             _state_json_bytes      = None
+            _state_json_gz_bytes   = None
             reset_requested = False
             
         batch_dur = 0.0
@@ -440,15 +445,27 @@ def _build_state_payload() -> dict:
 
 
 @app.get("/api/state")
-def get_state():
+def get_state(request: Request):
     """HTTP route — returns pre-built JSON bytes when sim tick hasn't changed or <80ms elapsed."""
-    global _state_json_bytes, _state_json_sim_time, _state_json_wall_time
+    global _state_json_bytes, _state_json_gz_bytes, _state_json_sim_time, _state_json_wall_time
     now_wall = _time.monotonic()
     if (state.time != _state_json_sim_time or _state_json_bytes is None) and ((now_wall - _state_json_wall_time) >= 0.08 or _state_json_bytes is None):
         payload = _build_state_payload()
         _state_json_bytes     = _json.dumps(payload).encode()
+        _state_json_gz_bytes  = _gzip.compress(_state_json_bytes, compresslevel=4)
         _state_json_sim_time  = state.time
         _state_json_wall_time = now_wall
+
+    accept_encoding = request.headers.get("accept-encoding", "").lower()
+    if "gzip" in accept_encoding and _state_json_gz_bytes:
+        return Response(
+            content=_state_json_gz_bytes,
+            media_type="application/json",
+            headers={
+                "Content-Encoding": "gzip",
+                "X-Sim-Time": str(_state_json_sim_time),
+            },
+        )
     return Response(
         content=_state_json_bytes,
         media_type="application/json",
