@@ -663,7 +663,55 @@ def set_bulk_diameter(req: BulkDiameterRequest, request: Request = None):
     session.state_json_sim_time = -2.0
     session.state_json_bytes = b""
     session.last_pipes_time = 0.0
-    return {"ok": True, "updated": updated}
+# ── Drainage / Pipe Presets ───────────────────────────────────────────────────
+PIPE_PRESETS = {
+    "optimal":  {"name": "Optimal (0% Blockage)", "blockage": 0.0},
+    "minor":    {"name": "Minor Clog (25% Blockage)", "blockage": 0.25},
+    "half":     {"name": "Half Clogged (50% Blockage)", "blockage": 0.50},
+    "heavy":    {"name": "Heavy Clog (75% Blockage)", "blockage": 0.75},
+    "total":    {"name": "Total Jam (100% Blockage)", "blockage": 1.00},
+    "assorted": {"name": "Assorted (Mixed Blockages)", "blockage": None},
+}
+
+class PipePresetRequest(BaseModel):
+    preset_id: str
+
+@app.get("/api/pipes/presets")
+def get_pipe_presets():
+    return PIPE_PRESETS
+
+@app.post("/api/pipes/preset")
+def apply_pipe_preset(req: PipePresetRequest, request: Request = None):
+    session = get_session(request)
+    pid = req.preset_id.lower().strip()
+    if pid not in PIPE_PRESETS:
+        return {"error": f"Unknown preset: {pid}"}, 400
+
+    with session.lock:
+        if pid == "assorted":
+            # Realistic urban drainage distribution based on pipe hierarchy:
+            # - Main trunk lines (diameter >= 1.0m): mostly clear with light silt (10-25%)
+            # - Secondary branch pipes (0.7m <= diam < 1.0m): moderate debris (35-60%)
+            # - Local residential / curb pipes (diam < 0.7m): heavy trash/silt (65-95%)
+            for p in session.state.pipes:
+                seed_val = ((p.id * 9301 + 49297) % 233280) / 233280.0
+                if p.diameter >= 1.0:
+                    p.blockage = round(0.10 + seed_val * 0.15, 2)
+                elif p.diameter >= 0.7:
+                    p.blockage = round(0.35 + seed_val * 0.25, 2)
+                else:
+                    p.blockage = round(0.65 + seed_val * 0.30, 2)
+        else:
+            blk = PIPE_PRESETS[pid]["blockage"]
+            for p in session.state.pipes:
+                p.blockage = blk
+
+        session.state_json_sim_time = -2.0
+        session.state_json_bytes = b""
+        session.state_json_gz_bytes = b""
+        session.last_pipes_time = 0.0
+
+    return {"ok": True, "preset": pid}
 
 # ── Scenario Presets ──────────────────────────────────────────────────────────
 SCENARIO_PRESETS = {

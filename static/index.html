@@ -163,14 +163,14 @@
                 </div>
             </div>
 
-            <!-- Scenario Presets (Collapsible) -->
+            <!-- Weather Presets (Collapsible) -->
             <div class="collapsible-card open" id="card-scenario">
                 <div class="collapsible-header">
                     <div class="collapsible-title-wrap">
                         <div class="icon-circle-blue">
-                            <i data-lucide="layers"></i>
+                            <i data-lucide="cloud-rain"></i>
                         </div>
-                        <span class="collapsible-title">SCENARIO PRESETS</span>
+                        <span class="collapsible-title">WEATHER PRESETS (PAGASA)</span>
                     </div>
                     <i data-lucide="chevron-down" class="collapsible-chevron"></i>
                 </div>
@@ -188,6 +188,34 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Drainage Presets (Collapsible) -->
+            <div class="collapsible-card open" id="card-pipe-presets">
+                <div class="collapsible-header">
+                    <div class="collapsible-title-wrap">
+                        <div class="icon-circle-blue">
+                            <i data-lucide="git-commit"></i>
+                        </div>
+                        <span class="collapsible-title">DRAINAGE PRESETS</span>
+                    </div>
+                    <i data-lucide="chevron-down" class="collapsible-chevron"></i>
+                </div>
+                <div class="collapsible-body">
+                    <div class="select-wrap">
+                        <select id="sel-pipe-preset">
+                            <option value="none">-- Custom (Manual) --</option>
+                            <option value="optimal">Optimal (0% Blockage)</option>
+                            <option value="minor">Minor Clog (25% Blockage)</option>
+                            <option value="half">Half Clogged (50% Blockage)</option>
+                            <option value="heavy">Heavy Clog (75% Blockage)</option>
+                            <option value="total">Total Jam (100% Blockage)</option>
+                            <option value="assorted">Assorted (Mixed Blockages)</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="select-arrow"></i>
+                    </div>
+                </div>
+            </div>
+
 
             <!-- Rainfall Card (Collapsible) -->
             <div class="collapsible-card" id="card-rainfall">

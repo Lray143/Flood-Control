@@ -2073,7 +2073,8 @@ import * as THREE from 'three';
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ pipe_ids: pipeIds, blockage: blockVal })
                 });
-                document.getElementById('sel-scenario').value = 'none';
+                const spp = document.getElementById('sel-pipe-preset');
+                if (spp) spp.value = 'none';
 
                 // Brief visual flash on button
                 const btn = document.getElementById('btn-bulk-apply');
@@ -2206,6 +2207,26 @@ import * as THREE from 'three';
             }
         };
 
+        // Drainage Presets
+        const selPipePreset = document.getElementById('sel-pipe-preset');
+        if (selPipePreset) {
+            selPipePreset.onchange = async e => {
+                const v = e.target.value;
+                if (v === 'none') return;
+                try {
+                    await fetch('/api/pipes/preset', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ preset_id: v })
+                    });
+                    triggerImmediatePoll();
+                } catch (err) {
+                    console.error("Failed to apply pipe preset:", err);
+                }
+            };
+        }
+
+
         // Time Skips — helper
         async function doSkip(seconds) {
             const res = await fetch('/api/state');
@@ -2231,6 +2252,8 @@ import * as THREE from 'three';
         document.getElementById('btn-reset').onclick = async () => {
             await fetch('/api/reset', { method: 'POST' });
             document.getElementById('sel-scenario').value = 'none';
+            const spp = document.getElementById('sel-pipe-preset');
+            if (spp) spp.value = 'none';
             document.getElementById('val-rain').textContent = '0';
             const rb = document.getElementById('rain-badge');
             if (rb) rb.textContent = '0 mm/h';
