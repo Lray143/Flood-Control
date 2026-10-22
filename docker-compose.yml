@@ -1,7 +1,7 @@
 services:
-  flood-simulation:
+  hydrodynamics:
     build: .
-    container_name: flood-simulation
+    container_name: hydrodynamics-app
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -23,4 +23,4 @@ services:
     network_mode: host
     command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
     depends_on:
-      - flood-simulation
+      - hydrodynamics
