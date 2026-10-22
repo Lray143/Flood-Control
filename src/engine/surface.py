@@ -62,9 +62,13 @@ def _numba_surface_flow(h, z, roughness, road_mask, border_mask, rain_rate, infi
     #   Permeable soil (gardens, open parcels) absorbs up to 5 mm/hr, preventing
     #   artificial pooling during light rain. Paved asphalt has zero infiltration.
     # -------------------------------------------------------------------------
-    # 1 & 2: Rainfall, infiltration, and post-storm puddle drying
+    # 1 & 2: Rainfall, infiltration, and post-storm puddle drying (strictly within border)
     for r in prange(ny):
         for c in range(nx):
+            if not border_mask[r, c]:
+                new_h[r, c] = 0.0
+                continue
+
             # Rainfall
             new_h[r, c] += rain_rate * dt
             
@@ -81,11 +85,14 @@ def _numba_surface_flow(h, z, roughness, road_mask, border_mask, rain_rate, infi
     h_flux = new_h.copy()
     eta = z + h_flux
                 
-    # 3. Diffusive wave flow
+    # 3. Diffusive wave flow (strictly conserved inside border)
     for r in prange(ny):
         for c in range(nx):
-            # Flux X (East)
-            if c < nx - 1:
+            if not border_mask[r, c]:
+                continue
+
+            # Flux X (East) — only exchange flow if neighbor is ALSO inside border
+            if c < nx - 1 and border_mask[r, c+1]:
                 hi_x = 0.5 * (h_flux[r, c] + h_flux[r, c+1])
                 if hi_x > MIN_FLOW_DEPTH:
                     deta_x = eta[r, c] - eta[r, c+1]
@@ -104,8 +111,8 @@ def _numba_surface_flow(h, z, roughness, road_mask, border_mask, rain_rate, infi
                     new_h[r, c] -= flux_x
                     new_h[r, c+1] += flux_x
 
-            # Flux Y (South)
-            if r < ny - 1:
+            # Flux Y (South) — only exchange flow if neighbor is ALSO inside border
+            if r < ny - 1 and border_mask[r+1, c]:
                 hi_y = 0.5 * (h_flux[r, c] + h_flux[r+1, c])
                 if hi_y > MIN_FLOW_DEPTH:
                     deta_y = eta[r, c] - eta[r+1, c]
@@ -124,12 +131,10 @@ def _numba_surface_flow(h, z, roughness, road_mask, border_mask, rain_rate, infi
                     new_h[r, c] -= flux_y
                     new_h[r+1, c] += flux_y
 
-    # Ensure no negatives and apply border mask
+    # Ensure no negatives and strictly enforce zero depth outside boundary
     for r in prange(ny):
         for c in range(nx):
-            if new_h[r, c] < 0:
-                new_h[r, c] = 0.0
-            if not border_mask[r, c]:
+            if not border_mask[r, c] or new_h[r, c] < 0:
                 new_h[r, c] = 0.0
 
     return new_h

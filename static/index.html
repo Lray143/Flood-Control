@@ -2100,6 +2100,7 @@
             for (let i = 0; i < ny * nx; i++) terrainElev[i] = d.elevation[Math.floor(i / nx)][i % nx];
             window.zoneGrid = d.zone_grid ? new Int8Array(d.zone_grid.flat()) : null;
             window.zoneList = d.zones || [];
+            window.borderMask = d.border_mask || null;
 
             buildTerrain(d);
             buildWater();
@@ -2981,7 +2982,8 @@
                     for (let i = 0; i < total; i++) {
                         const r = Math.floor(i / nx);
                         const c = i % nx;
-                        const rawVal = is2D ? (flatDepth[r] ? flatDepth[r][c] : 0.0) : flatDepth[i];
+                        const isInside = (window.borderMask && window.borderMask[r]) ? window.borderMask[r][c] : true;
+                        const rawVal = isInside ? (is2D ? (flatDepth[r] ? flatDepth[r][c] : 0.0) : flatDepth[i]) : 0.0;
                         const val = (rawVal && rawVal > 0.0) ? rawVal : 0.0;
                         if (val > 0.005) anyWet = true;
                         waterDepthData[i] = val;
