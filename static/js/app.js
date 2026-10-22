@@ -2068,6 +2068,14 @@ import * as THREE from 'three';
             });
 
             if (pipeIds.length > 0) {
+                // Immediately update visuals in memory with 0ms delay
+                pipeIds.forEach(id => {
+                    if (pipeMeshMap[id]) {
+                        pipeMeshMap[id].data.blockage = blockVal / 100.0;
+                        updatePipeVisual(id);
+                    }
+                });
+
                 fetch('/api/pipes/bulk_blockage', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2075,6 +2083,7 @@ import * as THREE from 'three';
                 });
                 const spp = document.getElementById('sel-pipe-preset');
                 if (spp) spp.value = 'none';
+
 
                 // Brief visual flash on button
                 const btn = document.getElementById('btn-bulk-apply');
@@ -2213,6 +2222,25 @@ import * as THREE from 'three';
             selPipePreset.onchange = async e => {
                 const v = e.target.value;
                 if (v === 'none') return;
+
+                // 1. Immediately update all 3D pipe visuals with zero latency
+                Object.values(pipeMeshMap).forEach(entry => {
+                    const p = entry.data;
+                    if (v === 'optimal') p.blockage = 0.0;
+                    else if (v === 'minor') p.blockage = 0.25;
+                    else if (v === 'half') p.blockage = 0.50;
+                    else if (v === 'heavy') p.blockage = 0.75;
+                    else if (v === 'total') p.blockage = 1.00;
+                    else if (v === 'assorted') {
+                        const seedVal = ((p.id * 9301 + 49297) % 233280) / 233280.0;
+                        if (p.diameter >= 1.0) p.blockage = 0.10 + seedVal * 0.15;
+                        else if (p.diameter >= 0.7) p.blockage = 0.35 + seedVal * 0.25;
+                        else p.blockage = 0.65 + seedVal * 0.30;
+                    }
+                    updatePipeVisual(p.id);
+                });
+
+                // 2. Dispatch to backend
                 try {
                     await fetch('/api/pipes/preset', {
                         method: 'POST',
@@ -2225,6 +2253,7 @@ import * as THREE from 'three';
                 }
             };
         }
+
 
 
         // Time Skips — helper

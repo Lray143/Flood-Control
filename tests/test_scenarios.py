@@ -70,14 +70,22 @@ class TestRainScenarios(unittest.TestCase):
         resp = apply_scenario(ScenarioRequest(
             rainfall_mm_hr=75.0,
             duration_sim_hours=3.0,
-            pipe_blockage_pct=50.0,
             reset_first=True
         ))
         self.assertEqual(resp["rainfall_mm_hr"], 75.0)
         self.assertEqual(resp["duration_sim_hours"], 3.0)
-        self.assertEqual(resp["pipe_blockage_pct"], 50.0)
         self.assertAlmostEqual(state.rainfall_rate, 75.0 / 1000.0 / 3600.0, places=9)
-        self.assertAlmostEqual(state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage, 0.50, places=2)
+
+    def test_pipe_presets(self):
+        from src.server import apply_pipe_preset, PipePresetRequest
+        resp = apply_pipe_preset(PipePresetRequest(preset_id="total"))
+        self.assertTrue(resp["ok"])
+        self.assertTrue(all(p.blockage == 1.0 for p in state.pipes))
+
+        resp_opt = apply_pipe_preset(PipePresetRequest(preset_id="optimal"))
+        self.assertTrue(resp_opt["ok"])
+        self.assertTrue(all(p.blockage == 0.0 for p in state.pipes))
+
 
 class TestDrainageAndStability(unittest.TestCase):
     def test_water_drains_monotonically_to_zero(self):

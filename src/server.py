@@ -706,10 +706,13 @@ def apply_pipe_preset(req: PipePresetRequest, request: Request = None):
             for p in session.state.pipes:
                 p.blockage = blk
 
+        session.pipes_live_cache = None
+        session.nodes_live_cache = None
+        session.last_pipes_time = -1.0
         session.state_json_sim_time = -2.0
+        session.state_json_wall_time = 0.0
         session.state_json_bytes = b""
         session.state_json_gz_bytes = b""
-        session.last_pipes_time = 0.0
 
     return {"ok": True, "preset": pid}
 
@@ -780,20 +783,15 @@ def apply_scenario(req: ScenarioRequest, request: Request = None):
         session.rain_stop_at = session.state.time + duration_sim_hours * 3600
 
     session.state.rainfall_rate = rainfall_mm_hr / 1_000 / 3600
-
-    # Only modify pipe blockage if explicitly provided in request
-    if req.pipe_blockage_pct is not None:
-        session.state.pipes[MAIN_BLOCKAGE_PIPE_ID].blockage = req.pipe_blockage_pct / 100
-        session.last_pipes_time = 0.0
-
     session.state_json_sim_time = -2.0
     session.state_json_bytes = b""
+    session.state_json_gz_bytes = b""
     return {
         "ok": True,
         "rainfall_mm_hr": rainfall_mm_hr,
-        "duration_sim_hours": duration_sim_hours,
-        "pipe_blockage_pct": req.pipe_blockage_pct
+        "duration_sim_hours": duration_sim_hours
     }
+
 
 
 # ── Time Skip ─────────────────────────────────────────────────────────────────
