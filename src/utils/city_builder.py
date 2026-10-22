@@ -16,41 +16,57 @@ def build_procedural_city(nx=690, ny=380, dx=5.0):
     random.seed(42)
 
     dem_loaded = False
+
+    # 1a. Fast path: load precomputed numpy raster (zero C/GDAL/libgomp dependencies)
     try:
-        import rasterio
-        from scipy.ndimage import zoom as scipy_zoom, gaussian_filter
         import os
-
-        dem_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'barangay168_dem.tif')
-        if os.path.exists(dem_path):
-            with rasterio.open(dem_path) as ds:
-                from rasterio.windows import from_bounds
-                win = from_bounds(121.0050, 14.7315, 121.0370, 14.7485, transform=ds.transform)
-                raw = ds.read(1, window=win).astype(np.float64)
-                nodata = ds.nodata
-
-            # Fill nodata with mean
-            if nodata is not None:
-                raw[raw == nodata] = np.nan
-            raw = np.where(np.isnan(raw), np.nanmean(raw), raw)
-
-            # Upsample from DEM resolution to simulation grid (ny×nx)
-            zoom_y = ny / raw.shape[0]
-            zoom_x = nx / raw.shape[1]
-            elevation = scipy_zoom(raw, (zoom_y, zoom_x), order=3)   # bicubic
-
-            # Gentle smoothing to reduce 30m→5m upsampling artifacts
-            elevation = gaussian_filter(elevation, sigma=2.0)
-
-            # Ensure minimum 1m above sea level, keep relative differences
-            elevation -= elevation.min()
-            elevation += 1.0
-
+        npz_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'barangay168_dem.npz')
+        if os.path.exists(npz_path):
+            with np.load(npz_path) as npz_data:
+                elevation = npz_data['elevation'].astype(np.float64)
             dem_loaded = True
-            print(f"[city_builder] Real DEM loaded: {elevation.shape}, "
+            print(f"[city_builder] Real DEM loaded from NPZ: {elevation.shape}, "
                   f"elev {elevation.min():.1f}–{elevation.max():.1f} m")
     except Exception as e:
-        print(f"[city_builder] DEM load error: {e} — falling back to procedural terrain")
+        print(f"[city_builder] DEM NPZ load warning: {e}")
+
+    # 1b. Fallback to rasterio if NPZ is not present
+    if not dem_loaded:
+        try:
+            import rasterio
+            from scipy.ndimage import zoom as scipy_zoom, gaussian_filter
+            import os
+
+            dem_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'barangay168_dem.tif')
+            if os.path.exists(dem_path):
+                with rasterio.open(dem_path) as ds:
+                    from rasterio.windows import from_bounds
+                    win = from_bounds(121.0050, 14.7315, 121.0370, 14.7485, transform=ds.transform)
+                    raw = ds.read(1, window=win).astype(np.float64)
+                    nodata = ds.nodata
+
+                # Fill nodata with mean
+                if nodata is not None:
+                    raw[raw == nodata] = np.nan
+                raw = np.where(np.isnan(raw), np.nanmean(raw), raw)
+
+                # Upsample from DEM resolution to simulation grid (ny×nx)
+                zoom_y = ny / raw.shape[0]
+                zoom_x = nx / raw.shape[1]
+                elevation = scipy_zoom(raw, (zoom_y, zoom_x), order=3)   # bicubic
+
+                # Gentle smoothing to reduce 30m→5m upsampling artifacts
+                elevation = gaussian_filter(elevation, sigma=2.0)
+
+                # Ensure minimum 1m above sea level, keep relative differences
+                elevation -= elevation.min()
+                elevation += 1.0
+
+                dem_loaded = True
+                print(f"[city_builder] Real DEM loaded via rasterio: {elevation.shape}, "
+                      f"elev {elevation.min():.1f}–{elevation.max():.1f} m")
+        except Exception as e:
+            print(f"[city_builder] DEM load error: {e} — falling back to procedural terrain")
 
     if not dem_loaded:
         # Fallback: procedural organic terrain
