@@ -4,8 +4,23 @@
 <head>
     <meta charset="UTF-8">
     <title>Flood Simulation</title>
+    <script>
+        // Enforce landing page first: always show landing page unless entered via landing portal
+        (function () {
+            if (window.location.protocol === 'file:') {
+                window.location.replace('../landing/index.html');
+                return;
+            }
+            try {
+                var params = new URLSearchParams(window.location.search);
+                if (params.get('direct') !== 'true' && !sessionStorage.getItem('hydro_visited_landing')) {
+                    window.location.replace('/');
+                }
+            } catch (e) { }
+        })();
+    </script>
     <script src="/static/lucide.min.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=2">
 </head>
 <body>
 
@@ -129,14 +144,14 @@
         <div class="ui-content">
             <!-- Header -->
             <div class="panel-header">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div class="logo-badge">
+                <a href="/" class="logo-brand" id="logo-brand" title="Return to Landing Page" style="display:inline-flex; flex-direction:row; align-items:center; gap:10px; text-decoration:none !important; color:#5dade2 !important; cursor:pointer;">
+                    <div class="logo-badge" style="display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                         <i data-lucide="droplet"></i>
                     </div>
                     <div>
-                        <div class="logo-title">FLOOD SIMULATION</div>
+                        <div class="logo-title" style="text-decoration:none !important;">HYDRODYNAMICS</div>
                     </div>
-                </div>
+                </a>
             </div>
 
             <!-- Telemetry Card -->

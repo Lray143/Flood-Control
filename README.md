@@ -599,13 +599,16 @@ OK
 
 ### 10.4 Launching the Application
 
-Start the FastAPI application with Uvicorn:
+Start the FastAPI application with Uvicorn or via `main.py`:
 
 ```bash
-uvicorn src.server:app --host 0.0.0.0 --port 8000 --reload
+python main.py
+# or: uvicorn src.server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Open a web browser and navigate to:
+When started, the application automatically opens your browser to the landing page first:
 ```text
 http://localhost:8000/
 ```
+
+From the landing page, click **"Enter Simulation System"** to proceed to the interactive 3D WebGL Digital Twin (`/simulation`). All legacy or direct static index routes (`/static/index.html`, `/index.html`) automatically route to the landing page first.
