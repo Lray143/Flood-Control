@@ -803,21 +803,35 @@ def rewind(req: RewindRequest, request: Request = None):
     if best is None:
         return {"error": "no snapshot available at or before that time"}, 404
 
-    session.state.water_depth[:] = best["depth"]
-    session.state.time = best["time"]
-    session.state.rainfall_rate = best.get("rainfall", session.state.rainfall_rate)
-    session.state.rain_duration_sec = best.get("rain_dur", 0.0)
-    if "zone_peaks" in best:
-        session.state.zone_peaks = dict(best["zone_peaks"])
-    for nid, vol in best["node_vols"].items():
-        int_id = int(nid)
-        if int_id in session.state.nodes:
-            session.state.nodes[int_id].volume = vol
+    session.is_running = False  # Pause immediately so concurrent physics steps halt
+    with session.lock:
+        session.state.water_depth[:] = best["depth"]
+        session.state.time = best["time"]
+        session.state.rainfall_rate = best.get("rainfall", session.state.rainfall_rate)
+        session.state.rain_duration_sec = best.get("rain_dur", 0.0)
+        session.mb_rain_total = best.get("mb_rain", 0.0)
+        session.mb_drain_total = best.get("mb_drain", 0.0)
+        if hasattr(session.state, 'velocity_x'):
+            session.state.velocity_x[:] = 0.0
+        if hasattr(session.state, 'velocity_y'):
+            session.state.velocity_y[:] = 0.0
+        if "zone_peaks" in best:
+            session.state.zone_peaks = dict(best["zone_peaks"])
+        for nid, vol in best["node_vols"].items():
+            int_id = int(nid)
+            if int_id in session.state.nodes:
+                session.state.nodes[int_id].volume = vol
 
-    session.last_water_depth_time = -1.0
-    session.last_water_depth_flat = None
-    session.state_json_sim_time = -2.0
-    session.is_running = False
+        session.last_water_depth_time = -1.0
+        session.last_water_depth_flat = None
+        session.last_pipes_time = 0.0
+        session.pipes_live_cache = None
+        session.nodes_live_cache = None
+        session.state_json_sim_time = -2.0
+        session.state_json_bytes = b""
+        session.state_json_gz_bytes = b""
+        session.last_snap_time = best["time"]
+
     return {"ok": True, "restored_to": best["time"], "label": best["label"]}
 
 # ── Reset ─────────────────────────────────────────────────────────────────────
