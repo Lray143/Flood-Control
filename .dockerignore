@@ -1,0 +1,16 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.nbc
+*.nbi
+.git
+.gitignore
+.gitattributes
+venv
+.venv
+env
+.env
+.idea
+.vscode
+*.log

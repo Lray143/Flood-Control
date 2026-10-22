@@ -132,7 +132,9 @@ def step_underground_network(state, dt: float):
         R_eff = A_eff / (math.pi * pipe.diameter * (1.0 - pipe.blockage) + 1e-9)
 
         # ---------------------------------------------------------------------
-        # Manning's Pipe Flow Equation (Gravity & Pressurized Conduit Flow):
+        # ---------------------------------------------------------------------
+        # FORMULA 6: Subsurface Conduit Hydraulics (Manning Pipe Equation & Backwater)
+        # Purpose: Calculates gravity and backpressure flow between connected manholes
         #   Q = (A_eff * R_eff^(2/3) * Sf^(1/2)) / n_pipe
         # where:
         #   dh = H_in - H_out = (z_inv,in + V_in/A_shaft) - (z_inv,out + V_out/A_shaft)
@@ -153,7 +155,10 @@ def step_underground_network(state, dt: float):
         # We'll cap them proportionally in a second pass.
         pipe.current_flow = Q
 
-    # ── 1.5 Cap outflows proportionally so we don't drain more than exists ────
+    # -------------------------------------------------------------------------
+    # FORMULA 7: Proportional Node Outflow Limiter (Depletion Prevention)
+    # Purpose: Prevents unphysical negative storage volumes when multiple pipes draw from a node
+    # -------------------------------------------------------------------------
     node_outflows = {nid: 0.0 for nid in nodes.keys()}
     
     # Sum up all proposed volume leaving each node

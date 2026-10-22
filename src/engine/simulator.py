@@ -28,7 +28,8 @@ class Simulator:
         """
         Advance the coupled dual-domain simulation by self.dt seconds.
         -------------------------------------------------------------
-        Courant-Friedrichs-Lewy (CFL) Condition:
+        FORMULA 8: Courant-Friedrichs-Lewy (CFL) Condition for Explicit Stability:
+        Purpose: Prevents mathematical wave explosion by capping sub-step duration
           dt_cfl <= dx / (sqrt(g * h) + |u|)
           For dx = 5.0m, g = 9.81 m/s^2, max depth h ~ 1.5m, wave celerity c ~ 3.8 m/s,
           yielding maximum stable explicit time-step dt_cfl ~ 1.3 seconds.

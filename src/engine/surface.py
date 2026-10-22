@@ -23,7 +23,8 @@ INLET_AREA  = 0.05     # grate area (m²)
 @njit(parallel=True, cache=True)
 def _numba_surface_flow(h, z, roughness, road_mask, border_mask, rain_rate, infil_rate, dt, dx):
     """
-    2D Diffusive Wave Shallow Water Equations (SWE) Numerical Solver
+    FORMULA 1: 2D DIFFUSIVE WAVE SHALLOW WATER EQUATIONS (SWE)
+    Purpose: Accurately route surface runoff based on DEM hydraulic gradients and Manning friction
     ================================================================
     Governing Mass Conservation (Continuity Equation):
       dh/dt + d(qx)/dx + d(qy)/dy = R(t) - I(t)
@@ -54,6 +55,13 @@ def _numba_surface_flow(h, z, roughness, road_mask, border_mask, rain_rate, infi
     ny, nx = h.shape
     new_h = h.copy()
     
+    # -------------------------------------------------------------------------
+    # FORMULA 2: Green-Ampt Soil Infiltration & Pavement Abstraction
+    #   I(t) = min(h, f_soil * dt)
+    # Purpose for Accuracy:
+    #   Permeable soil (gardens, open parcels) absorbs up to 5 mm/hr, preventing
+    #   artificial pooling during light rain. Paved asphalt has zero infiltration.
+    # -------------------------------------------------------------------------
     # 1 & 2: Rainfall, infiltration, and post-storm puddle drying
     for r in prange(ny):
         for c in range(nx):
@@ -189,7 +197,9 @@ def step_surface_water(state: SimulationState, dt: float):
         cell_node_rim  = state._node_zrim[nidx]
 
         # ---------------------------------------------------------------------
-        # Surcharge Backflow (Pressurized Urban Geysering):
+        # ---------------------------------------------------------------------
+        # FORMULA 5: Pressurized Surcharge Geysering (Underground-to-Surface)
+        # Purpose: Simulates pressurized manhole overflows when pipes are choked
         #   Q_surcharge = C_d * A_inlet * sqrt(2 * g * (H_node - eta_surf)) * F_damp
         # Active only when:
         #   1. Piezometric head exceeds street rim (H_node >= z_rim)
@@ -223,7 +233,9 @@ def step_surface_water(state: SimulationState, dt: float):
         back_vol = back_vol_t * back_scale_node[nidx]   # apply per-cell scale
 
         # ---------------------------------------------------------------------
-        # Curb Drain Inlet Intake (Surface-to-Underground Orifice Coupling):
+        # ---------------------------------------------------------------------
+        # FORMULA 4: Curb Drain Inlet Intake (Surface-to-Underground Orifice Coupling)
+        # Purpose: Simulates storm grate capture capacity into subsurface network
         #   Q_inlet = min(C_d * A_inlet * sqrt(2 * g * (eta_surf - H_node)), Vol_cell / dt)
         # Gated by:
         #   1. Surface head exceeding node head (eta_surf >= H_node)
