@@ -760,11 +760,25 @@
         }
 
         #pi-btn-clear {
-            background: #27ae60;
+            background: rgba(46, 204, 113, 0.12);
+            border: 1px solid rgba(46, 204, 113, 0.25);
+            color: #2ecc71;
+        }
+
+        #pi-btn-clear:hover {
+            background: rgba(46, 204, 113, 0.22);
+            border-color: rgba(46, 204, 113, 0.4);
         }
 
         #pi-btn-full {
-            background: #c0392b;
+            background: rgba(231, 76, 60, 0.12);
+            border: 1px solid rgba(231, 76, 60, 0.25);
+            color: #e74c3c;
+        }
+
+        #pi-btn-full:hover {
+            background: rgba(231, 76, 60, 0.22);
+            border-color: rgba(231, 76, 60, 0.4);
         }
 
         /* ── Pipe Hover Tooltip ───────────────────────────────────────────── */
@@ -1117,241 +1131,6 @@
             color: #ff6b6b;
         }
 
-        /* ── Barangay Search Bar (Top-Left Docked next to Left Panel) ─────── */
-        #brgy-search-wrap {
-            position: absolute;
-            top: 16px;
-            left: 360px;
-            width: 350px;
-            z-index: 450;
-            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            font-family: inherit;
-        }
-
-        #ui.panel-hidden~#brgy-search-wrap {
-            left: 20px;
-        }
-
-        .brgy-search-box {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: rgba(14, 20, 27, 0.88);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 8px;
-            padding: 0 14px;
-            height: 42px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
-            transition: border-color 0.15s ease, background 0.15s ease;
-        }
-
-        .brgy-search-box:focus-within {
-            border-color: rgba(255, 255, 255, 0.15);
-            background: rgba(14, 20, 27, 0.96);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-        }
-
-        .brgy-search-box .search-icon {
-            width: 16px;
-            height: 16px;
-            color: #7b8d9f;
-            flex-shrink: 0;
-            stroke-width: 2px;
-        }
-
-        #brgy-search-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: #e2e8f0;
-            font-size: 13px;
-            font-weight: 500;
-            letter-spacing: 0.2px;
-            padding: 0;
-            margin: 0;
-            font-family: inherit;
-        }
-
-        #brgy-search-input::placeholder {
-            color: #5a6b7c;
-            font-size: 12.5px;
-        }
-
-        #brgy-search-clear {
-            width: 20px;
-            height: 20px;
-            padding: 0;
-            margin: 0;
-            background: transparent;
-            border: none;
-            color: #7b8d9f;
-            cursor: pointer;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: color 0.15s, background 0.15s;
-        }
-
-        #brgy-search-clear:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        #brgy-search-clear .lucide {
-            width: 13px;
-            height: 13px;
-        }
-
-        /* Dropdown */
-        #brgy-search-dropdown {
-            position: absolute;
-            top: 48px;
-            left: 0;
-            right: 0;
-            background: rgba(14, 20, 27, 0.96);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 8px;
-            padding: 4px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-            max-height: 280px;
-            overflow-y: auto;
-            display: none;
-            flex-direction: column;
-            gap: 2px;
-            animation: brgyDropFade 0.15s ease-out forwards;
-        }
-
-        #brgy-search-dropdown::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        #brgy-search-dropdown::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.12);
-            border-radius: 4px;
-        }
-
-        @keyframes brgyDropFade {
-            from {
-                opacity: 0;
-                transform: translateY(-3px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .brgy-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 9px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            background: transparent;
-            border: none;
-            transition: background 0.12s ease;
-        }
-
-        .brgy-item:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .brgy-item.active-brgy {
-            background: transparent;
-            border: none;
-        }
-
-        .brgy-item.active-brgy:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .brgy-item-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .brgy-item-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
-
-        .brgy-item-sub {
-            font-size: 10.5px;
-            color: #6b7b8d;
-            padding-left: 20px;
-        }
-
-        .brgy-badge-avail {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-            text-transform: uppercase;
-            padding: 0;
-            background: transparent;
-            color: #2ecc71;
-            border: none;
-            white-space: nowrap;
-        }
-
-        .brgy-badge-soon {
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 0.4px;
-            text-transform: uppercase;
-            padding: 0;
-            background: transparent;
-            color: #6b7b8d;
-            border: none;
-            white-space: nowrap;
-        }
-
-        /* Toast notification for coming soon barangays */
-        #brgy-toast {
-            position: absolute;
-            top: 70px;
-            left: 360px;
-            background: rgba(10, 18, 30, 0.96);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(241, 196, 15, 0.4);
-            border-radius: 10px;
-            padding: 10px 16px;
-            color: #dfe6ed;
-            font-size: 12px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-            display: none;
-            align-items: center;
-            gap: 8px;
-            z-index: 460;
-            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            animation: toastIn 0.2s ease-out forwards;
-        }
-
-        #ui.panel-hidden~#brgy-toast {
-            left: 20px;
-        }
-
-        @keyframes toastIn {
-            from {
-                opacity: 0;
-                transform: translateY(-6px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
 
         /* ── Floating Map Controls (Docked next to Left Panel) ───────────── */
         #map-controls {
@@ -1699,10 +1478,10 @@
         </div>
         <label style="margin-top:8px;">Set Diameter (m)</label>
         <div style="display:flex; gap:6px; align-items:center; margin-top:4px;">
-            <input type="number" id="pi-diam-input" min="0.1" max="5.0" step="0.1" value="0.9" style="flex:2; background:rgba(0,0,0,0.4); color:#fff; border:1px solid #555;
-                      border-radius:5px; padding:4px 6px; font-size:12px;">
-            <button id="pi-btn-set-diam" style="flex:1; padding:4px; font-size:11px; background:#1a5276;">Set</button>
+            <input type="number" id="pi-diam-input" min="0.1" max="5.0" step="0.1" value="0.9" style="flex:2; background:rgba(255,255,255,0.05); color:#dfe6ed; border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:5px 8px; font-size:12px; font-family:inherit; outline:none;">
+            <button id="pi-btn-set-diam" style="flex:1; padding:5px 4px; font-size:11px; background:rgba(93,173,226,0.12); border:1px solid rgba(93,173,226,0.25); color:#5dade2; border-radius:6px; cursor:pointer; font-family:inherit;">Set</button>
         </div>
+
     </div>
 
     <div id="ui">
@@ -1904,22 +1683,6 @@
     <button id="panel-toggle" title="Toggle Panel">
         <i data-lucide="chevron-left"></i>
     </button>
-
-    <!-- Barangay Search Bar (Top-Left Docked next to Left Panel) -->
-    <div id="brgy-search-wrap">
-        <div class="brgy-search-box">
-            <i data-lucide="search" class="search-icon"></i>
-            <input type="text" id="brgy-search-input" placeholder="Search Caloocan Barangay..." autocomplete="off">
-            <button id="brgy-search-clear" title="Clear search">
-                <i data-lucide="x"></i>
-            </button>
-        </div>
-        <div id="brgy-search-dropdown"></div>
-    </div>
-    <div id="brgy-toast">
-        <i data-lucide="info" style="width:14px;height:14px;color:#f1c40f;flex-shrink:0;"></i>
-        <span id="brgy-toast-msg">Simulation is currently limited to Brgy. 168 (Deparo).</span>
-    </div>
 
     <!-- Floating Map Controls (Google Maps Style) -->
     <div id="map-controls">
@@ -4544,120 +4307,7 @@
             if (window.lucide) lucide.createIcons();
         });
 
-        // ─── BARANGAY SEARCH BAR & DROPDOWN (CALOOCAN CITY) ───────────────────
-        const CALOOCAN_BARANGAYS = [
-            { id: 168, name: 'Barangay 168 (Deparo)', sub: 'Caloocan City', active: true }
-        ];
 
-        const searchInput = document.getElementById('brgy-search-input');
-        const searchClear = document.getElementById('brgy-search-clear');
-        const searchDropdown = document.getElementById('brgy-search-dropdown');
-        const brgyToast = document.getElementById('brgy-toast');
-        const brgyToastMsg = document.getElementById('brgy-toast-msg');
-        let toastTimeout = null;
-
-        function showBrgyToast(msg) {
-            if (toastTimeout) clearTimeout(toastTimeout);
-            brgyToastMsg.textContent = msg;
-            brgyToast.style.display = 'flex';
-            if (window.lucide) lucide.createIcons();
-            toastTimeout = setTimeout(() => {
-                brgyToast.style.display = 'none';
-            }, 3200);
-        }
-
-        function renderBrgyDropdown(filterText = '') {
-            const q = filterText.trim().toLowerCase();
-            const filtered = CALOOCAN_BARANGAYS.filter(b => {
-                if (!q) return true;
-                return b.name.toLowerCase().includes(q) || b.sub.toLowerCase().includes(q) || b.id.toString().includes(q) || 'deparo'.includes(q) || 'caloocan'.includes(q);
-            });
-
-            if (filtered.length === 0) {
-                searchDropdown.innerHTML = `
-                    <div style="padding: 12px 14px; font-size: 11.5px; color: #85929e; text-align: center; line-height: 1.4;">
-                        <div style="color: #dfe6ed; font-weight: 600; margin-bottom: 3px;">No simulation available</div>
-                        Active simulation is currently prepared for <strong>Brgy. 168 (Deparo)</strong> only.
-                    </div>
-                `;
-                searchDropdown.style.display = 'flex';
-                return;
-            }
-
-            let html = '';
-            filtered.forEach(b => {
-                const badge = b.active
-                    ? `<span class="brgy-badge-avail">Active</span>`
-                    : `<span class="brgy-badge-soon">Coming Soon</span>`;
-                const activeClass = b.active ? ' active-brgy' : '';
-                html += `
-                    <div class="brgy-item${activeClass}" data-brgy-id="${b.id}" data-brgy-name="${b.name}" data-brgy-active="${b.active}">
-                        <div class="brgy-item-info">
-                            <div class="brgy-item-title">
-                                <i data-lucide="${b.active ? 'map-pin' : 'clock'}" style="width:13px; height:13px; color:#7b8d9f;"></i>
-                                <span>${b.name}</span>
-                            </div>
-                            <div class="brgy-item-sub">${b.sub}</div>
-                        </div>
-                        ${badge}
-                    </div>
-                `;
-            });
-            searchDropdown.innerHTML = html;
-            searchDropdown.style.display = 'flex';
-            if (window.lucide) lucide.createIcons();
-
-            // Click handlers on items
-            searchDropdown.querySelectorAll('.brgy-item').forEach(item => {
-                item.onclick = (e) => {
-                    e.stopPropagation();
-                    const name = item.getAttribute('data-brgy-name');
-                    const isActive = item.getAttribute('data-brgy-active') === 'true';
-
-                    if (isActive) {
-                        searchInput.value = name;
-                        searchClear.style.display = 'flex';
-                        searchDropdown.style.display = 'none';
-                        // Center/reset camera smoothly to Barangay 168 Deparo
-                        if (controls) {
-                            controls.target.set(345, 8, 190);
-                            camera.position.set(345, is2DView ? 400 : 350, is2DView ? 190.1 : 560);
-                            controls.update();
-                        }
-                    } else {
-                        showBrgyToast(`${name} is coming soon. Simulation is currently limited to Brgy. 168 (Deparo).`);
-                    }
-                };
-            });
-        }
-
-        if (searchInput) {
-            searchInput.onfocus = () => {
-                renderBrgyDropdown(searchInput.value);
-            };
-
-            searchInput.oninput = (e) => {
-                const val = e.target.value;
-                searchClear.style.display = val.length > 0 ? 'flex' : 'none';
-                renderBrgyDropdown(val);
-            };
-
-            if (searchClear) {
-                searchClear.onclick = () => {
-                    searchInput.value = '';
-                    searchClear.style.display = 'none';
-                    renderBrgyDropdown('');
-                    searchInput.focus();
-                };
-            }
-        }
-
-        document.addEventListener('click', (e) => {
-            const wrap = document.getElementById('brgy-search-wrap');
-            if (wrap && !wrap.contains(e.target)) {
-                if (searchDropdown) searchDropdown.style.display = 'none';
-            }
-        });
 
         // Initial Lucide icon generation
         if (window.lucide) {
