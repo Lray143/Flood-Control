@@ -16,14 +16,11 @@ services:
           cpus: '1.0'
           memory: 1G
 
-  # ── OPTIONAL: Cloudflare Tunnel Container ─────────────────────────────────
-  # If you want to run Cloudflare Tunnel directly in Docker with your domain,
-  # create a .env file with TUNNEL_TOKEN=<your_token> and uncomment this block:
-  #
-  # tunnel:
-  #   image: cloudflare/cloudflared:latest
-  #   container_name: cloudflared-tunnel
-  #   restart: unless-stopped
-  #   command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
-  #   depends_on:
-  #     - flood-simulation
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-tunnel
+    restart: unless-stopped
+    network_mode: host
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    depends_on:
+      - flood-simulation
