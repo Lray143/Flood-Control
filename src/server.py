@@ -115,6 +115,7 @@ class SimulationSession:
         self.mb_drain_total = 0.0
         self.reset_requested = False
         self.last_active_time = _time.monotonic()
+        self.last_poll_time = _time.monotonic()   # Updated on every /api/state poll
 
         # Serialization & response caching
         self._zero_depth_flat = [0.0] * (self.state.grid_shape[0] * self.state.grid_shape[1])
@@ -412,16 +413,28 @@ class SessionManager:
             session.last_active_time = _time.monotonic()
             return session
 
-    def cleanup_idle(self, timeout_sec: float = 300.0):
-        """Prune inactive non-running sessions older than 5 minutes."""
+    def cleanup_idle(self, pause_timeout: float = 120.0, remove_timeout: float = 600.0):
+        """
+        Two-stage cleanup for abandoned sessions:
+          Stage 1 — PAUSE:  If a running simulation has received no /api/state poll
+                            for >2 minutes, auto-pause it. The client clearly left.
+          Stage 2 — REMOVE: Delete any non-default session (paused or running) that
+                            has been completely quiet for >10 minutes.
+        """
         now = _time.monotonic()
         with self.lock:
-            to_remove = [
-                sid for sid, s in self.sessions.items()
-                if sid != "default" and (now - s.last_active_time > timeout_sec) and not s.is_running
-            ]
-            for sid in to_remove:
-                del self.sessions[sid]
+            for sid, s in list(self.sessions.items()):
+                if sid == "default":
+                    continue
+                quiet_secs = now - s.last_poll_time
+
+                # Stage 1: Auto-pause ghost simulations
+                if s.is_running and quiet_secs > pause_timeout:
+                    s.is_running = False  # stop consuming CPU budget
+
+                # Stage 2: Fully evict sessions that have been silent long enough
+                if quiet_secs > remove_timeout:
+                    del self.sessions[sid]
 
 
 session_manager = SessionManager()
@@ -543,6 +556,7 @@ def get_network(request: Request = None):
 @app.get("/api/state")
 def get_state(request: Request = None):
     session = get_session(request)
+    session.last_poll_time = _time.monotonic()   # ← heartbeat: client is alive
     enc = request.headers.get("accept-encoding", "").lower() if request else ""
     return session.get_state_response(enc)
 
