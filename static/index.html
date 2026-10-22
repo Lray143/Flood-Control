@@ -4036,6 +4036,11 @@
 
         // View Toggles (Floating Google Maps Style Toolbar)
         const btnView = document.getElementById('btn-view');
+        // Helper: swap the lucide icon on btn-view by replacing its <i> and forcing re-render
+        function setBtnViewIcon(iconName) {
+            btnView.innerHTML = `<i data-lucide="${iconName}"></i>`;
+            if (window.lucide) lucide.createIcons({ nodes: [btnView] });
+        }
         btnView.onclick = () => {
             is2DView = !is2DView;
             if (!is2DView) {
@@ -4045,7 +4050,7 @@
                 controls.enableRotate = true;
                 controls.maxDistance = 620;           // allow comfortable distance for angled 3D view
                 controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
-                btnView.innerHTML = '<i data-lucide="map"></i>';
+                setBtnViewIcon('map');
                 btnView.setAttribute('data-tooltip', 'Switch to 2D View');
                 btnView.classList.add('active');
                 document.getElementById('hint').textContent = 'Drag: rotate | Right-drag: pan | Scroll: zoom | Click pipe to configure (Shift+Click: multi-select)';
@@ -4056,12 +4061,11 @@
                 controls.enableRotate = false;
                 controls.maxDistance = 500;           // limit 2D max zoom-out so background void is not visible
                 controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
-                btnView.innerHTML = '<i data-lucide="box"></i>';
+                setBtnViewIcon('box');
                 btnView.setAttribute('data-tooltip', 'Switch to 3D View');
                 btnView.classList.remove('active');
                 document.getElementById('hint').textContent = 'Drag: pan | Scroll: zoom | Click pipe to inspect (Shift+Click: multi-select)';
             }
-            if (window.lucide) lucide.createIcons();
         };
 
 
