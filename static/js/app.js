@@ -444,7 +444,7 @@ import * as THREE from 'three';
             if (pct >= 80) return 0xef4444;   // critical red
             if (pct >= 50) return 0xf97316;   // severe orange
             if (pct >= 20) return 0xf59e0b;   // warning amber
-            return 0x38bdf8;                   // clear flow (sleek conduit cyan)
+            return 0x10b981;                   // clear flow (vibrant emerald green - high contrast against blue water)
         }
 
         function buildPipes(nodes, pipes) {
@@ -465,12 +465,12 @@ import * as THREE from 'three';
                 const isOutlet = n.is_outlet;
                 const mGeo = isOutlet ? nGeoOutlet : nGeoNormal;
                 const nMat = new THREE.MeshStandardMaterial({
-                    // Outlets: luminous cyan beacons; Normal manholes: bright platinum chrome with cyan emissive rim
-                    color: isOutlet ? 0x00f2fe : 0xf8fafc,
-                    emissive: isOutlet ? 0x00e5ff : 0x0284c7,
-                    emissiveIntensity: isOutlet ? 1.0 : 0.45,
-                    roughness: 0.25,
-                    metalness: 0.8,
+                    // Outlets: luminous electric violet/magenta discharge beacons; Normal manholes: polished chrome with emerald intake core
+                    color: isOutlet ? 0xf472b6 : 0xf1f5f9,
+                    emissive: isOutlet ? 0xd946ef : 0x10b981,
+                    emissiveIntensity: isOutlet ? 1.25 : 0.65,
+                    roughness: isOutlet ? 0.15 : 0.22,
+                    metalness: isOutlet ? 0.75 : 0.85,
                 });
                 const m = new THREE.Mesh(mGeo, nMat);
                 const nodeY = terrainElev[n.y * nx + n.x] - 0.4;   // sit crisp & proud on surface
@@ -559,10 +559,10 @@ import * as THREE from 'three';
             if (totalPulses > 0) {
                 const flowGeo = new THREE.SphereGeometry(1.0, 10, 8);
                 const flowMat = new THREE.MeshStandardMaterial({
-                    // Ultra-visible bright white-cyan incandescent water pulse
+                    // Ultra-visible bright incandescent white-mint water transport energy
                     color: 0xffffff,
-                    emissive: 0x00ffff,
-                    emissiveIntensity: 2.4,
+                    emissive: 0x34d399,
+                    emissiveIntensity: 2.6,
                     roughness: 0.1,
                     metalness: 0.05,
                     transparent: true,
@@ -1197,27 +1197,27 @@ import * as THREE from 'three';
             const col = new THREE.Color(blockageColor(blk));
 
             if (isHovered || isBoxPreviewed) {
-                // Hover highlight & Box Selection Live Preview: radial expansion (1.35x) + cyber cyan glow
+                // Hover highlight & Box Selection Live Preview: radial expansion (1.35x) + electric cyber-mint glow
                 entry.mesh.scale.set(1.35, 1.35, 1.0);
                 entry.mesh.renderOrder = 20;
                 entry.mesh.material.depthTest = false;
                 if (isSelected) {
                     entry.mesh.material.color.set(0xffffff);
-                    entry.mesh.material.emissive.set(0xffffff);
-                    entry.mesh.material.emissiveIntensity = 0.85;
+                    entry.mesh.material.emissive.set(0x34d399);
+                    entry.mesh.material.emissiveIntensity = 0.95;
                 } else {
-                    entry.mesh.material.color.set(0x5dade2);
-                    entry.mesh.material.emissive.set(0x5dade2);
-                    entry.mesh.material.emissiveIntensity = 0.55;
+                    entry.mesh.material.color.set(0x34d399);
+                    entry.mesh.material.emissive.set(0x10b981);
+                    entry.mesh.material.emissiveIntensity = 0.75;
                 }
             } else if (isSelected) {
-                // Selected: prominent white highlight
+                // Selected: prominent brilliant white highlight with status color halo
                 entry.mesh.scale.set(1.0, 1.0, 1.0);
                 entry.mesh.renderOrder = glassMode ? 15 : 0;
                 entry.mesh.material.depthTest = !glassMode;
                 entry.mesh.material.color.set(0xffffff);
                 entry.mesh.material.emissive.copy(col);
-                entry.mesh.material.emissiveIntensity = 0.6;
+                entry.mesh.material.emissiveIntensity = 0.75;
             } else {
                 // Normal: natural blockage color + water flow energy indicator
                 entry.mesh.scale.set(1.0, 1.0, 1.0);
@@ -1226,9 +1226,9 @@ import * as THREE from 'three';
                 entry.mesh.material.color.copy(col);
                 const flowVal = entry.data.flow !== undefined ? entry.data.flow : 0;
                 if (Math.abs(flowVal) > 0.0003) {
-                    // Pipe carries stormwater: luminous aqua conduit glow
-                    const flowGlow = Math.min(0.45, 0.18 + Math.abs(flowVal) * 0.25);
-                    const flowEmissive = new THREE.Color(col).lerp(new THREE.Color(0x00e5ff), 0.5);
+                    // Pipe carries stormwater: luminous electric mint conduit glow
+                    const flowGlow = Math.min(0.5, 0.22 + Math.abs(flowVal) * 0.3);
+                    const flowEmissive = new THREE.Color(col).lerp(new THREE.Color(0x34d399), 0.6);
                     entry.mesh.material.emissive.copy(flowEmissive);
                     entry.mesh.material.emissiveIntensity = flowGlow;
                 } else {
@@ -2145,12 +2145,12 @@ import * as THREE from 'three';
                         }
                     }
                     if (discharge > 0.0005) {
-                        const pulse = 1.0 + 0.22 * Math.sin(nowTime * 5.5);
+                        const pulse = 1.0 + 0.25 * Math.sin(nowTime * 5.5);
                         m.scale.set(pulse, pulse, pulse);
-                        m.material.emissiveIntensity = 1.3 + 0.7 * Math.sin(nowTime * 5.5);
+                        m.material.emissiveIntensity = 1.6 + 0.9 * Math.sin(nowTime * 5.5);
                     } else {
                         m.scale.set(1.0, 1.0, 1.0);
-                        m.material.emissiveIntensity = 0.85;
+                        m.material.emissiveIntensity = 1.1;
                     }
                 }
             });
