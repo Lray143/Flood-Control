@@ -636,3 +636,51 @@ html, body {
         justify-content: center;
     }
 }
+
+/* ── Floating Hint for 3D Bust Statue ── */
+.bust-floating-hint {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 6;
+    opacity: 0;
+    transform: translate(-50%, -100%);
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: left, top, opacity;
+}
+
+.bust-floating-hint.visible {
+    opacity: 1;
+}
+
+.bust-floating-hint .hint-bubble {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(4, 18, 36, 0.92);
+    border: 1px solid rgba(0, 229, 255, 0.55);
+    color: #e0f7ff;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 0 12px rgba(0, 229, 255, 0.25);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    white-space: nowrap;
+    animation: hint-bob 1.8s ease-in-out infinite;
+}
+
+.bust-floating-hint .hint-arrow {
+    width: 12px;
+    height: 12px;
+    stroke: #00e5ff;
+}
+
+@keyframes hint-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
