@@ -809,6 +809,18 @@
             border-color: rgba(231, 76, 60, 0.4);
         }
 
+        /* ── Box Selection Rectangle (Shift + drag) ──────────────────────── */
+        #box-select-rect {
+            display: none;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            border: 2px solid #38bdf8;
+            background: rgba(56, 189, 248, 0.08);
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+        }
+
         /* ── Pipe Hover Tooltip ───────────────────────────────────────────── */
         #pipe-hover-tooltip {
             display: none;

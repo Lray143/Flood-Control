@@ -1367,6 +1367,75 @@ import * as THREE from 'three';
             isPointerDown = false;
         });
 
+        // ── Box Selection (Shift + left-click drag in X-Ray mode) ────────────
+        const boxRect = document.getElementById('box-select-rect');
+        let boxSelectActive = false;
+        let boxStart = { x: 0, y: 0 };
+
+        renderer.domElement.addEventListener('pointerdown', e => {
+            // Only activate when Shift is held, in X-Ray mode, primary button
+            if (!e.shiftKey || !glassMode || e.button !== 0) return;
+            boxSelectActive = true;
+            boxStart.x = e.clientX;
+            boxStart.y = e.clientY;
+            boxRect.style.left   = e.clientX + 'px';
+            boxRect.style.top    = e.clientY + 'px';
+            boxRect.style.width  = '0px';
+            boxRect.style.height = '0px';
+            boxRect.style.display = 'block';
+            // Prevent camera orbit while box-selecting
+            e.stopPropagation();
+        });
+
+        window.addEventListener('pointermove', e => {
+            if (!boxSelectActive) return;
+            const x = Math.min(e.clientX, boxStart.x);
+            const y = Math.min(e.clientY, boxStart.y);
+            const w = Math.abs(e.clientX - boxStart.x);
+            const h = Math.abs(e.clientY - boxStart.y);
+            boxRect.style.left   = x + 'px';
+            boxRect.style.top    = y + 'px';
+            boxRect.style.width  = w + 'px';
+            boxRect.style.height = h + 'px';
+        });
+
+        window.addEventListener('pointerup', e => {
+            if (!boxSelectActive) return;
+            boxSelectActive = false;
+            boxRect.style.display = 'none';
+
+            const x1 = Math.min(e.clientX, boxStart.x);
+            const y1 = Math.min(e.clientY, boxStart.y);
+            const x2 = Math.max(e.clientX, boxStart.x);
+            const y2 = Math.max(e.clientY, boxStart.y);
+
+            // Minimum drag threshold — ignore accidental micro-drags
+            if ((x2 - x1) < 8 && (y2 - y1) < 8) return;
+
+            // Project each visible pipe midpoint to screen space and check if inside box
+            const canvasRect = renderer.domElement.getBoundingClientRect();
+            const _tmpVec = new THREE.Vector3();
+
+            Object.entries(pipeMeshMap).forEach(([pid, entry]) => {
+                _tmpVec.copy(entry.mesh.position);
+                _tmpVec.project(camera);
+
+                // Convert NDC → screen pixels
+                const sx = (_tmpVec.x *  0.5 + 0.5) * canvasRect.width  + canvasRect.left;
+                const sy = (_tmpVec.y * -0.5 + 0.5) * canvasRect.height + canvasRect.top;
+
+                if (sx >= x1 && sx <= x2 && sy >= y1 && sy <= y2) {
+                    selectedPipeIds.add(Number(pid));
+                }
+            });
+
+            if (selectedPipeIds.size > 0) {
+                shiftInspectorHidden = true;
+                piPanel.style.display = 'none';
+                selectedPipeIds.forEach(id => updatePipeVisual(id));
+            }
+        });
+
         // Hover detection on pointermove
         renderer.domElement.addEventListener('pointermove', e => {
             // Only allow pipe hover & tooltip in X-Ray mode
