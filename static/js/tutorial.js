@@ -258,9 +258,21 @@
         overlayEl.appendChild(popoverEl);
         document.body.appendChild(overlayEl);
 
-        document.getElementById('tour-btn-skip').addEventListener('click', () => endTour(true));
-        document.getElementById('tour-btn-prev').addEventListener('click', prevStep);
-        document.getElementById('tour-btn-next').addEventListener('click', nextStep);
+        document.getElementById('tour-btn-skip').addEventListener('click', (e) => {
+            e.stopPropagation();
+            endTour(true);
+        });
+        document.getElementById('tour-btn-prev').addEventListener('click', (e) => {
+            e.stopPropagation();
+            prevStep();
+        });
+        document.getElementById('tour-btn-next').addEventListener('click', (e) => {
+            e.stopPropagation();
+            nextStep();
+        });
+        popoverEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
 
         window.addEventListener('keydown', handleKeydown);
         window.addEventListener('resize', handleResize);
@@ -344,15 +356,18 @@
         if (sitrepBtnCleanup) sitrepBtnCleanup.classList.remove('tour-pulse-highlight');
         const sitrepPanelCleanup = document.getElementById('sitrep-panel');
         if (sitrepPanelCleanup) sitrepPanelCleanup.classList.remove('tour-panel-elevated');
+        const mapControlsCleanup = document.getElementById('map-controls');
+        if (mapControlsCleanup) mapControlsCleanup.classList.remove('tour-panel-elevated');
         const layersPopover = document.getElementById('layers-popover');
         if (layersPopover) {
-            if (overlayEl && layersPopover.parentElement === overlayEl) {
-                document.body.appendChild(layersPopover);
-            }
+            layersPopover.classList.remove('tour-panel-elevated');
             if (!layersPopoverWasOpen) layersPopover.style.display = 'none';
         }
         const btnLayers = document.getElementById('btn-layers');
-        if (btnLayers) btnLayers.classList.remove('active');
+        if (btnLayers) {
+            btnLayers.classList.remove('active');
+            btnLayers.classList.remove('tour-pulse-highlight');
+        }
 
         if (popoverEl) popoverEl.classList.remove('visible');
         if (spotlightEl) { spotlightEl.style.opacity = '0'; spotlightEl.classList.remove('pulse'); }
@@ -418,28 +433,28 @@
         // Layer Visibility popover and button state
         const layersPopover = document.getElementById('layers-popover');
         const btnLayers = document.getElementById('btn-layers');
+        const mapControls = document.getElementById('map-controls');
         if (step.id === 'layers-visibility') {
+            if (mapControls) mapControls.classList.add('tour-panel-elevated');
             if (layersPopover) {
                 layersPopoverWasOpen = layersPopover.style.display === 'block';
-                // Move #layers-popover INSIDE the overlay's stacking context so it can
-                // render between the spotlight (z:8450) and the tour card (z:8500).
-                // position:absolute bottom:24px left:416px is relative to the fixed
-                // overlay, which spans the full viewport — same visual result.
-                if (overlayEl && layersPopover.parentElement !== overlayEl) {
-                    overlayEl.appendChild(layersPopover);
-                }
                 layersPopover.style.display = 'block';
+                layersPopover.classList.add('tour-panel-elevated');
             }
-            if (btnLayers) btnLayers.classList.add('active');
+            if (btnLayers) {
+                btnLayers.classList.add('active');
+                btnLayers.classList.add('tour-pulse-highlight');
+            }
         } else {
+            if (mapControls) mapControls.classList.remove('tour-panel-elevated');
             if (layersPopover) {
-                // Restore to body when we leave the step
-                if (overlayEl && layersPopover.parentElement === overlayEl) {
-                    document.body.appendChild(layersPopover);
-                }
+                layersPopover.classList.remove('tour-panel-elevated');
                 if (!layersPopoverWasOpen) layersPopover.style.display = 'none';
             }
-            if (btnLayers) btnLayers.classList.remove('active');
+            if (btnLayers) {
+                btnLayers.classList.remove('active');
+                btnLayers.classList.remove('tour-pulse-highlight');
+            }
         }
 
         // Highlight sitrep-toggle-btn and elevate panel during collapsible-panels step
@@ -542,42 +557,40 @@
             return;
         }
 
-        // Special case: Layer Visibility – spotlight the open layers-popover panel
+        // Special case: Layer Visibility – frame both the map controls button and open popover modal
         if (step.id === 'layers-visibility') {
+            const btnLayers = document.getElementById('btn-layers');
             const layersPop = document.getElementById('layers-popover');
-            if (layersPop && layersPop.style.display === 'block') {
+            if (btnLayers && layersPop && layersPop.style.display === 'block') {
+                const bRect = btnLayers.getBoundingClientRect();
                 const pRect = layersPop.getBoundingClientRect();
 
-                // Guard: if not laid out yet (e.g. first rAF hasn't fired), retry
-                if (pRect.width === 0 || pRect.height === 0) {
-                    requestAnimationFrame(() => positionStep(step));
+                if (pRect.width > 0 && pRect.height > 0) {
+                    const spotLeft   = Math.max(0, Math.min(bRect.left, pRect.left) - 8);
+                    const spotTop    = Math.max(0, Math.min(bRect.top, pRect.top) - 8);
+                    const spotRight  = Math.max(bRect.right, pRect.right) + 8;
+                    const spotBottom = Math.max(bRect.bottom, pRect.bottom) + 8;
+                    const spotWidth  = spotRight - spotLeft;
+                    const spotHeight = spotBottom - spotTop;
+
+                    spotlightEl.style.left   = spotLeft   + 'px';
+                    spotlightEl.style.top    = spotTop    + 'px';
+                    spotlightEl.style.width  = spotWidth  + 'px';
+                    spotlightEl.style.height = spotHeight + 'px';
+                    spotlightEl.style.opacity = '1';
+                    spotlightEl.classList.add('pulse');
+
+                    let popLeft = spotRight + margin;
+                    let popTop  = spotTop + (spotHeight - popH) / 2;
+
+                    if (popLeft + popW > vw - edge) {
+                        popLeft = Math.max(edge, spotLeft - popW - margin);
+                    }
+
+                    popoverEl.setAttribute('data-placement', popLeft > spotLeft ? 'right' : 'left');
+                    place(clampH(popLeft, popW, vw, edge), clampV(popTop, popH, vh, edge));
                     return;
                 }
-
-                // Spotlight the panel with a comfortable 10px padding
-                const spotLeft   = Math.max(0, pRect.left   - 10);
-                const spotTop    = Math.max(0, pRect.top    - 10);
-                const spotWidth  = pRect.width  + 20;
-                const spotHeight = pRect.height + 20;
-                const spotRight  = spotLeft + spotWidth;
-
-                spotlightEl.style.left   = spotLeft   + 'px';
-                spotlightEl.style.top    = spotTop    + 'px';
-                spotlightEl.style.width  = spotWidth  + 'px';
-                spotlightEl.style.height = spotHeight + 'px';
-                spotlightEl.style.opacity = '1';
-                spotlightEl.classList.add('pulse');
-
-                // Place tour card to the right; fall back to left if out of screen
-                let popLeft = spotRight + margin;
-                let popTop  = spotTop + (spotHeight - popH) / 2;
-                if (popLeft + popW > vw - edge) {
-                    popLeft = Math.max(edge, spotLeft - popW - margin);
-                }
-
-                popoverEl.setAttribute('data-placement', popLeft >= spotLeft ? 'right' : 'left');
-                place(clampH(popLeft, popW, vw, edge), clampV(popTop, popH, vh, edge));
-                return;
             }
         }
 

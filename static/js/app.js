@@ -2438,6 +2438,10 @@ import * as THREE from 'three';
         }
 
         document.addEventListener('click', (e) => {
+            // Do not auto-dismiss layers popover if interactive guided walkthrough is active
+            if (window.HydroTutorial && typeof window.HydroTutorial.isActive === 'function' && window.HydroTutorial.isActive()) {
+                return;
+            }
             if (layersPopover && layersPopover.style.display === 'block') {
                 if (!layersPopover.contains(e.target) && !btnLayers.contains(e.target)) {
                     layersPopover.style.display = 'none';
