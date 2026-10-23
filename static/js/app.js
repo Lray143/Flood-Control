@@ -1371,11 +1371,61 @@ import * as THREE from 'three';
         const boxRect = document.getElementById('box-select-rect');
         let boxSelectActive = false;
         let boxStart = { x: 0, y: 0 };
+        let boxPreviewIds = new Set(); // pipes highlighted during drag (live preview)
+        const _bsTmp = new THREE.Vector3();
+
+        // Project a pipe mesh midpoint to screen pixel coords
+        function _pipeScreenPos(entry) {
+            const canvasRect = renderer.domElement.getBoundingClientRect();
+            _bsTmp.setFromMatrixPosition(entry.mesh.matrixWorld);
+            _bsTmp.project(camera);
+            return {
+                sx: (_bsTmp.x *  0.5 + 0.5) * canvasRect.width  + canvasRect.left,
+                sy: (_bsTmp.y * -0.5 + 0.5) * canvasRect.height + canvasRect.top,
+            };
+        }
+
+        // Find all pipes whose screen-midpoint falls inside the given screen rect
+        function _pipesInBox(x1, y1, x2, y2) {
+            camera.updateMatrixWorld();
+            const inside = new Set();
+            Object.entries(pipeMeshMap).forEach(([pid, entry]) => {
+                if (!entry.mesh.visible) return;
+                const { sx, sy } = _pipeScreenPos(entry);
+                if (sx >= x1 && sx <= x2 && sy >= y1 && sy <= y2) {
+                    inside.add(Number(pid));
+                }
+            });
+            return inside;
+        }
+
+        // Apply / clear live preview highlight (hover-style) on pipes in the box
+        function _applyBoxPreview(newPreviewIds) {
+            // Un-highlight pipes that left the box
+            boxPreviewIds.forEach(id => {
+                if (!newPreviewIds.has(id)) updatePipeVisual(id);
+            });
+            // Highlight newly entered pipes (hover style)
+            newPreviewIds.forEach(id => {
+                if (!boxPreviewIds.has(id)) {
+                    const entry = pipeMeshMap[id];
+                    if (!entry) return;
+                    entry.mesh.scale.set(1.35, 1.35, 1.0);
+                    entry.mesh.renderOrder = 20;
+                    entry.mesh.material.depthTest = false;
+                    entry.mesh.material.color.set(0x5dade2);
+                    entry.mesh.material.emissive.set(0x5dade2);
+                    entry.mesh.material.emissiveIntensity = 0.55;
+                }
+            });
+            boxPreviewIds = newPreviewIds;
+        }
 
         renderer.domElement.addEventListener('pointerdown', e => {
             // Only activate when Shift is held, in X-Ray mode, primary button
             if (!e.shiftKey || !glassMode || e.button !== 0) return;
             boxSelectActive = true;
+            boxPreviewIds = new Set();
             boxStart.x = e.clientX;
             boxStart.y = e.clientY;
             boxRect.style.left   = e.clientX + 'px';
@@ -1389,14 +1439,18 @@ import * as THREE from 'three';
 
         window.addEventListener('pointermove', e => {
             if (!boxSelectActive) return;
-            const x = Math.min(e.clientX, boxStart.x);
-            const y = Math.min(e.clientY, boxStart.y);
-            const w = Math.abs(e.clientX - boxStart.x);
-            const h = Math.abs(e.clientY - boxStart.y);
-            boxRect.style.left   = x + 'px';
-            boxRect.style.top    = y + 'px';
-            boxRect.style.width  = w + 'px';
-            boxRect.style.height = h + 'px';
+            const x1 = Math.min(e.clientX, boxStart.x);
+            const y1 = Math.min(e.clientY, boxStart.y);
+            const x2 = Math.max(e.clientX, boxStart.x);
+            const y2 = Math.max(e.clientY, boxStart.y);
+            boxRect.style.left   = x1 + 'px';
+            boxRect.style.top    = y1 + 'px';
+            boxRect.style.width  = (x2 - x1) + 'px';
+            boxRect.style.height = (y2 - y1) + 'px';
+            // Live preview: highlight pipes currently inside the box
+            if (x2 - x1 > 4 || y2 - y1 > 4) {
+                _applyBoxPreview(_pipesInBox(x1, y1, x2, y2));
+            }
         });
 
         window.addEventListener('pointerup', e => {
@@ -1409,25 +1463,16 @@ import * as THREE from 'three';
             const x2 = Math.max(e.clientX, boxStart.x);
             const y2 = Math.max(e.clientY, boxStart.y);
 
+            // Clear preview highlights before committing
+            boxPreviewIds.forEach(id => updatePipeVisual(id));
+            boxPreviewIds = new Set();
+
             // Minimum drag threshold — ignore accidental micro-drags
             if ((x2 - x1) < 8 && (y2 - y1) < 8) return;
 
-            // Project each visible pipe midpoint to screen space and check if inside box
-            const canvasRect = renderer.domElement.getBoundingClientRect();
-            const _tmpVec = new THREE.Vector3();
-
-            Object.entries(pipeMeshMap).forEach(([pid, entry]) => {
-                _tmpVec.copy(entry.mesh.position);
-                _tmpVec.project(camera);
-
-                // Convert NDC → screen pixels
-                const sx = (_tmpVec.x *  0.5 + 0.5) * canvasRect.width  + canvasRect.left;
-                const sy = (_tmpVec.y * -0.5 + 0.5) * canvasRect.height + canvasRect.top;
-
-                if (sx >= x1 && sx <= x2 && sy >= y1 && sy <= y2) {
-                    selectedPipeIds.add(Number(pid));
-                }
-            });
+            // Commit pipes inside the box to selectedPipeIds
+            const committed = _pipesInBox(x1, y1, x2, y2);
+            committed.forEach(id => selectedPipeIds.add(id));
 
             if (selectedPipeIds.size > 0) {
                 shiftInspectorHidden = true;
