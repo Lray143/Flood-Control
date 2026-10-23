@@ -1,5 +1,6 @@
 import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { SelectionBox } from 'three/addons/interactive/SelectionBox.js';
 
         // ─── RENDERER ────────────────────────────────────────────────────────
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -19,6 +20,12 @@ import * as THREE from 'three';
 
         const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.5, 5000);
         camera.position.set(345, 400, 190.1);   // slightly offset Z prevents random rotation flip
+
+        const pipesGroup = new THREE.Group();
+        pipesGroup.name = 'pipesGroup';
+        scene.add(pipesGroup);
+
+        const selectionBox = new SelectionBox(camera, pipesGroup);
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.target.set(345, 8, 190);     // center of 690x380 grid (Barangay 168 Google Maps boundary)
@@ -448,6 +455,7 @@ import * as THREE from 'three';
         }
 
         function buildPipes(nodes, pipes) {
+            pipesGroup.clear();
             // Clean up existing flow instanced mesh if re-building
             if (pipeFlowInstanced) {
                 scene.remove(pipeFlowInstanced);
@@ -542,7 +550,7 @@ import * as THREE from 'three';
                     diameter: p.diameter,
                 };
                 mesh.castShadow = false;
-                scene.add(mesh);
+                pipesGroup.add(mesh);
 
                 pipeMeshMap[p.id] = { mesh, data: p, v1, v2, dist };
                 pipeClickables.push(mesh);
@@ -1376,49 +1384,30 @@ import * as THREE from 'three';
         let boxPreviewIds = new Set(); // pipes currently highlighted during drag
         const _bsTmp = new THREE.Vector3();
 
-        // Project a world position to screen pixel coordinates with frustum clipping
-        function _projectToScreen(v3, canvasRect) {
-            _bsTmp.copy(v3);
-            _bsTmp.project(camera);
-            // Must be within camera view frustum (near..far)
-            if (_bsTmp.z < -1.0 || _bsTmp.z > 1.0) return null;
-            return {
-                x: (_bsTmp.x *  0.5 + 0.5) * canvasRect.width  + canvasRect.left,
-                y: (_bsTmp.y * -0.5 + 0.5) * canvasRect.height + canvasRect.top,
-            };
-        }
-
-        // Find all pipes whose physical midpoint falls inside the selection box (exact screen-space projection)
+        // Find all pipes physically inside the screen selection box using Three.js SelectionBox frustum
         function _pipesInBox(x1, y1, x2, y2) {
-            camera.updateMatrixWorld(true);
             const inside = new Set();
-            const canvasRect = renderer.domElement.getBoundingClientRect();
-            const bx1 = Math.min(x1, x2);
-            const bx2 = Math.max(x1, x2);
-            const by1 = Math.min(y1, y2);
-            const by2 = Math.max(y1, y2);
+            const rect = renderer.domElement.getBoundingClientRect();
 
-            Object.entries(pipeMeshMap).forEach(([pid, entry]) => {
-                if (!entry.mesh.visible) return;
-                const idNum = Number(pid);
+            // Convert screen pixel coordinates to NDC [-1, 1]
+            selectionBox.startPoint.set(
+                ((x1 - rect.left) / rect.width) * 2 - 1,
+                -((y1 - rect.top) / rect.height) * 2 + 1,
+                0.5
+            );
+            selectionBox.endPoint.set(
+                ((x2 - rect.left) / rect.width) * 2 - 1,
+                -((y2 - rect.top) / rect.height) * 2 + 1,
+                0.5
+            );
 
-                // Check pipe midpoint
-                const pMid = _projectToScreen(entry.mesh.position, canvasRect);
-                if (pMid && pMid.x >= bx1 && pMid.x <= bx2 && pMid.y >= by1 && pMid.y <= by2) {
-                    inside.add(idNum);
-                    return;
+            const selected = selectionBox.select();
+            for (let i = 0; i < selected.length; i++) {
+                const m = selected[i];
+                if (m.userData && m.userData.isPipe && m.visible) {
+                    inside.add(m.userData.pipeId);
                 }
-
-                // Check if BOTH endpoints are inside the box (fully enclosed pipe)
-                const p1 = _projectToScreen(entry.v1, canvasRect);
-                const p2 = _projectToScreen(entry.v2, canvasRect);
-                if (p1 && p2) {
-                    if (p1.x >= bx1 && p1.x <= bx2 && p1.y >= by1 && p1.y <= by2 &&
-                        p2.x >= bx1 && p2.x <= bx2 && p2.y >= by1 && p2.y <= by2) {
-                        inside.add(idNum);
-                    }
-                }
-            });
+            }
             return inside;
         }
 
@@ -2072,6 +2061,12 @@ import * as THREE from 'three';
         }
 
         // ─── RENDER LOOP ─────────────────────────────────────────────────────
+                window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
