@@ -1838,8 +1838,13 @@ button#btn-header-guide:active,
 }
 
 
-/* ── Elevate layers popover above tour overlay ───────────────────── */
-#layers-popover.tour-panel-elevated {
+/* ── layers-popover inside tour overlay: render between spotlight (8450) and card (8500) ── */
+#layers-popover.tour-inside-overlay {
+    z-index: 8470 !important;
+}
+
+/* ── sitrep-panel above tour overlay backdrop when spotlighted ───── */
+#sitrep-panel.tour-panel-elevated {
     z-index: 8460 !important;
 }
 

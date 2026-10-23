@@ -346,7 +346,9 @@
         if (sitrepPanelCleanup) sitrepPanelCleanup.classList.remove('tour-panel-elevated');
         const layersPopover = document.getElementById('layers-popover');
         if (layersPopover) {
-            layersPopover.classList.remove('tour-panel-elevated');
+            if (overlayEl && layersPopover.parentElement === overlayEl) {
+                document.body.appendChild(layersPopover);
+            }
             if (!layersPopoverWasOpen) layersPopover.style.display = 'none';
         }
         const btnLayers = document.getElementById('btn-layers');
@@ -419,13 +421,22 @@
         if (step.id === 'layers-visibility') {
             if (layersPopover) {
                 layersPopoverWasOpen = layersPopover.style.display === 'block';
+                // Move #layers-popover INSIDE the overlay's stacking context so it can
+                // render between the spotlight (z:8450) and the tour card (z:8500).
+                // position:absolute bottom:24px left:416px is relative to the fixed
+                // overlay, which spans the full viewport — same visual result.
+                if (overlayEl && layersPopover.parentElement !== overlayEl) {
+                    overlayEl.appendChild(layersPopover);
+                }
                 layersPopover.style.display = 'block';
-                layersPopover.classList.add('tour-panel-elevated');
             }
             if (btnLayers) btnLayers.classList.add('active');
         } else {
             if (layersPopover) {
-                layersPopover.classList.remove('tour-panel-elevated');
+                // Restore to body when we leave the step
+                if (overlayEl && layersPopover.parentElement === overlayEl) {
+                    document.body.appendChild(layersPopover);
+                }
                 if (!layersPopoverWasOpen) layersPopover.style.display = 'none';
             }
             if (btnLayers) btnLayers.classList.remove('active');
@@ -531,25 +542,23 @@
             return;
         }
 
-        // Special case: Layer Visibility step highlights both button and open popover modal
+        // Special case: Layer Visibility – spotlight the open layers-popover panel
         if (step.id === 'layers-visibility') {
-            const btnLayers = document.getElementById('btn-layers');
             const layersPop = document.getElementById('layers-popover');
-            if (btnLayers && layersPop && layersPop.style.display === 'block') {
-                const bRect = btnLayers.getBoundingClientRect();
+            if (layersPop && layersPop.style.display === 'block') {
                 const pRect = layersPop.getBoundingClientRect();
 
-                // If the popover hasn't been laid out yet (zero dimensions), retry next frame
+                // Guard: if not laid out yet (e.g. first rAF hasn't fired), retry
                 if (pRect.width === 0 || pRect.height === 0) {
                     requestAnimationFrame(() => positionStep(step));
                     return;
                 }
 
-                // Spotlight only the layers-popover panel itself (cleaner focus)
-                const spotLeft = Math.max(0, pRect.left - 8);
-                const spotTop  = Math.max(0, pRect.top  - 8);
-                const spotWidth  = pRect.width  + 16;
-                const spotHeight = pRect.height + 16;
+                // Spotlight the panel with a comfortable 10px padding
+                const spotLeft   = Math.max(0, pRect.left   - 10);
+                const spotTop    = Math.max(0, pRect.top    - 10);
+                const spotWidth  = pRect.width  + 20;
+                const spotHeight = pRect.height + 20;
                 const spotRight  = spotLeft + spotWidth;
 
                 spotlightEl.style.left   = spotLeft   + 'px';
@@ -559,10 +568,9 @@
                 spotlightEl.style.opacity = '1';
                 spotlightEl.classList.add('pulse');
 
-                // Try to place popover to the right of the spotlight; fall back left
+                // Place tour card to the right; fall back to left if out of screen
                 let popLeft = spotRight + margin;
                 let popTop  = spotTop + (spotHeight - popH) / 2;
-
                 if (popLeft + popW > vw - edge) {
                     popLeft = Math.max(edge, spotLeft - popW - margin);
                 }
