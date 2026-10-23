@@ -1197,27 +1197,21 @@ import * as THREE from 'three';
             const col = new THREE.Color(blockageColor(blk));
 
             if (isHovered || isBoxPreviewed) {
-                // Hover highlight & Box Selection Live Preview: radial expansion (1.35x) + electric cyber-mint glow
-                entry.mesh.scale.set(1.35, 1.35, 1.0);
-                entry.mesh.renderOrder = 20;
+                // Hover highlight & Box Selection Live Preview: prominent expansion (1.4x) + radiant electric solar gold glow (unmistakable from normal green pipes)
+                entry.mesh.scale.set(1.4, 1.4, 1.0);
+                entry.mesh.renderOrder = 25;
                 entry.mesh.material.depthTest = false;
-                if (isSelected) {
-                    entry.mesh.material.color.set(0xffffff);
-                    entry.mesh.material.emissive.set(0x34d399);
-                    entry.mesh.material.emissiveIntensity = 0.95;
-                } else {
-                    entry.mesh.material.color.set(0x34d399);
-                    entry.mesh.material.emissive.set(0x10b981);
-                    entry.mesh.material.emissiveIntensity = 0.75;
-                }
+                entry.mesh.material.color.set(0xfff066);
+                entry.mesh.material.emissive.set(0xfacc15);
+                entry.mesh.material.emissiveIntensity = 0.95;
             } else if (isSelected) {
-                // Selected: prominent brilliant white highlight with status color halo
-                entry.mesh.scale.set(1.0, 1.0, 1.0);
-                entry.mesh.renderOrder = glassMode ? 15 : 0;
-                entry.mesh.material.depthTest = !glassMode;
+                // Selected: prominent brilliant white with energetic solar-gold halo and slight expansion (1.25x)
+                entry.mesh.scale.set(1.25, 1.25, 1.0);
+                entry.mesh.renderOrder = 22;
+                entry.mesh.material.depthTest = false;
                 entry.mesh.material.color.set(0xffffff);
-                entry.mesh.material.emissive.copy(col);
-                entry.mesh.material.emissiveIntensity = 0.75;
+                entry.mesh.material.emissive.set(0xfacc15);
+                entry.mesh.material.emissiveIntensity = 0.90;
             } else {
                 // Normal: natural blockage color + water flow energy indicator
                 entry.mesh.scale.set(1.0, 1.0, 1.0);
@@ -1386,6 +1380,8 @@ import * as THREE from 'three';
             const inside = new Set();
             const canvasRect = renderer.domElement.getBoundingClientRect();
             const _tmpVec = new THREE.Vector3();
+            const pad = 4; // slight picking margin for clean border selection
+            const bx1 = x1 - pad, by1 = y1 - pad, bx2 = x2 + pad, by2 = y2 + pad;
 
             Object.entries(pipeMeshMap).forEach(([pid, entry]) => {
                 _tmpVec.copy(entry.mesh.position);
@@ -1395,7 +1391,7 @@ import * as THREE from 'three';
                 const sx = (_tmpVec.x *  0.5 + 0.5) * canvasRect.width  + canvasRect.left;
                 const sy = (_tmpVec.y * -0.5 + 0.5) * canvasRect.height + canvasRect.top;
 
-                if (sx >= x1 && sx <= x2 && sy >= y1 && sy <= y2) {
+                if (sx >= bx1 && sx <= bx2 && sy >= by1 && sy <= by2) {
                     inside.add(Number(pid));
                 }
             });
@@ -1419,6 +1415,10 @@ import * as THREE from 'three';
             // Only activate when Shift is held, in X-Ray mode, primary button
             if (!e.shiftKey || !glassMode || e.button !== 0) return;
             boxSelectActive = true;
+            // Reset previous selection on new drag so only the current box is selected
+            const prev = Array.from(selectedPipeIds);
+            selectedPipeIds.clear();
+            prev.forEach(id => updatePipeVisual(id));
             boxPreviewIds = new Set();
             boxStart.x = e.clientX;
             boxStart.y = e.clientY;
