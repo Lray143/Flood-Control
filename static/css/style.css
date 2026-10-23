@@ -676,7 +676,9 @@
         /* ── Pipe Inspector Panel ─────────────────────────────────────────── */
         #pipe-inspector {
             display: none;
-            position: absolute;
+            position: fixed;
+            top: 100px;
+            right: 360px;
             background: rgba(14, 20, 27, 0.94);
             backdrop-filter: blur(10px);
             color: #dfe6ed;

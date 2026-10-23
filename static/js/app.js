@@ -1192,11 +1192,12 @@ import * as THREE from 'three';
             if (!entry) return;
             const isSelected = selectedPipeIds.has(pipeId);
             const isHovered = (hoveredPipeId === pipeId);
+            const isBoxPreviewed = (boxSelectActive && boxPreviewIds.has(pipeId));
             const blk = entry.data.blockage !== undefined ? entry.data.blockage * 100 : 0;
             const col = new THREE.Color(blockageColor(blk));
 
-            if (isHovered) {
-                // Hover highlight: radial expansion (1.35x) + cyber cyan glow
+            if (isHovered || isBoxPreviewed) {
+                // Hover highlight & Box Selection Live Preview: radial expansion (1.35x) + cyber cyan glow
                 entry.mesh.scale.set(1.35, 1.35, 1.0);
                 entry.mesh.renderOrder = 20;
                 entry.mesh.material.depthTest = false;
@@ -1295,10 +1296,13 @@ import * as THREE from 'three';
             pipeHoverTooltip.style.top = ly + 'px';
         }
 
+        let lastPipeInteractionPos = { x: window.innerWidth * 0.6, y: window.innerHeight * 0.35 };
+
         function togglePipeSelection(pipeId, isShift, screenX, screenY) {
-            if (!glassMode) pipeId = null;
+            if (screenX !== undefined && screenY !== undefined) {
+                lastPipeInteractionPos = { x: screenX, y: screenY };
+            }
             if (pipeId === null) {
-                // Deselect all
                 const prev = Array.from(selectedPipeIds);
                 selectedPipeIds.clear();
                 selectedPipeId = null;
@@ -1326,11 +1330,7 @@ import * as THREE from 'three';
                 updateInspectorContent();
                 // Don't show/move the panel while Shift is held (multi-select mode)
                 if (!shiftInspectorHidden) {
-                    if (screenX !== undefined && screenY !== undefined) {
-                        showInspectorAt(screenX, screenY);
-                    } else {
-                        piPanel.style.display = 'block';
-                    }
+                    showInspectorAt(screenX, screenY);
                 }
             } else {
                 piPanel.style.display = 'none';
@@ -1345,14 +1345,21 @@ import * as THREE from 'three';
         function showInspectorAt(screenX, screenY) {
             const panel = piPanel;
             panel.style.display = 'block';
+            if (screenX === undefined || screenX === null || isNaN(screenX)) {
+                screenX = lastPipeInteractionPos ? lastPipeInteractionPos.x : (window.innerWidth - 300);
+            }
+            if (screenY === undefined || screenY === null || isNaN(screenY)) {
+                screenY = lastPipeInteractionPos ? lastPipeInteractionPos.y : 120;
+            }
             // Clamp so panel doesn't go off-screen
             const pw = 230, ph = 260;
             let lx = screenX + 14, ly = screenY - ph / 2;
-            if (lx + pw > window.innerWidth) lx = screenX - pw - 14;
-            if (ly < 8) ly = 8;
-            if (ly + ph > window.innerHeight) ly = window.innerHeight - ph - 8;
-            panel.style.left = lx + 'px';
-            panel.style.top = ly + 'px';
+            if (lx + pw > window.innerWidth - 10) lx = screenX - pw - 14;
+            if (lx < 10) lx = 10;
+            if (ly < 10) ly = 10;
+            if (ly + ph > window.innerHeight - 10) ly = window.innerHeight - ph - 10;
+            panel.style.left = Math.round(lx) + 'px';
+            panel.style.top = Math.round(ly) + 'px';
         }
 
         let isPointerDown = false;
@@ -1371,54 +1378,66 @@ import * as THREE from 'three';
         const boxRect = document.getElementById('box-select-rect');
         let boxSelectActive = false;
         let boxStart = { x: 0, y: 0 };
-        let boxPreviewIds = new Set(); // pipes highlighted during drag (live preview)
+        let boxPreviewIds = new Set(); // pipes currently highlighted during drag
         const _bsTmp = new THREE.Vector3();
 
-        // Project a pipe mesh midpoint to screen pixel coords
-        function _pipeScreenPos(entry) {
+        // Project a world 3D position to screen pixel coordinates
+        function _projectPoint(vec3) {
             const canvasRect = renderer.domElement.getBoundingClientRect();
-            _bsTmp.setFromMatrixPosition(entry.mesh.matrixWorld);
+            _bsTmp.copy(vec3);
             _bsTmp.project(camera);
+            // Ignore points behind camera
+            if (_bsTmp.z > 1.0) return null;
             return {
-                sx: (_bsTmp.x *  0.5 + 0.5) * canvasRect.width  + canvasRect.left,
-                sy: (_bsTmp.y * -0.5 + 0.5) * canvasRect.height + canvasRect.top,
+                x: (_bsTmp.x *  0.5 + 0.5) * canvasRect.width  + canvasRect.left,
+                y: (_bsTmp.y * -0.5 + 0.5) * canvasRect.height + canvasRect.top,
             };
         }
 
-        // Find all pipes whose screen-midpoint falls inside the given screen rect
+        // Find all pipes whose midpoint OR either endpoint touches or falls inside the screen box
         function _pipesInBox(x1, y1, x2, y2) {
             camera.updateMatrixWorld();
             const inside = new Set();
+            const pad = 6; // generous pixel margin for accurate & natural picking
+            const bx1 = x1 - pad, by1 = y1 - pad, bx2 = x2 + pad, by2 = y2 + pad;
+
             Object.entries(pipeMeshMap).forEach(([pid, entry]) => {
                 if (!entry.mesh.visible) return;
-                const { sx, sy } = _pipeScreenPos(entry);
-                if (sx >= x1 && sx <= x2 && sy >= y1 && sy <= y2) {
-                    inside.add(Number(pid));
+                const idNum = Number(pid);
+
+                // Check pipe midpoint
+                const pMid = _projectPoint(entry.mesh.position);
+                if (pMid && pMid.x >= bx1 && pMid.x <= bx2 && pMid.y >= by1 && pMid.y <= by2) {
+                    inside.add(idNum);
+                    return;
+                }
+                // Check inlet node endpoint
+                const p1 = _projectPoint(entry.v1);
+                if (p1 && p1.x >= bx1 && p1.x <= bx2 && p1.y >= by1 && p1.y <= by2) {
+                    inside.add(idNum);
+                    return;
+                }
+                // Check outlet node endpoint
+                const p2 = _projectPoint(entry.v2);
+                if (p2 && p2.x >= bx1 && p2.x <= bx2 && p2.y >= by1 && p2.y <= by2) {
+                    inside.add(idNum);
+                    return;
                 }
             });
             return inside;
         }
 
-        // Apply / clear live preview highlight (hover-style) on pipes in the box
+        // Synchronize live preview highlight on pipes in box
         function _applyBoxPreview(newPreviewIds) {
-            // Un-highlight pipes that left the box
+            const changed = new Set();
             boxPreviewIds.forEach(id => {
-                if (!newPreviewIds.has(id)) updatePipeVisual(id);
+                if (!newPreviewIds.has(id)) changed.add(id);
             });
-            // Highlight newly entered pipes (hover style)
             newPreviewIds.forEach(id => {
-                if (!boxPreviewIds.has(id)) {
-                    const entry = pipeMeshMap[id];
-                    if (!entry) return;
-                    entry.mesh.scale.set(1.35, 1.35, 1.0);
-                    entry.mesh.renderOrder = 20;
-                    entry.mesh.material.depthTest = false;
-                    entry.mesh.material.color.set(0x5dade2);
-                    entry.mesh.material.emissive.set(0x5dade2);
-                    entry.mesh.material.emissiveIntensity = 0.55;
-                }
+                if (!boxPreviewIds.has(id)) changed.add(id);
             });
             boxPreviewIds = newPreviewIds;
+            changed.forEach(id => updatePipeVisual(id));
         }
 
         renderer.domElement.addEventListener('pointerdown', e => {
@@ -1433,7 +1452,9 @@ import * as THREE from 'three';
             boxRect.style.width  = '0px';
             boxRect.style.height = '0px';
             boxRect.style.display = 'block';
-            // Prevent camera orbit while box-selecting
+            // Hide inspector panel while box-selecting
+            shiftInspectorHidden = true;
+            piPanel.style.display = 'none';
             e.stopPropagation();
         });
 
@@ -1447,8 +1468,9 @@ import * as THREE from 'three';
             boxRect.style.top    = y1 + 'px';
             boxRect.style.width  = (x2 - x1) + 'px';
             boxRect.style.height = (y2 - y1) + 'px';
-            // Live preview: highlight pipes currently inside the box
-            if (x2 - x1 > 4 || y2 - y1 > 4) {
+
+            // Live preview: highlight all pipes touching the box in real-time
+            if ((x2 - x1) > 4 || (y2 - y1) > 4) {
                 _applyBoxPreview(_pipesInBox(x1, y1, x2, y2));
             }
         });
@@ -1463,21 +1485,31 @@ import * as THREE from 'three';
             const x2 = Math.max(e.clientX, boxStart.x);
             const y2 = Math.max(e.clientY, boxStart.y);
 
-            // Clear preview highlights before committing
-            boxPreviewIds.forEach(id => updatePipeVisual(id));
+            // Clean up preview highlights and transition to committed selection
+            const prevPreview = new Set(boxPreviewIds);
             boxPreviewIds = new Set();
+            prevPreview.forEach(id => updatePipeVisual(id));
 
             // Minimum drag threshold — ignore accidental micro-drags
             if ((x2 - x1) < 8 && (y2 - y1) < 8) return;
 
-            // Commit pipes inside the box to selectedPipeIds
+            // Commit all pipes touched by the box
             const committed = _pipesInBox(x1, y1, x2, y2);
             committed.forEach(id => selectedPipeIds.add(id));
 
             if (selectedPipeIds.size > 0) {
-                shiftInspectorHidden = true;
-                piPanel.style.display = 'none';
+                lastPipeInteractionPos = { x: x2, y: y1 };
                 selectedPipeIds.forEach(id => updatePipeVisual(id));
+
+                // If user has already released Shift, show inspector immediately!
+                if (!e.shiftKey) {
+                    shiftInspectorHidden = false;
+                    updateInspectorContent();
+                    showInspectorAt(x2, y1);
+                } else {
+                    shiftInspectorHidden = true;
+                    piPanel.style.display = 'none';
+                }
             }
         });
 
@@ -1578,7 +1610,8 @@ import * as THREE from 'three';
                 shiftInspectorHidden = false;
                 if (selectedPipeIds.size > 0) {
                     updateInspectorContent();
-                    piPanel.style.display = 'block';
+                    const pos = lastPipeInteractionPos || { x: window.innerWidth * 0.6, y: window.innerHeight * 0.35 };
+                    showInspectorAt(pos.x, pos.y);
                 }
             }
         });
