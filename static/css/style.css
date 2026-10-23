@@ -1717,6 +1717,37 @@
     height: 12px;
 }
 
+/* Compact icon-only guide button (replaces large pill in header) */
+.header-guide-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(93, 173, 226, 0.10);
+    border: 1px solid rgba(93, 173, 226, 0.22);
+    border-radius: 8px;
+    color: #5dade2;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    padding: 0;
+    margin: 0;
+}
+
+.header-guide-icon:hover {
+    background: rgba(93, 173, 226, 0.24);
+    border-color: rgba(93, 173, 226, 0.6);
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(93, 173, 226, 0.4);
+    transform: rotate(15deg) scale(1.08);
+}
+
+.header-guide-icon .lucide {
+    width: 14px;
+    height: 14px;
+}
+
 
 /* ── Tour Skip Toast Notification ────────────────────────────────── */
 .tour-toast {
