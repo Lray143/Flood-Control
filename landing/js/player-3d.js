@@ -596,20 +596,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         }
 
         // ── 3. UPDATE FLOATING "DOUBLE CLICK ME" HINTS (BESIDE MODELS, AMPLE CLEARANCE) ──
-        if (playerHint) {
-            const showPlayerHint = playerGroup.visible && !playerIsOffscreen && !playerIsDragging && !window.HydroItemsHidden && playerScreenX > 50 && playerScreenX < width - 70;
-            if (showPlayerHint) {
-                playerHint.classList.add('visible');
-                if (playerScreenX > width - 180) {
-                    playerHint.style.left = `${playerScreenX - 110}px`;
-                } else {
-                    playerHint.style.left = `${playerScreenX + 64}px`;
-                }
-                playerHint.style.top = `${playerRenderedY - 18}px`;
-            } else {
-                playerHint.classList.remove('visible');
-            }
-        }
+        // Player hint removed — only the bust has the double-click hint
+        if (playerHint) playerHint.classList.remove('visible');
 
         if (bustHint) {
             const showBustHint = bustGroup.visible && !bustIsOffscreen && !bustIsDragging && !window.HydroItemsHidden && bustScreenX > 50 && bustScreenX < width - 70;
@@ -618,7 +606,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
                 if (bustScreenX > width - 180) {
                     bustHint.style.left = `${bustScreenX - 110}px`;
                 } else {
-                    bustHint.style.left = `${bustScreenX + 60}px`;
+                    bustHint.style.left = `${bustScreenX + 44}px`;
                 }
                 bustHint.style.top = `${bustRenderedY - 12}px`;
             } else {

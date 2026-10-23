@@ -1253,20 +1253,24 @@
 
     // Rich, multi-item fleet – frames are rare (only 2 frames among many items)
     const floatingItems = [
-        // 7 diverse active debris items (spaced out widely: only ~3-4 visible at once)
-        new FloatingItem('boat',       window.innerWidth * 0.08, 0.40, 1.05, { depthRatio: 0.05 }),
-        new FloatingItem('tsinelas',   window.innerWidth * 0.35, 0.38, 0.95, { depthRatio: 0.12 }),
-        new FloatingItem('tire',       window.innerWidth * 0.65, 0.42, 1.0,  { depthRatio: 0.72 }),
-        new FloatingItem('chair',      window.innerWidth * 0.95, 0.36, 1.0,  { depthRatio: 0.30 }),
-        new FloatingItem('gallon',     window.innerWidth * 1.30, 0.44, 0.95, { depthRatio: 0.65 }),
-        new FloatingItem('log',        window.innerWidth * 1.70, 0.36, 1.0,  { depthRatio: 0.45 }),
-        new FloatingItem('cooler',     window.innerWidth * 2.10, 0.42, 0.95, { depthRatio: 0.22 }),
+        // 11 diverse active debris items (wider spacing: ~4-6 visible at a time)
+        new FloatingItem('boat',       window.innerWidth * 0.05, 0.40, 1.05, { depthRatio: 0.05 }),
+        new FloatingItem('tsinelas',   window.innerWidth * 0.22, 0.38, 0.95, { depthRatio: 0.12 }),
+        new FloatingItem('duck',       window.innerWidth * 0.45, 0.45, 1.0,  { depthRatio: 0.08 }),
+        new FloatingItem('tire',       window.innerWidth * 0.68, 0.42, 1.0,  { depthRatio: 0.72 }),
+        new FloatingItem('chair',      window.innerWidth * 0.90, 0.36, 1.0,  { depthRatio: 0.30 }),
+        new FloatingItem('branch',     window.innerWidth * 1.15, 0.43, 1.05, { depthRatio: 0.15 }),
+        new FloatingItem('gallon',     window.innerWidth * 1.38, 0.44, 0.95, { depthRatio: 0.65 }),
+        new FloatingItem('log',        window.innerWidth * 1.62, 0.36, 1.0,  { depthRatio: 0.45 }),
+        new FloatingItem('cooler',     window.innerWidth * 1.88, 0.42, 0.95, { depthRatio: 0.22 }),
+        new FloatingItem('cone',       window.innerWidth * 2.12, 0.40, 1.0,  { depthRatio: 0.38 }),
+        new FloatingItem('bamboo',     window.innerWidth * 2.40, 0.38, 1.0,  { depthRatio: 0.55 }),
 
         // 3 Photo Frames (spaced ~1.2 widths apart: sometimes 0, 1, 2, or 3 visible)
         // Initial indices guaranteed distinct: frame 0 = group photo, frames 1-2 pick from non-overlapping halves
-        new FloatingItem('frame',      window.innerWidth * 0.48, 0.33, 1.0,  { imageIndex: 0, frameColor: '#ffffff', depthRatio: 0.38 }),
-        new FloatingItem('frame',      window.innerWidth * 1.85, 0.34, 1.0,  { imageIndex: 1 + Math.floor(Math.random() * 6), frameColor: '#fef08a', depthRatio: 0.42 }),
-        new FloatingItem('frame',      window.innerWidth * 3.10, 0.31, 1.0,  { imageIndex: 8 + Math.floor(Math.random() * 6), frameColor: '#fed7aa', depthRatio: 0.32 })
+        new FloatingItem('frame',      window.innerWidth * 0.35, 0.33, 1.0,  { imageIndex: 0, frameColor: '#ffffff', depthRatio: 0.38 }),
+        new FloatingItem('frame',      window.innerWidth * 1.55, 0.34, 1.0,  { imageIndex: 1 + Math.floor(Math.random() * 6), frameColor: '#fef08a', depthRatio: 0.42 }),
+        new FloatingItem('frame',      window.innerWidth * 2.75, 0.31, 1.0,  { imageIndex: 8 + Math.floor(Math.random() * 6), frameColor: '#fed7aa', depthRatio: 0.32 })
     ];
 
     class Raindrop {
