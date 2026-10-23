@@ -6,9 +6,7 @@
 (function () {
     'use strict';
 
-    // ── Tour Steps ─────────────────────────────────────────────────────────────
-    // 17 steps total. target: null = centered modal (no spotlight).
-    // target: CSS selector = spotlight that element with popover beside it.
+    // ── Tour Steps (17 total) ───────────────────────────────────────────────────
     const TOUR_STEPS = [
         {
             id: 'welcome',
@@ -18,7 +16,7 @@
             title: '3D Flood Simulation Digital Twin',
             icon: 'droplet',
             desc: 'Welcome to the Barangay 168 (Deparo, Caloocan City) flood control simulation. This walkthrough guides you through every control, map mode, preset, and analytical layer in the interface.',
-            tip: 'Navigate with the Next / Back buttons, your keyboard arrow keys (→ / ←), or press Escape to exit. You can always restart by clicking the compass icon ( ⊙ ) beside the HYDRODYNAMICS logo.'
+            tip: 'Navigate with Next / Back or your keyboard arrow keys (→ / ←). You can restart this guide anytime by clicking the ⊙ compass icon next to the HYDRODYNAMICS logo.'
         },
         {
             id: '3d-canvas',
@@ -27,8 +25,8 @@
             badge: 'THE 3D MAP VIEWPORT',
             title: 'Interactive 3D Flood Map',
             icon: 'map',
-            desc: 'The center of the screen is the 3D WebGL flood simulation map — a real-scale digital twin of Barangay 168 built from actual LiDAR terrain data and OpenStreetMap road network data. Water flows in real-time across streets, buildings, and drainage channels based on the physics of shallow water equations.',
-            tip: 'Left-click and drag to orbit the camera. Right-click to pan. Scroll wheel to zoom in and out. In 2D top-down mode, click and drag to pan the map.'
+            desc: 'The center of the screen is the 3D WebGL flood simulation map — a real-scale digital twin of Barangay 168 built from actual LiDAR terrain data and OpenStreetMap road geometry. Water flows across streets, buildings, and drainage channels based on real shallow water physics.',
+            tip: 'Left-click and drag to orbit the camera. Right-click to pan. Scroll wheel to zoom in and out. In 2D mode, drag to pan the overhead map.'
         },
         {
             id: 'telemetry',
@@ -37,7 +35,7 @@
             badge: 'LIVE SENSORS & METRICS',
             title: 'Real-Time Telemetry Monitor',
             icon: 'activity',
-            desc: 'Displays the live analytical state of the watershed: elapsed simulation time, count of inundated grid cells, peak flood depth in meters, total surface water volume (m³), and the numerical mass balance conservation error.',
+            desc: 'Displays the live analytical state of the watershed: elapsed simulation time, count of inundated grid cells, peak flood depth (m), total surface water volume (m³), and the numerical mass balance conservation error.',
             tip: 'A mass balance error under 1.0% confirms the finite-volume shallow water solver is conserving liquid mass precisely.'
         },
         {
@@ -57,8 +55,8 @@
             badge: 'INFRASTRUCTURE STRESS-TEST',
             title: 'Drainage Network Presets',
             icon: 'git-commit',
-            desc: 'Test urban drainage resilience under different maintenance scenarios: Optimal (0% clog), Minor (25%), Half Clogged (50%), Heavy Clog (75%), Total Jam (100%), or Assorted — a random realistic clog distribution across all 369 pipes.',
-            tip: 'Comparing "Optimal" versus "Heavy Clog" under the same rainfall reveals the real impact of unmaintained culverts.'
+            desc: 'Test urban drainage resilience under different maintenance conditions: Optimal (0% clog), Minor (25%), Half Clogged (50%), Heavy Clog (75%), Total Jam (100%), or Assorted — a randomized realistic clog distribution across all 369 pipes.',
+            tip: 'Comparing "Optimal" vs "Heavy Clog" under the same rainfall reveals the true impact of unmaintained culverts.'
         },
         {
             id: 'rainfall-slider',
@@ -67,8 +65,8 @@
             badge: 'PRECISION RAIN CONTROL',
             title: 'Manual Rainfall Intensity',
             icon: 'sliders',
-            desc: 'Fine-tune precipitation from 0 mm/h up to 1,000 mm/h in real-time using the continuous slider while the simulation is running.',
-            tip: 'The blue badge shows the active precipitation depth currently being applied across every terrain grid cell.'
+            desc: 'Fine-tune precipitation from 0 mm/h up to 1,000 mm/h in real-time using the continuous slider while the simulation runs.',
+            tip: 'The blue badge shows the active precipitation rate being applied across every terrain grid cell.'
         },
         {
             id: 'bulk-pipe',
@@ -77,8 +75,8 @@
             badge: 'REGIONAL ENGINEERING',
             title: 'Bulk Pipe & Culvert Controls',
             icon: 'share-2',
-            desc: 'Apply drainage changes across entire geographic sectors — All Pipes, North, South, East, or West Half. Set uniform blockages or resize pipe diameters (0.3m to 3.0m) across a region in bulk.',
-            tip: 'Try selecting "North Half" and 100% blockage to see localized pooling in the northern subdivisions.'
+            desc: 'Apply drainage changes across entire geographic sectors — All Pipes, North, South, East, or West Half. Set uniform blockage percentages or resize pipe diameters (0.3m to 3.0m) across a whole region.',
+            tip: 'Try selecting "North Half" and 100% blockage to observe isolated flooding in the northern subdivisions.'
         },
         {
             id: 'sim-speed',
@@ -97,7 +95,7 @@
             badge: 'TIME-TRAVEL REWIND',
             title: 'Rewind to Snapshot',
             icon: 'history',
-            desc: 'The simulation engine automatically records historical state snapshots. Pick any previous timestamp from the dropdown and click "Go" to instantly rewind water levels, flood extents, and pipe flows to that moment.',
+            desc: 'The simulation engine automatically records historical state snapshots. Pick any previous timestamp from the dropdown and click "Go" to instantly rewind water levels and pipe flows to that moment.',
             tip: 'Rewinding lets you test different drainage interventions from the exact same flood stage without starting over.'
         },
         {
@@ -107,7 +105,7 @@
             badge: 'ENVIRONMENT RESTORE',
             title: 'Reset Simulation',
             icon: 'rotate-ccw',
-            desc: 'Completely flushes all accumulated surface water, resets the simulation clock to 0s, and re-initializes the digital twin to a clean dry baseline state.',
+            desc: 'Completely flushes all accumulated surface water, resets the simulation clock to 0s, and re-initializes the digital twin to a clean dry baseline.',
             tip: 'Use this when you want to start a completely fresh experiment from scratch.'
         },
         {
@@ -127,8 +125,8 @@
             badge: 'TOPOGRAPHIC ANALYSIS',
             title: 'Digital Elevation Heatmap (DEM)',
             icon: 'mountain',
-            desc: 'Overlays an elevation color gradient from real LiDAR terrain data (1.0m green valleys → 65.4m red ridges) to reveal natural runoff pathways and low-lying catchment basins across Barangay 168.',
-            tip: 'Water flows naturally into the green corridors — the lowest depressions on the DEM.'
+            desc: 'Overlays a color gradient from real LiDAR terrain data (1.0m green valleys → 65.4m red ridges) to reveal natural runoff pathways and low-lying flood basins across Barangay 168.',
+            tip: 'Water flows naturally into the green corridors — the lowest-lying areas on the DEM.'
         },
         {
             id: 'xray-mode',
@@ -137,18 +135,28 @@
             badge: 'UNDERGROUND VISUALIZATION',
             title: 'Underground Pipe X-Ray Mode',
             icon: 'eye',
-            desc: 'Makes the terrain surface translucent like glass, revealing the entire subterranean drainage network beneath the roads: 368 manhole nodes, 369 pipes, and 7 natural outfalls.',
-            tip: 'Animated flow pulses travel through the pipes toward downstream outfalls when runoff is active.'
+            desc: 'Makes the terrain surface translucent, revealing the subterranean drainage network beneath the roads: 368 manhole nodes, 369 pipes, and 7 natural outfalls.',
+            tip: 'Animated flow pulses travel through the pipes toward downstream outfalls while runoff is active.'
+        },
+        {
+            id: 'layers-btn',
+            target: '#btn-layers',
+            placement: 'right',
+            badge: 'LAYER VISIBILITY TOGGLE',
+            title: 'Layer Visibility Button',
+            icon: 'layers',
+            desc: 'Click this button to open the Layer Visibility panel — a popover where you can individually toggle each visual layer in the 3D scene.',
+            tip: 'This is how you access the layer controls. Click it anytime to show or hide specific map elements.'
         },
         {
             id: 'map-controls-all',
             target: '#map-controls',
             placement: 'right',
-            badge: 'FLOATING MAP TOOLS',
-            title: 'Map View Controls & Layer Visibility',
+            badge: 'LAYER FILTERS',
+            title: 'Layer Visibility & GIS Filters',
             icon: 'layers',
-            desc: 'This column of floating controls (from top): 3D/2D view toggle, Elevation Heatmap, Underground X-Ray, and Layer Visibility. The Layer Visibility button opens a popover where you can toggle 3D buildings, trees, roads, water, zone borders, drain nodes, grid, and more.',
-            tip: 'Turn off buildings and trees to get a clean, unobstructed aerial flood depth map.'
+            desc: 'The Layer Visibility panel lets you toggle: 3D buildings, natural trees, OSM road network, water surface, Barangay 168 boundary, zone borders, 3D area labels, map labels, drain nodes, and grid overlay.',
+            tip: 'Turn off buildings and trees for a clean, unobstructed aerial flood depth view.'
         },
         {
             id: 'pipe-inspector',
@@ -157,8 +165,8 @@
             badge: 'INDIVIDUAL CULVERTS',
             title: 'Interactive 3D Pipe Inspector',
             icon: 'wrench',
-            desc: 'Hover over any pipe in the 3D viewport to see its live flow rate. Click it to open this inspector — where you can clear clogs, set a precise blockage % (0–100%), or adjust its physical diameter (0.1m–5.0m).',
-            tip: 'Try clicking any pipe cylinder in the 3D canvas after this tour to customize it directly.'
+            desc: 'Hover over any pipe in the 3D viewport to see its live flow rate. Click it to open this panel — where you can clear clogs, set a precise blockage % (0–100%), or adjust its physical diameter.',
+            tip: 'Click any pipe cylinder in the 3D canvas after this tour to customize it directly.'
         },
         {
             id: 'sitrep-panel',
@@ -178,7 +186,7 @@
             title: 'You Are All Set!',
             icon: 'check-circle-2',
             desc: 'You now know every tool in the Hydrodynamics simulation. Start the rain, test pipe blockages, and watch how water responds across Barangay 168 in real time.',
-            tip: 'Need a refresher anytime? Click the ⊙ compass icon beside the HYDRODYNAMICS logo in the top-left to restart this guide from the beginning.'
+            tip: 'Need a refresher? Click the ⊙ compass icon next to the HYDRODYNAMICS logo in the top-left panel to restart this tour anytime.'
         }
     ];
 
@@ -215,9 +223,6 @@
                     <i data-lucide="compass"></i>
                     <span id="tour-badge-text">STEP 1 OF ${TOUR_STEPS.length}</span>
                 </span>
-                <button class="tour-close-btn" id="tour-btn-close" title="Exit Tour (Esc)">
-                    <i data-lucide="x"></i>
-                </button>
             </div>
             <div class="tour-body">
                 <div class="tour-title" id="tour-title">
@@ -231,7 +236,7 @@
                 </div>
             </div>
             <div class="tour-footer">
-                <button class="tour-skip-btn" id="tour-btn-skip" title="Skip the entire guided tour">
+                <button class="tour-skip-btn" id="tour-btn-skip" title="Exit the guided tour">
                     <i data-lucide="skip-forward"></i> Skip Entire Tour
                 </button>
                 <div class="tour-btn-group">
@@ -249,7 +254,6 @@
         overlayEl.appendChild(popoverEl);
         document.body.appendChild(overlayEl);
 
-        document.getElementById('tour-btn-close').addEventListener('click', () => endTour(true));
         document.getElementById('tour-btn-skip').addEventListener('click', () => endTour(true));
         document.getElementById('tour-btn-prev').addEventListener('click', prevStep);
         document.getElementById('tour-btn-next').addEventListener('click', nextStep);
@@ -280,7 +284,7 @@
         if (window.lucide) lucide.createIcons();
         toast.classList.add('visible');
         clearTimeout(toast._timer);
-        toast._timer = setTimeout(() => toast.classList.remove('visible'), 3600);
+        toast._timer = setTimeout(() => toast.classList.remove('visible'), 4000);
     }
 
     // ── Keyboard ────────────────────────────────────────────────────────────────
@@ -324,7 +328,6 @@
         isActive = false;
         try { localStorage.setItem('hydro_walkthrough_seen', 'true'); } catch (e) {}
 
-        // Clean up temporarily opened panels
         if (sampleInspectorShown) {
             const pi = document.getElementById('pipe-inspector');
             if (pi) pi.style.display = 'none';
@@ -334,14 +337,13 @@
         if (layersPopover && !layersPopoverWasOpen) layersPopover.style.display = 'none';
 
         if (popoverEl) popoverEl.classList.remove('visible');
-        if (spotlightEl) spotlightEl.style.opacity = '0';
+        if (spotlightEl) { spotlightEl.style.opacity = '0'; spotlightEl.classList.remove('pulse'); }
         setTimeout(() => {
             if (overlayEl) overlayEl.style.display = 'none';
-            if (popoverEl) popoverEl.style.display = 'none';
         }, 220);
 
         if (skipped) {
-            showToast('Tour exited — click the ⊙ compass icon beside HYDRODYNAMICS to restart anytime.');
+            showToast('Tour exited — click the ⊙ icon next to HYDRODYNAMICS to restart anytime.');
         }
     }
 
@@ -351,8 +353,8 @@
         const uiPanel = document.getElementById('ui');
         if (uiPanel && uiPanel.classList.contains('panel-hidden')) {
             uiPanel.classList.remove('panel-hidden');
-            const panelToggle = document.getElementById('panel-toggle');
-            if (panelToggle) panelToggle.innerHTML = '<i data-lucide="chevron-left"></i>';
+            const pt = document.getElementById('panel-toggle');
+            if (pt) pt.innerHTML = '<i data-lucide="chevron-left"></i>';
         }
 
         // Open collapsible card containing target
@@ -365,7 +367,7 @@
             }
         }
 
-        // Pipe Inspector — show sample preview
+        // Pipe Inspector — show sample data preview
         if (step.id === 'pipe-inspector') {
             const pi = document.getElementById('pipe-inspector');
             if (pi && (pi.style.display === 'none' || !pi.style.display)) {
@@ -382,29 +384,37 @@
                 if (piSlider) piSlider.value = 25;
                 const piDiamInput = document.getElementById('pi-diam-input');
                 if (piDiamInput) piDiamInput.value = 0.9;
+                // Position in visible area of the canvas
+                const canvasW = window.innerWidth;
                 pi.style.display = 'block';
                 pi.style.top = '120px';
-                pi.style.left = '420px';
+                pi.style.left = Math.min(420, canvasW - 250) + 'px';
                 sampleInspectorShown = true;
             }
-        } else if (sampleInspectorShown && step.id !== 'pipe-inspector') {
+        } else if (sampleInspectorShown) {
             const pi = document.getElementById('pipe-inspector');
             if (pi) pi.style.display = 'none';
             sampleInspectorShown = false;
         }
 
-        // Layer Visibility popover — open it for the map-controls step
+        // Layer Visibility popover — open for both layers-btn and map-controls-all steps
         const layersPopover = document.getElementById('layers-popover');
         if (step.id === 'map-controls-all') {
             if (layersPopover) {
                 layersPopoverWasOpen = layersPopover.style.display === 'block';
                 layersPopover.style.display = 'block';
             }
-        } else if (step.id !== 'map-controls-all' && layersPopover && !layersPopoverWasOpen) {
+        } else if (step.id === 'layers-btn') {
+            // For this step, close popover so we only spotlight the button itself
+            if (layersPopover) {
+                layersPopoverWasOpen = layersPopover.style.display === 'block';
+                layersPopover.style.display = 'none';
+            }
+        } else if (layersPopover && !layersPopoverWasOpen) {
             layersPopover.style.display = 'none';
         }
 
-        // SitRep panel — expand table body
+        // SitRep — expand table body
         if (step.id === 'sitrep-panel') {
             const sitrepBody = document.getElementById('sitrep-body');
             const sitrepToggleBtn = document.getElementById('sitrep-toggle-btn');
@@ -458,24 +468,37 @@
         const nextBtn = document.getElementById('tour-btn-next');
         if (prevBtn) prevBtn.disabled = currentStep === 0;
         if (nextBtn) {
-            if (currentStep === TOUR_STEPS.length - 1) {
-                nextBtn.innerHTML = `Finish Tour <i data-lucide="check"></i>`;
-            } else {
-                nextBtn.innerHTML = `Next <i data-lucide="chevron-right"></i>`;
-            }
+            nextBtn.innerHTML = currentStep === TOUR_STEPS.length - 1
+                ? `Finish Tour <i data-lucide="check"></i>`
+                : `Next <i data-lucide="chevron-right"></i>`;
         }
 
         if (window.lucide) lucide.createIcons();
-        positionStep(step, animate);
+        positionStep(step);
     }
 
-    // ── Positioning ─────────────────────────────────────────────────────────────
-    function positionStep(step, animate) {
-        const margin = 8;
-        const popoverWidth = popoverEl.offsetWidth || 380;
-        const popoverHeight = popoverEl.offsetHeight || 280;
-        const W = window.innerWidth;
-        const H = window.innerHeight;
+    // ── Smart Positioning (responsive, collision-aware) ────────────────────────
+    function positionStep(step) {
+        // Force reflow so offsetWidth/Height are accurate
+        popoverEl.style.visibility = 'hidden';
+        popoverEl.style.display = 'block';
+        const popW = popoverEl.offsetWidth || 360;
+        const popH = popoverEl.offsetHeight || 260;
+        popoverEl.style.visibility = '';
+
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const margin = 12;   // gap between spotlight edge and popover
+        const edge = 12;     // min distance from screen edges
+
+        // On very small screens always center
+        if (vw < 500) {
+            spotlightEl.style.opacity = '0';
+            spotlightEl.classList.remove('pulse');
+            popoverEl.setAttribute('data-placement', 'center');
+            place(Math.max(edge, (vw - popW) / 2), Math.max(edge, (vh - popH) / 2));
+            return;
+        }
 
         let targetRect = null;
         if (step.target) {
@@ -487,50 +510,72 @@
             spotlightEl.style.opacity = '0';
             spotlightEl.classList.remove('pulse');
             popoverEl.setAttribute('data-placement', 'center');
-            popoverEl.style.left = Math.max(16, (W - popoverWidth) / 2) + 'px';
-            popoverEl.style.top = Math.max(16, (H - popoverHeight) / 2) + 'px';
+            place(Math.max(edge, (vw - popW) / 2), Math.max(edge, (vh - popH) / 2));
             return;
         }
 
         // Spotlight
-        const sl = Math.max(0, targetRect.left - margin);
-        const st = Math.max(0, targetRect.top - margin);
-        const sw = targetRect.width + margin * 2;
-        const sh = targetRect.height + margin * 2;
+        const pad = 8;
+        const sl = Math.max(0, targetRect.left - pad);
+        const st = Math.max(0, targetRect.top - pad);
+        const sw = Math.min(targetRect.width + pad * 2, vw);
+        const sh = Math.min(targetRect.height + pad * 2, vh);
 
-        spotlightEl.style.left = sl + 'px';
-        spotlightEl.style.top = st + 'px';
-        spotlightEl.style.width = sw + 'px';
+        spotlightEl.style.left   = sl + 'px';
+        spotlightEl.style.top    = st + 'px';
+        spotlightEl.style.width  = sw + 'px';
         spotlightEl.style.height = sh + 'px';
         spotlightEl.style.opacity = '1';
         spotlightEl.classList.add('pulse');
 
-        // Popover position
-        let placement = step.placement || 'right';
-        let popLeft = 0, popTop = 0;
+        // Candidate placements in priority order
+        const preferred = step.placement || 'right';
+        const candidates = [preferred, preferred === 'right' ? 'left' : 'right', 'bottom', 'top', 'center'];
+        let placed = false;
 
-        if (placement === 'right') {
-            popLeft = sl + sw + 14;
-            popTop = st + sh / 2 - popoverHeight / 2;
-            if (popLeft + popoverWidth > W - 16) {
-                if (sl - popoverWidth - 14 > 16) { placement = 'left'; popLeft = sl - popoverWidth - 14; }
-                else { placement = 'bottom'; popLeft = Math.max(16, sl); popTop = st + sh + 14; }
-            }
-        } else if (placement === 'left') {
-            popLeft = sl - popoverWidth - 14;
-            popTop = st + sh / 2 - popoverHeight / 2;
-            if (popLeft < 16) {
-                if (sl + sw + popoverWidth + 14 < W - 16) { placement = 'right'; popLeft = sl + sw + 14; }
-                else { placement = 'bottom'; popLeft = Math.max(16, sl); popTop = st + sh + 14; }
+        for (const p of candidates) {
+            let left, top;
+            if (p === 'right') {
+                left = sl + sw + margin;
+                top  = st + sh / 2 - popH / 2;
+                if (left + popW <= vw - edge) { place(left, clampV(top, popH, vh, edge)); popoverEl.setAttribute('data-placement', 'right'); placed = true; break; }
+            } else if (p === 'left') {
+                left = sl - popW - margin;
+                top  = st + sh / 2 - popH / 2;
+                if (left >= edge) { place(left, clampV(top, popH, vh, edge)); popoverEl.setAttribute('data-placement', 'left'); placed = true; break; }
+            } else if (p === 'bottom') {
+                left = clampH(sl + sw / 2 - popW / 2, popW, vw, edge);
+                top  = st + sh + margin;
+                if (top + popH <= vh - edge) { place(left, top); popoverEl.setAttribute('data-placement', 'bottom'); placed = true; break; }
+            } else if (p === 'top') {
+                left = clampH(sl + sw / 2 - popW / 2, popW, vw, edge);
+                top  = st - popH - margin;
+                if (top >= edge) { place(left, top); popoverEl.setAttribute('data-placement', 'top'); placed = true; break; }
+            } else if (p === 'center') {
+                spotlightEl.style.opacity = '0';
+                place(Math.max(edge, (vw - popW) / 2), Math.max(edge, (vh - popH) / 2));
+                popoverEl.setAttribute('data-placement', 'center');
+                placed = true; break;
             }
         }
 
-        popTop = Math.max(16, Math.min(popTop, H - popoverHeight - 16));
-        popLeft = Math.max(16, Math.min(popLeft, W - popoverWidth - 16));
+        if (!placed) {
+            popoverEl.setAttribute('data-placement', 'center');
+            place(Math.max(edge, (vw - popW) / 2), Math.max(edge, (vh - popH) / 2));
+        }
+    }
 
-        popoverEl.setAttribute('data-placement', placement);
-        popoverEl.style.left = popLeft + 'px';
-        popoverEl.style.top = popTop + 'px';
+    function place(left, top) {
+        popoverEl.style.left = left + 'px';
+        popoverEl.style.top  = top  + 'px';
+    }
+
+    function clampV(top, popH, vh, edge) {
+        return Math.max(edge, Math.min(top, vh - popH - edge));
+    }
+
+    function clampH(left, popW, vw, edge) {
+        return Math.max(edge, Math.min(left, vw - popW - edge));
     }
 
     // ── First-Visit Auto-Launch ─────────────────────────────────────────────────
