@@ -225,14 +225,8 @@
         popoverEl.setAttribute('role', 'dialog');
         popoverEl.setAttribute('aria-modal', 'true');
         popoverEl.innerHTML = `
-            <div class="tour-progress-bar">
-                <div class="tour-progress-fill" id="tour-progress-fill"></div>
-            </div>
             <div class="tour-header">
-                <span class="tour-step-badge" id="tour-badge">
-                    <i data-lucide="compass"></i>
-                    <span id="tour-badge-text">STEP 1 OF ${TOUR_STEPS.length}</span>
-                </span>
+                <span class="tour-step-counter" id="tour-badge-text">Step 1 of ${TOUR_STEPS.length}</span>
             </div>
             <div class="tour-body">
                 <div class="tour-title" id="tour-title">
