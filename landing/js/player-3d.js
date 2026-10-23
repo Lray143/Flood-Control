@@ -160,8 +160,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     let driftSpeed = 0.36; // px per frame
     let bounceY = 0;
     let bounceVy = 0;
-    let extraSpin = 0;
-    let spinVelocity = 0;
+    let clickWobble = 0;
+    let clickWobbleVy = 0;
     let isDragging = false;
     let dragStartX = 0;
     let dragStartPlayerX = 0;
@@ -188,8 +188,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     const mouseCoord = new THREE.Vector2(-1000, -1000);
 
     function triggerBounceAndSplash() {
-        bounceVy = -9.0;
-        spinVelocity = 0.18;
+        bounceVy = -8.5;
+        clickWobbleVy = 0.12; // Gentle front-facing celebratory wobble (never spins backward)
         if (window.HydroWater) {
             const surfaceY = window.HydroWater.getSurfaceY(playerScreenX);
             window.HydroWater.createSplash(playerScreenX, surfaceY, 15);
@@ -280,12 +280,15 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
             }
         }
 
-        // Spin physics
-        if (spinVelocity > 0.005) {
-            extraSpin += spinVelocity;
-            spinVelocity *= 0.94;
-        } else {
-            spinVelocity = 0;
+        // Front-facing damped spring wobble physics (always snaps back to center front)
+        if (clickWobbleVy !== 0 || clickWobble !== 0) {
+            clickWobble += clickWobbleVy;
+            clickWobbleVy -= clickWobble * 0.16; // spring restoration pulling back to center
+            clickWobbleVy *= 0.88; // damping friction
+            if (Math.abs(clickWobble) < 0.002 && Math.abs(clickWobbleVy) < 0.002) {
+                clickWobble = 0;
+                clickWobbleVy = 0;
+            }
         }
 
         // Gentle natural bobbing
@@ -295,12 +298,13 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         playerGroup.position.x = playerScreenX - width / 2;
         playerGroup.position.y = (height / 2) - surfaceY + naturalBob + bounceY;
 
-        // Wave pitch and roll
+        // Wave pitch and roll (tilts naturally with water wave slope)
         playerGroup.rotation.z = -waveAngle * 0.85;
-        playerGroup.rotation.x = Math.sin(time * 1.8) * 0.12;
+        playerGroup.rotation.x = Math.sin(time * 1.5) * 0.06;
 
-        // Gentle head-turning yaw + interactive spin
-        playerGroup.rotation.y = Math.sin(time * 0.9) * 0.42 + extraSpin;
+        // Strictly front-facing yaw: micro-bobbing left/right (+- 12 deg max), never turning around
+        const baseFrontYaw = Math.sin(time * 0.7) * 0.14;
+        playerGroup.rotation.y = THREE.MathUtils.clamp(baseFrontYaw + clickWobble, -0.24, 0.24);
 
         // Periodic wake ripples as player floats
         rippleTick++;
