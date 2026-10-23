@@ -1381,47 +1381,22 @@ import * as THREE from 'three';
         let boxPreviewIds = new Set(); // pipes currently highlighted during drag
         const _bsTmp = new THREE.Vector3();
 
-        // Project a world 3D position to screen pixel coordinates
-        function _projectPoint(vec3) {
-            const canvasRect = renderer.domElement.getBoundingClientRect();
-            _bsTmp.copy(vec3);
-            _bsTmp.project(camera);
-            // Ignore points behind camera
-            if (_bsTmp.z > 1.0) return null;
-            return {
-                x: (_bsTmp.x *  0.5 + 0.5) * canvasRect.width  + canvasRect.left,
-                y: (_bsTmp.y * -0.5 + 0.5) * canvasRect.height + canvasRect.top,
-            };
-        }
-
-        // Find all pipes whose midpoint OR either endpoint touches or falls inside the screen box
+        // Find all pipes whose screen position falls inside the selection box (exact screen-space projection)
         function _pipesInBox(x1, y1, x2, y2) {
-            camera.updateMatrixWorld();
             const inside = new Set();
-            const pad = 6; // generous pixel margin for accurate & natural picking
-            const bx1 = x1 - pad, by1 = y1 - pad, bx2 = x2 + pad, by2 = y2 + pad;
+            const canvasRect = renderer.domElement.getBoundingClientRect();
+            const _tmpVec = new THREE.Vector3();
 
             Object.entries(pipeMeshMap).forEach(([pid, entry]) => {
-                if (!entry.mesh.visible) return;
-                const idNum = Number(pid);
+                _tmpVec.copy(entry.mesh.position);
+                _tmpVec.project(camera);
 
-                // Check pipe midpoint
-                const pMid = _projectPoint(entry.mesh.position);
-                if (pMid && pMid.x >= bx1 && pMid.x <= bx2 && pMid.y >= by1 && pMid.y <= by2) {
-                    inside.add(idNum);
-                    return;
-                }
-                // Check inlet node endpoint
-                const p1 = _projectPoint(entry.v1);
-                if (p1 && p1.x >= bx1 && p1.x <= bx2 && p1.y >= by1 && p1.y <= by2) {
-                    inside.add(idNum);
-                    return;
-                }
-                // Check outlet node endpoint
-                const p2 = _projectPoint(entry.v2);
-                if (p2 && p2.x >= bx1 && p2.x <= bx2 && p2.y >= by1 && p2.y <= by2) {
-                    inside.add(idNum);
-                    return;
+                // Convert NDC -> screen pixels
+                const sx = (_tmpVec.x *  0.5 + 0.5) * canvasRect.width  + canvasRect.left;
+                const sy = (_tmpVec.y * -0.5 + 0.5) * canvasRect.height + canvasRect.top;
+
+                if (sx >= x1 && sx <= x2 && sy >= y1 && sy <= y2) {
+                    inside.add(Number(pid));
                 }
             });
             return inside;
