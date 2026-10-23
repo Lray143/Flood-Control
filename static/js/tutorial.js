@@ -504,6 +504,41 @@
             return;
         }
 
+        // Special case: 3D Canvas step highlights the central map viewport
+        if (step.id === '3d-canvas') {
+            const uiPanel = document.getElementById('ui');
+            const uiRight = (uiPanel && !uiPanel.classList.contains('panel-hidden') && vw >= 768)
+                ? uiPanel.getBoundingClientRect().right
+                : 0;
+
+            const mapCtrl = document.getElementById('map-controls');
+            const leftBound = (mapCtrl && vw >= 768)
+                ? Math.max(uiRight + 16, mapCtrl.getBoundingClientRect().right + 16)
+                : (uiRight > 0 ? uiRight + 16 : 16);
+
+            const rightBound = vw - 24;
+            const topBound = 20;
+            const bottomBound = vh - 20;
+
+            const spotLeft = leftBound;
+            const spotTop = topBound;
+            const spotWidth = Math.max(300, rightBound - leftBound);
+            const spotHeight = Math.max(200, bottomBound - topBound);
+
+            spotlightEl.style.left = spotLeft + 'px';
+            spotlightEl.style.top = spotTop + 'px';
+            spotlightEl.style.width = spotWidth + 'px';
+            spotlightEl.style.height = spotHeight + 'px';
+            spotlightEl.style.opacity = '1';
+            spotlightEl.classList.add('pulse');
+
+            popoverEl.setAttribute('data-placement', 'center');
+            const popLeft = spotLeft + (spotWidth - popW) / 2;
+            const popTop = spotTop + (spotHeight - popH) / 2;
+            place(clampH(popLeft, popW, vw, edge), clampV(popTop, popH, vh, edge));
+            return;
+        }
+
         let targetRect = null;
         if (step.target) {
             const el = document.querySelector(step.target);
