@@ -112,6 +112,9 @@
     };
 
     // ── RANDOM FLOATING ITEMS ENGINE ─────────────────────────────────────────
+    const framePhotoImg = new Image();
+    framePhotoImg.src = '/landing/img/floating_photo.jpg';
+
     class FloatingItem {
         constructor(type, x, speed, scale = 1) {
             this.type = type;
@@ -119,9 +122,10 @@
             this.speed = speed;
             this.scale = scale;
             this.bobPhase = Math.random() * Math.PI * 2;
-            this.bobSpeed = 1.4 + Math.random() * 1.2;
+            this.bobSpeed = 1.1 + Math.random() * 0.7;
             this.jumpY = 0;
             this.jumpVy = 0;
+            this.hoverCooldown = 0; // Cooldown timer prevents jittery rapid bounce
         }
 
         update(floodSurfaceY) {
@@ -130,34 +134,38 @@
                 this.x = -80;
             }
 
-            // Mouse interaction (pop up when cursor gets close)
-            if (mouse.active) {
+            if (this.hoverCooldown > 0) {
+                this.hoverCooldown--;
+            }
+
+            // Smooth single buoyant hop when cursor passes over item
+            if (mouse.active && this.hoverCooldown <= 0 && this.jumpY === 0) {
                 const dx = Math.abs(this.x - mouse.x);
                 const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
                 const dy = Math.abs(surfaceY - mouse.y);
-                if (dx < 45 && dy < 45 && this.jumpY === 0) {
-                    this.jumpVy = -4.5;
-                    createSplash(this.x, surfaceY, 4);
+                if (dx < 40 && dy < 40) {
+                    this.jumpVy = -3.2; // Soft buoyant hop
+                    this.hoverCooldown = 80; // ~1.4s cooldown prevents rapid spam bouncing
+                    createSplash(this.x, surfaceY, 3);
                     createRipple(this.x, surfaceY);
                 }
             }
 
             if (this.jumpVy !== 0 || this.jumpY !== 0) {
                 this.jumpY += this.jumpVy;
-                this.jumpVy += 0.22; // gravity
+                this.jumpVy += 0.16; // Soft gentle water buoyancy restoration
                 if (this.jumpY >= 0) {
                     this.jumpY = 0;
                     this.jumpVy = 0;
                     const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
-                    createSplash(this.x, surfaceY, 3);
                     createRipple(this.x, surfaceY);
                 }
             }
 
-            // Occasional wake ripple
-            if (Math.random() < 0.02) {
+            // Occasional ambient wake ripple
+            if (Math.random() < 0.015) {
                 const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
-                createRipple(this.x - 10 * this.speed, surfaceY);
+                createRipple(this.x - 8 * this.speed, surfaceY);
             }
         }
 
@@ -193,6 +201,9 @@
                     break;
                 case 'leaf':
                     this.drawLeaf(ctx);
+                    break;
+                case 'frame':
+                    this.drawPictureFrame(ctx);
                     break;
             }
 
@@ -369,15 +380,77 @@
             ctx.lineWidth = 0.9;
             ctx.stroke();
         }
+
+        drawPictureFrame(ctx) {
+            // Polaroid-style floating picture frame
+            const fw = 22; // half-width (44px wide)
+            const fh = 58; // full height
+            const topY = -fh + 14;
+
+            // Frame drop shadow on water
+            ctx.fillStyle = 'rgba(0, 20, 40, 0.35)';
+            ctx.beginPath();
+            ctx.roundRect(-fw - 2, topY - 2, (fw + 2) * 2, fh + 4, 3);
+            ctx.fill();
+
+            // Polaroid outer card (ivory white)
+            ctx.beginPath();
+            ctx.roundRect(-fw, topY, fw * 2, fh, 3);
+            ctx.fillStyle = '#f8fafc';
+            ctx.fill();
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Inner photo viewport
+            const pw = fw - 3.5;
+            const ph = 38;
+            const px = -pw;
+            const py = topY + 4;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(px, py, pw * 2, ph);
+            ctx.clip();
+
+            if (framePhotoImg.complete && framePhotoImg.naturalWidth > 0) {
+                ctx.drawImage(framePhotoImg, px, py, pw * 2, ph);
+            } else {
+                ctx.fillStyle = '#64748b';
+                ctx.fillRect(px, py, pw * 2, ph);
+            }
+
+            // Subtle glassy sheen across the photo
+            const glare = ctx.createLinearGradient(px, py, px + pw * 2, py + ph);
+            glare.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+            glare.addColorStop(0.5, 'rgba(255, 255, 255, 0.05)');
+            glare.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = glare;
+            ctx.fillRect(px, py, pw * 2, ph);
+            ctx.restore();
+
+            // Handwritten caption "Bading"
+            ctx.font = 'bold 7.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillStyle = '#334155';
+            ctx.textAlign = 'center';
+            ctx.fillText('Bading ❤', 0, topY + fh - 4.5);
+
+            // Washi tape accent on top
+            ctx.fillStyle = 'rgba(244, 63, 94, 0.85)';
+            ctx.beginPath();
+            ctx.roundRect(-8, topY - 3, 16, 5, 1);
+            ctx.fill();
+        }
     }
 
-    // Initialize random floating items pool
+    // Initialize random floating items pool (including picture frame)
     const floatingItems = [
-        new FloatingItem('boat', window.innerWidth * 0.12, 0.42, 1.05),
-        new FloatingItem('duck', window.innerWidth * 0.38, 0.58, 0.95),
-        new FloatingItem('basketball', window.innerWidth * 0.62, 0.48, 0.9),
-        new FloatingItem('tsinelas', window.innerWidth * 0.82, 0.38, 0.95),
-        new FloatingItem('leaf', window.innerWidth * 0.22, 0.32, 1.0)
+        new FloatingItem('boat', window.innerWidth * 0.08, 0.42, 1.05),
+        new FloatingItem('frame', window.innerWidth * 0.26, 0.36, 1.1),
+        new FloatingItem('duck', window.innerWidth * 0.48, 0.52, 0.95),
+        new FloatingItem('basketball', window.innerWidth * 0.68, 0.46, 0.9),
+        new FloatingItem('tsinelas', window.innerWidth * 0.86, 0.38, 0.95),
+        new FloatingItem('leaf', window.innerWidth * 0.16, 0.32, 1.0)
     ];
 
     class Raindrop {
