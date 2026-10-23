@@ -339,7 +339,7 @@
 
     function endTour(skipped = false) {
         isActive = false;
-        try { localStorage.setItem('hydro_walkthrough_seen', 'true'); } catch (e) {}
+        try { sessionStorage.setItem('hydro_walkthrough_seen', 'true'); } catch (e) {}
 
         if (sampleInspectorShown) {
             const pi = document.getElementById('pipe-inspector');
@@ -591,7 +591,7 @@
     // ── First-Visit Auto-Launch ─────────────────────────────────────────────────
     function checkFirstVisit() {
         try {
-            if (!localStorage.getItem('hydro_walkthrough_seen')) {
+            if (!sessionStorage.getItem('hydro_walkthrough_seen')) {
                 const checkReady = setInterval(() => {
                     const loading = document.getElementById('loading');
                     if (!loading || loading.style.display === 'none') {
