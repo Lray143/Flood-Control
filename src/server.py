@@ -19,6 +19,7 @@ from fastapi import FastAPI, BackgroundTasks, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response, RedirectResponse
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 
@@ -29,6 +30,13 @@ from src.utils.city_builder import build_procedural_city
 
 app = FastAPI(title="Flood Simulation")
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  1. WORLD DATA (SHARED READ-ONLY TOPOLOGY)
@@ -927,4 +935,6 @@ if __name__ == "__main__":
     if _os.environ.get("NO_BROWSER", "").lower() not in ("1", "true"):
         threading.Thread(target=_open_landing, daemon=True).start()
 
-    uvicorn.run("src.server:app", host="0.0.0.0", port=8000, reload=False)
+    port = int(_os.environ.get("PORT", 8000))
+    host = _os.environ.get("HOST", "0.0.0.0")
+    uvicorn.run("src.server:app", host=host, port=port, reload=False)
