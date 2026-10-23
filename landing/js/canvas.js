@@ -1106,8 +1106,8 @@
             this.x += this.speed;
             if (this.x > width + 100) {
                 if (this.type === 'frame') {
-                    // Stagger offscreen respawn smoothly so frames cycle continuously without clumping
-                    this.x = -120 - (width * (1.0 + Math.random() * 1.6));
+                    // Shorter respawn so frames appear more frequently
+                    this.x = -120 - (width * (0.6 + Math.random() * 1.0));
                     // Pick a unique photo not shown by any other visible frame
                     this.extra.imageIndex = pickUniqueFrameIndex(this);
                     this.extra.frameColor = FRAME_COLORS[Math.floor(Math.random() * FRAME_COLORS.length)];
@@ -1270,12 +1270,14 @@
         new FloatingItem('coconut',    window.innerWidth * 2.12, 0.41, 0.90, { depthRatio: 0.18 }),
         new FloatingItem('bamboo',     window.innerWidth * 2.30, 0.38, 1.0,  { depthRatio: 0.55 }),
 
-        // 5 Photo Frames evenly staggered (initial indices guaranteed distinct, no duplicates)
-        new FloatingItem('frame',      window.innerWidth * 0.12, 0.33, 1.0,  { imageIndex: 0, frameColor: '#ffffff', depthRatio: 0.38 }),
-        new FloatingItem('frame',      window.innerWidth * 0.72, 0.34, 1.0,  { imageIndex: 1 + Math.floor(Math.random() * 3), frameColor: '#fef08a', depthRatio: 0.42 }),
-        new FloatingItem('frame',      window.innerWidth * 1.36, 0.32, 1.0,  { imageIndex: 4 + Math.floor(Math.random() * 3), frameColor: '#bae6fd', depthRatio: 0.35 }),
-        new FloatingItem('frame',      window.innerWidth * 2.02, 0.35, 1.0,  { imageIndex: 7 + Math.floor(Math.random() * 3), frameColor: '#fed7aa', depthRatio: 0.40 }),
-        new FloatingItem('frame',      window.innerWidth * 2.68, 0.31, 1.0,  { imageIndex: 10 + Math.floor(Math.random() * 4), frameColor: '#e9d5ff', depthRatio: 0.32 })
+        // 7 Photo Frames staggered for higher frequency (initial indices non-overlapping, no duplicates)
+        new FloatingItem('frame',      window.innerWidth * 0.10, 0.34, 1.0,  { imageIndex: 0,  frameColor: '#ffffff', depthRatio: 0.38 }),
+        new FloatingItem('frame',      window.innerWidth * 0.55, 0.33, 1.0,  { imageIndex: 1 + Math.floor(Math.random() * 2), frameColor: '#fef08a', depthRatio: 0.42 }),
+        new FloatingItem('frame',      window.innerWidth * 1.00, 0.35, 1.0,  { imageIndex: 3 + Math.floor(Math.random() * 2), frameColor: '#bae6fd', depthRatio: 0.35 }),
+        new FloatingItem('frame',      window.innerWidth * 1.45, 0.32, 1.0,  { imageIndex: 5 + Math.floor(Math.random() * 2), frameColor: '#fed7aa', depthRatio: 0.40 }),
+        new FloatingItem('frame',      window.innerWidth * 1.90, 0.34, 1.0,  { imageIndex: 7 + Math.floor(Math.random() * 2), frameColor: '#e9d5ff', depthRatio: 0.32 }),
+        new FloatingItem('frame',      window.innerWidth * 2.35, 0.33, 1.0,  { imageIndex: 9 + Math.floor(Math.random() * 2), frameColor: '#bbf7d0', depthRatio: 0.44 }),
+        new FloatingItem('frame',      window.innerWidth * 2.80, 0.31, 1.0,  { imageIndex: 11 + Math.floor(Math.random() * 3), frameColor: '#fed1d1', depthRatio: 0.36 })
     ];
 
     class Raindrop {
