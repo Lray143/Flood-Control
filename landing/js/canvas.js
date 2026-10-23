@@ -27,12 +27,41 @@
     window.addEventListener('resize', resize);
     resize();
 
+    // ── KEYBIND: Left Ctrl + Right Ctrl to Toggle Floating Items ────────────
+    window.HydroItemsHidden = false;
+    let keyCtrlLeft = false;
+    let keyCtrlRight = false;
+    let ctrlDebounce = false;
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'ControlLeft') keyCtrlLeft = true;
+        if (e.code === 'ControlRight') keyCtrlRight = true;
+
+        if (keyCtrlLeft && keyCtrlRight && !ctrlDebounce) {
+            ctrlDebounce = true;
+            window.HydroItemsHidden = !window.HydroItemsHidden;
+            if (window.HydroItemsHidden && dragged2DItem) {
+                dragged2DItem.isDragging = false;
+                dragged2DItem = null;
+                window._2dItemDragging = false;
+                document.body.style.cursor = '';
+            }
+            setTimeout(() => { ctrlDebounce = false; }, 350);
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'ControlLeft') keyCtrlLeft = false;
+        if (e.code === 'ControlRight') keyCtrlRight = false;
+    });
+
     // 2D item drag state
     let dragged2DItem = null;
     let drag2DOffsetX = 0;
     let drag2DOffsetY = 0;
 
     window.addEventListener('pointermove', (e) => {
+        if (window.HydroItemsHidden) return;
         mouse.x = e.clientX;
         mouse.y = e.clientY;
         mouse.active = true;
@@ -72,6 +101,7 @@
     });
 
     window.addEventListener('pointerdown', (e) => {
+        if (window.HydroItemsHidden) return;
         if (e.target.closest('a, button, input, [role="button"]')) return;
         if (window._3dPlayerDragging) return;
 
@@ -694,12 +724,26 @@
             ctx.roundRect(px, py, pw * 2, ph, 2);
             ctx.clip();
 
-            const img = frameImages[imgIdx % frameImages.length];
+            const isNormal = extra && extra.isNormal;
+            const img = (isNormal || imgIdx < 0) ? null : frameImages[imgIdx % frameImages.length];
             if (img && img.complete && img.naturalWidth > 0) {
                 ctx.drawImage(img, px, py, pw * 2, ph);
             } else {
-                ctx.fillStyle = '#475569';
+                // "Normal" photo frame: clean warm-tinted photographic paper with subtle gradient
+                const cardGrad = ctx.createLinearGradient(px, py, px + pw * 2, py + ph);
+                cardGrad.addColorStop(0, '#f8fafc');
+                cardGrad.addColorStop(0.5, '#f1f5f9');
+                cardGrad.addColorStop(1, '#e2e8f0');
+                ctx.fillStyle = cardGrad;
                 ctx.fillRect(px, py, pw * 2, ph);
+
+                // Subtle photo emulsion sheen line
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(px + 4, py + 4);
+                ctx.lineTo(px + pw * 2 - 4, py + 4);
+                ctx.stroke();
             }
 
             // Glass glare sheen
@@ -775,9 +819,7 @@
                     this.x = this.dropX;
                     this.baseAngle = (Math.random() - 0.5) * 0.55;
                     this.depthRatio = 0.05 + Math.random() * 0.70;
-                    if (this.type === 'frame') {
-                        this.extra.imageIndex = Math.floor(Math.random() * frameImages.length);
-                    }
+                    // Photo keeps its picture when dropped (no random swap)
                     this.isDropping = false;
                     this.hoverCooldown = 80;
                 }
@@ -786,12 +828,19 @@
 
             this.x += this.speed;
             if (this.x > width + 100) {
-                this.x = -100;
-                // Re-randomize depth, orientation, and colors when looping around
+                // Natural random delay before looping around so items don't march constantly
+                this.x = -100 - Math.random() * (width * 0.75 + 150);
                 this.depthRatio = 0.05 + Math.random() * 0.75;
                 this.baseAngle = (Math.random() - 0.5) * 0.55;
                 if (this.type === 'frame') {
-                    this.extra.imageIndex = Math.floor(Math.random() * frameImages.length);
+                    // Sometimes a photo, sometimes a normal clean vintage polaroid
+                    if (Math.random() < 0.65) {
+                        this.extra.isNormal = false;
+                        this.extra.imageIndex = Math.floor(Math.random() * frameImages.length);
+                    } else {
+                        this.extra.isNormal = true;
+                        this.extra.imageIndex = -1;
+                    }
                     this.extra.frameColor = FRAME_COLORS[Math.floor(Math.random() * FRAME_COLORS.length)];
                     this.extra.tapeColor = FRAME_TAPES[Math.floor(Math.random() * FRAME_TAPES.length)];
                 }
@@ -1139,10 +1188,12 @@
             ctx.stroke();
 
             // Subtle surface foam reflection dots
-            // D. Draw floating water items
-            for (let item of floatingItems) {
-                item.update(floodSurfaceY);
-                item.draw(ctx, floodSurfaceY);
+            // D. Draw floating water items (hidden when Left Ctrl + Right Ctrl toggled)
+            if (!window.HydroItemsHidden) {
+                for (let item of floatingItems) {
+                    item.update(floodSurfaceY);
+                    item.draw(ctx, floodSurfaceY);
+                }
             }
             ctx.fillStyle = 'rgba(220, 245, 255, 0.4)';
             for (let k = 0; k < 6; k++) {

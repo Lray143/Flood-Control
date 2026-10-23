@@ -146,6 +146,11 @@ html, body {
     align-items: center;
     width: 100%;
     animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    pointer-events: auto;
+}
+
+.landing-header * {
+    pointer-events: auto;
 }
 
 .brand-wrapper {
@@ -345,6 +350,7 @@ html, body {
     overflow: hidden;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 10;
+    pointer-events: auto !important;
 }
 
 /* Refined compact button in top header */
@@ -494,6 +500,11 @@ html, body {
     padding-top: clamp(0.6rem, 1.2vh, 1rem);
     border-top: 1px solid rgba(79, 172, 254, 0.1);
     animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+    pointer-events: auto;
+}
+
+.landing-footer * {
+    pointer-events: auto;
 }
 
 .footer-left {

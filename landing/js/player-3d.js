@@ -119,6 +119,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     let airY = 0;         // current Y in screen coords while held/falling
     let dropVy = 0;       // gravity while falling after release
     let currentRenderedY = height * 0.82; // live tracked Y for screen hit testing
+    let isOffscreen = false;
+    let nextSpawnTime = 0;
 
     let rippleTick = 0;
 
@@ -147,7 +149,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     }
 
     function isHit(ex, ey) {
-        if (!isLoaded) return false;
+        if (!isLoaded || isOffscreen || window.HydroItemsHidden) return false;
         // 1. Screen proximity check: player is ~100px wide x 185px tall
         const dx = Math.abs(ex - playerScreenX);
         const dy = Math.abs(ey - currentRenderedY);
@@ -163,6 +165,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
     // ── POINTER EVENTS (Global Window Listeners) ──────────────────────────────
     window.addEventListener('pointerdown', (e) => {
+        if (window.HydroItemsHidden || isOffscreen) return;
         if (e.target.closest('a, button, input, [role="button"]')) return;
         if (!isLoaded) return;
         if (window._2dItemDragging) return;
@@ -181,6 +184,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     });
 
     window.addEventListener('pointermove', (e) => {
+        if (window.HydroItemsHidden || isOffscreen) return;
         if (isDragging) {
             playerScreenX = e.clientX - dragOffsetX;
             airY = e.clientY - dragOffsetY;
@@ -223,14 +227,28 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         let time = now * 0.001;
         if (window.HydroWater) time = window.HydroWater.getTime();
 
-        // Drift across the screen unless held or falling
-        if (!isDragging && dropVy === 0) {
+        // Handle offscreen wait interval (sometimes visible, sometimes quiet)
+        if (window.HydroItemsHidden || isOffscreen || !isLoaded) {
+            playerGroup.visible = false;
+        } else {
+            playerGroup.visible = true;
+        }
+
+        if (isOffscreen) {
+            if (performance.now() >= nextSpawnTime) {
+                isOffscreen = false;
+                playerScreenX = -120;
+                depthRatio = 0.08 + Math.random() * 0.65;
+                baseYaw = (Math.random() - 0.5) * 0.55;
+                driftSpeed = 0.28 + Math.random() * 0.24;
+            }
+        } else if (!isDragging && dropVy === 0) {
             playerScreenX += driftSpeed;
             if (playerScreenX > width + 120) {
-                playerScreenX = -120;
-                depthRatio = 0.05 + Math.random() * 0.70;
-                baseYaw = (Math.random() - 0.5) * 0.5;
-                driftSpeed = 0.28 + Math.random() * 0.22;
+                // Exit right edge: quiet interval of 12 to 36 seconds before next arrival
+                isOffscreen = true;
+                const delayMs = 12000 + Math.random() * 24000;
+                nextSpawnTime = performance.now() + delayMs;
             }
         }
 
