@@ -55,6 +55,14 @@
         if (e.code === 'ControlRight') keyCtrlRight = false;
     });
 
+        // ── HOLD RIGHT CLICK ON 2D ITEM TO POP LIKE A BUBBLE ───────────────────
+    let rightClick2DItem = null;
+
+    window.addEventListener('contextmenu', (e) => {
+        // Prevent default context menu so right-click hold works seamlessly
+        e.preventDefault();
+    });
+
     // 2D item drag state
     let dragged2DItem = null;
     let drag2DOffsetX = 0;
@@ -105,34 +113,61 @@
         if (e.target.closest('a, button, input, [role="button"]')) return;
         if (window._3dPlayerDragging) return;
 
-        // Generous hit test for 2D floating items
         const hitRadius = 55;
-        for (let item of floatingItems) {
-            const ix = item.isDragging ? item.dragX : item.x;
-            const iy = item.isDragging ? item.dragY : item._lastDrawY;
-            if (ix === undefined || iy === undefined) continue;
-            const dx = Math.abs(e.clientX - ix);
-            const dy = Math.abs(e.clientY - iy);
-            if (dx < hitRadius && dy < hitRadius) {
-                dragged2DItem = item;
-                window._2dItemDragging = true;
-                item.isDragging = true;
-                item.hoverCooldown = 999;
-                item.jumpY = 0;
-                item.jumpVy = 0;
-                drag2DOffsetX = e.clientX - ix;
-                drag2DOffsetY = e.clientY - iy;
-                item.dragX = ix;
-                item.dragY = iy;
-                document.body.style.cursor = 'grabbing';
-                e.preventDefault();
-                e.stopPropagation();
-                break;
+
+        // Right click hold: bubble pop
+        if (e.button === 2) {
+            for (let item of floatingItems) {
+                const ix = item.isDragging ? item.dragX : item.x;
+                const iy = item.isDragging ? item.dragY : item._lastDrawY;
+                if (ix === undefined || iy === undefined) continue;
+                if (Math.abs(e.clientX - ix) < hitRadius && Math.abs(e.clientY - iy) < hitRadius) {
+                    rightClick2DItem = item;
+                    item.isPopping = true;
+                    item.popProgress = 0;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    break;
+                }
+            }
+            return;
+        }
+
+        // Left click: drag & drop
+        if (e.button === 0) {
+            for (let item of floatingItems) {
+                const ix = item.isDragging ? item.dragX : item.x;
+                const iy = item.isDragging ? item.dragY : item._lastDrawY;
+                if (ix === undefined || iy === undefined) continue;
+                const dx = Math.abs(e.clientX - ix);
+                const dy = Math.abs(e.clientY - iy);
+                if (dx < hitRadius && dy < hitRadius) {
+                    dragged2DItem = item;
+                    window._2dItemDragging = true;
+                    item.isDragging = true;
+                    item.hoverCooldown = 999;
+                    item.jumpY = 0;
+                    item.jumpVy = 0;
+                    drag2DOffsetX = e.clientX - ix;
+                    drag2DOffsetY = e.clientY - iy;
+                    item.dragX = ix;
+                    item.dragY = iy;
+                    document.body.style.cursor = 'grabbing';
+                    e.preventDefault();
+                    e.stopPropagation();
+                    break;
+                }
             }
         }
     });
 
-    window.addEventListener('pointerup', () => {
+    window.addEventListener('pointerup', (e) => {
+        if (e.button === 2 && rightClick2DItem) {
+            rightClick2DItem.isPopping = false;
+            rightClick2DItem.popProgress = 0;
+            rightClick2DItem = null;
+        }
+
         if (dragged2DItem) {
             const item = dragged2DItem;
             dragged2DItem = null;
@@ -141,10 +176,11 @@
             item.hoverCooldown = 60;
             document.body.style.cursor = '';
 
-            // Gentle float-down drop physics (smooth, natural, not dropping too fast)
+            // Gentle float-down drop physics with start height recorded for dynamic splash
             item.dropX = item.dragX;
             item.dropY = item.dragY;
-            item.dropVy = 0.4;
+            item.startDropY = item.dragY;
+            item.dropVy = 0.3;
             item.isDropping = true;
         }
     });
@@ -228,6 +264,7 @@
         getFloodHeight: function () {
             return getFloodHeight(performance.now());
         },
+        createBubblePop: createBubblePop,
         getDimensions: function () {
             return { width, height };
         }
@@ -724,26 +761,19 @@
             ctx.roundRect(px, py, pw * 2, ph, 2);
             ctx.clip();
 
-            const isNormal = extra && extra.isNormal;
-            const img = (isNormal || imgIdx < 0) ? null : frameImages[imgIdx % frameImages.length];
+            const safeIdx = Math.abs(imgIdx || 0) % frameImages.length;
+            const img = frameImages[safeIdx];
             if (img && img.complete && img.naturalWidth > 0) {
                 ctx.drawImage(img, px, py, pw * 2, ph);
             } else {
-                // "Normal" photo frame: clean warm-tinted photographic paper with subtle gradient
-                const cardGrad = ctx.createLinearGradient(px, py, px + pw * 2, py + ph);
-                cardGrad.addColorStop(0, '#f8fafc');
-                cardGrad.addColorStop(0.5, '#f1f5f9');
-                cardGrad.addColorStop(1, '#e2e8f0');
-                ctx.fillStyle = cardGrad;
-                ctx.fillRect(px, py, pw * 2, ph);
-
-                // Subtle photo emulsion sheen line
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(px + 4, py + 4);
-                ctx.lineTo(px + pw * 2 - 4, py + 4);
-                ctx.stroke();
+                // Instant fallback: draw first photo (team group photo)
+                const fallbackImg = frameImages[0];
+                if (fallbackImg && fallbackImg.complete && fallbackImg.naturalWidth > 0) {
+                    ctx.drawImage(fallbackImg, px, py, pw * 2, ph);
+                } else {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillRect(px, py, pw * 2, ph);
+                }
             }
 
             // Glass glare sheen
@@ -802,24 +832,46 @@
             // While being dragged or dropping, skip normal drift physics
             if (this.isDragging) return;
 
+            // Handle right-click bubble pop
+            if (this.isPopping) {
+                this.popProgress += 0.055;
+                if (this.popProgress >= 1.0) {
+                    createBubblePop(this.x, this._lastDrawY || floodSurfaceY);
+                    this.isPopping = false;
+                    this.popProgress = 0;
+                    // Disappear and respawn far offscreen
+                    this.x = -150 - Math.random() * (width * 1.6 + 400);
+                    this.depthRatio = 0.05 + Math.random() * 0.75;
+                    if (this.type === 'frame') {
+                        this.extra.imageIndex = Math.floor(Math.random() * frameImages.length);
+                    }
+                    return;
+                }
+            }
+
             if (this.isDropping) {
                 const surfaceY = getWaterSurfaceY(this.dropX, floodSurfaceY);
                 const waterH = Math.max(30, height - surfaceY);
                 const avail = Math.max(10, waterH - 35);
                 const targetY = surfaceY + this.depthRatio * avail;
                 this.dropY += this.dropVy;
-                this.dropVy = Math.min(4.2, this.dropVy + 0.16); // Gentle float-down gravity
+                this.dropVy = Math.min(4.5, this.dropVy + 0.16);
                 if (this.dropY >= targetY) {
-                    const impact = Math.min(this.dropVy * 2.2, 10);
-                    createSplash(this.dropX, surfaceY, Math.round(impact * 1.5));
+                    // Dynamic splash based on drop height!
+                    const fallDistance = Math.max(10, targetY - (this.startDropY || surfaceY));
+                    const heightRatio = Math.min(3.5, Math.max(0.4, fallDistance / 120));
+                    const impact = Math.min(this.dropVy * 2.0 * heightRatio, 24);
+                    const splashCount = Math.round(Math.min(32, Math.max(4, heightRatio * 12)));
+                    createSplash(this.dropX, surfaceY, splashCount);
                     createRipple(this.dropX, surfaceY);
-                    createRipple(this.dropX - 20, surfaceY);
-                    createRipple(this.dropX + 20, surfaceY);
-                    this.jumpVy = -impact * 0.45;
+                    if (heightRatio > 1.2) {
+                        createRipple(this.dropX - 22, surfaceY);
+                        createRipple(this.dropX + 22, surfaceY);
+                    }
+                    this.jumpVy = -impact * 0.42;
                     this.x = this.dropX;
                     this.baseAngle = (Math.random() - 0.5) * 0.55;
                     this.depthRatio = 0.05 + Math.random() * 0.70;
-                    // Photo keeps its picture when dropped (no random swap)
                     this.isDropping = false;
                     this.hoverCooldown = 80;
                 }
@@ -833,13 +885,13 @@
                 this.depthRatio = 0.05 + Math.random() * 0.75;
                 this.baseAngle = (Math.random() - 0.5) * 0.55;
                 if (this.type === 'frame') {
-                    // Sometimes a photo, sometimes a normal clean vintage polaroid
-                    if (Math.random() < 0.65) {
-                        this.extra.isNormal = false;
-                        this.extra.imageIndex = Math.floor(Math.random() * frameImages.length);
+                    // Stagger offscreen respawn (1.2 to 2.8 screen widths away) so frames never appear at the same time
+                    this.x = -120 - (width * (1.2 + Math.random() * 1.6));
+                    // 35% chance: normal group photo; 65% chance: one of the 13 funny photos
+                    if (Math.random() < 0.35) {
+                        this.extra.imageIndex = 0;
                     } else {
-                        this.extra.isNormal = true;
-                        this.extra.imageIndex = -1;
+                        this.extra.imageIndex = 1 + Math.floor(Math.random() * (frameImages.length - 1));
                     }
                     this.extra.frameColor = FRAME_COLORS[Math.floor(Math.random() * FRAME_COLORS.length)];
                     this.extra.tapeColor = FRAME_TAPES[Math.floor(Math.random() * FRAME_TAPES.length)];
@@ -914,7 +966,14 @@
             ctx.save();
             ctx.translate(drawX, drawY);
             ctx.rotate(drawAngle);
-            ctx.scale(this.scale, this.scale);
+                        let renderScale = this.scale;
+            if (this.isPopping) {
+                // Swell, wobble and fade like a soap bubble about to burst
+                const wobble = Math.sin(time * 35) * 0.08 * this.popProgress;
+                renderScale = this.scale * (1 + this.popProgress * 0.35) + wobble;
+                ctx.globalAlpha = Math.max(0.12, 1 - this.popProgress * 0.65);
+            }
+            ctx.scale(renderScale, renderScale);
 
             // Shadow (lift shadow when dragging for "held" look)
             if (!this.isDragging && !this.isDropping) {
@@ -950,8 +1009,8 @@
         new FloatingItem('basketball', window.innerWidth * 0.36, 0.46, 0.9,  { depthRatio: 0.52 }),
         new FloatingItem('watermelon', window.innerWidth * 0.44, 0.42, 1.0,  { depthRatio: 0.15 }),
         new FloatingItem('coconut',    window.innerWidth * 0.52, 0.40, 0.95, { depthRatio: 0.78 }),
-        // First rare photo frame
-        new FloatingItem('frame',      window.innerWidth * 0.60, 0.33, 1.0,  { imageIndex: Math.floor(Math.random() * 14), frameColor: '#ffffff', depthRatio: 0.38 }),
+        // Photo Frame 1 (visible on water)
+        new FloatingItem('frame',      window.innerWidth * 0.58, 0.33, 1.0,  { imageIndex: 0, frameColor: '#ffffff', depthRatio: 0.38 }),
         new FloatingItem('soccer',     window.innerWidth * 0.68, 0.48, 0.95, { depthRatio: 0.58 }),
         new FloatingItem('tsinelas',   window.innerWidth * 0.74, 0.38, 0.95, { depthRatio: 0.08 }),
         new FloatingItem('bottle',     window.innerWidth * 0.80, 0.48, 1.0,  { depthRatio: 0.62 }),
@@ -963,8 +1022,10 @@
         new FloatingItem('leaf',       window.innerWidth * 0.96, 0.30, 0.9,  { depthRatio: 0.22 }),
         new FloatingItem('coconut',    window.innerWidth * 0.08, 0.38, 0.85, { depthRatio: 0.60 }),
         new FloatingItem('soda',       window.innerWidth * 0.40, 0.42, 0.9,  { depthRatio: 0.48 }),
-        // Second rare photo frame (far away from first)
-        new FloatingItem('frame',      window.innerWidth * 1.40, 0.34, 1.0,  { imageIndex: Math.floor(Math.random() * 14), frameColor: '#fef08a', depthRatio: 0.42 })
+        // Photo Frame 2 (staggered ~15s away)
+        new FloatingItem('frame',      window.innerWidth * 1.55, 0.34, 1.0,  { imageIndex: 1 + Math.floor(Math.random() * 6), frameColor: '#fef08a', depthRatio: 0.42 }),
+        // Photo Frame 3 (staggered ~35s away)
+        new FloatingItem('frame',      window.innerWidth * 2.65, 0.31, 1.0,  { imageIndex: 7 + Math.floor(Math.random() * 6), frameColor: '#fed7aa', depthRatio: 0.32 })
     ];
 
     class Raindrop {
@@ -1040,6 +1101,32 @@
     }
 
     // ── SPLASHES & RIPPLES ──────────────────────────────────────────────────
+        // ── BUBBLE POP PARTICLE SYSTEM ──────────────────────────────────────────
+    const bubbleParticles = [];
+
+    function createBubblePop(x, y) {
+        createSplash(x, y, 14);
+        createRipple(x, y);
+        createRipple(x - 20, y);
+        createRipple(x + 20, y);
+
+        // Spawn 16 iridescent bubble particles that expand and pop outward
+        for (let i = 0; i < 16; i++) {
+            const angle = (i / 16) * Math.PI * 2 + Math.random() * 0.4;
+            const speed = 1.8 + Math.random() * 3.5;
+            bubbleParticles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 1.2,
+                radius: 3.5 + Math.random() * 5.5,
+                alpha: 0.9,
+                colorHue: 185 + Math.random() * 40,
+                decay: 0.038 + Math.random() * 0.024
+            });
+        }
+    }
+
     function createSplash(x, y, count) {
         if (splashes.length > 80) splashes.splice(0, 15);
         for (let i = 0; i < count; i++) {
@@ -1101,6 +1188,38 @@
         for (let drop of raindrops) {
             drop.update(floodSurfaceY);
             drop.draw();
+        }
+
+                // Draw bubble pop particles
+        for (let i = bubbleParticles.length - 1; i >= 0; i--) {
+            const b = bubbleParticles[i];
+            b.x += b.vx;
+            b.y += b.vy;
+            b.vx *= 0.94;
+            b.vy *= 0.94;
+            b.radius *= 0.97;
+            b.alpha -= b.decay;
+
+            if (b.alpha <= 0 || b.radius <= 0.5) {
+                bubbleParticles.splice(i, 1);
+                continue;
+            }
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${b.colorHue}, 90%, 75%, ${b.alpha * 0.4})`;
+            ctx.fill();
+            ctx.strokeStyle = `hsla(${b.colorHue}, 100%, 85%, ${b.alpha * 0.85})`;
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+
+            // Reflection highlight inside bubble
+            ctx.beginPath();
+            ctx.arc(b.x - b.radius * 0.35, b.y - b.radius * 0.35, b.radius * 0.28, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${b.alpha * 0.9})`;
+            ctx.fill();
+            ctx.restore();
         }
 
         // 2. Draw ground / water impact ripples

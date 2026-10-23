@@ -637,50 +637,53 @@ html, body {
     }
 }
 
-/* ── Floating Hint for 3D Bust Statue ── */
-.bust-floating-hint {
+/* ── Floating Hint Beside 3D Models (Small, No Background) ── */
+.model-floating-hint {
     position: fixed;
     top: 0;
     left: 0;
     pointer-events: none;
     z-index: 6;
     opacity: 0;
-    transform: translate(-50%, -100%);
-    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateY(-50%);
+    transition: opacity 0.25s ease;
     will-change: left, top, opacity;
 }
 
-.bust-floating-hint.visible {
+.model-floating-hint.visible {
     opacity: 1;
 }
 
-.bust-floating-hint .hint-bubble {
+.model-floating-hint .hint-content {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    background: rgba(4, 18, 36, 0.92);
-    border: 1px solid rgba(0, 229, 255, 0.55);
-    color: #e0f7ff;
-    padding: 3px 9px;
-    border-radius: 999px;
+    gap: 4px;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    color: #00e5ff;
     font-family: var(--font-mono);
-    font-size: 0.68rem;
-    font-weight: 600;
+    font-size: 0.58rem;
+    font-weight: 700;
     letter-spacing: 0.04em;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 0 12px rgba(0, 229, 255, 0.25);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    text-transform: lowercase;
+    text-shadow: 0 0 8px rgba(0, 229, 255, 0.9), 0 1px 3px rgba(0, 0, 0, 0.95);
     white-space: nowrap;
-    animation: hint-bob 1.8s ease-in-out infinite;
+    animation: hint-nudge 1.6s ease-in-out infinite;
 }
 
-.bust-floating-hint .hint-arrow {
-    width: 12px;
-    height: 12px;
+.model-floating-hint .hint-arrow {
+    width: 11px;
+    height: 11px;
     stroke: #00e5ff;
+    filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.9));
 }
 
-@keyframes hint-bob {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-3px); }
+@keyframes hint-nudge {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(3px); }
 }

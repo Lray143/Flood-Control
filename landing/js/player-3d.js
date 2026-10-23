@@ -228,6 +228,42 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         }
     });
 
+        // ── HOLD RIGHT CLICK ON 3D MODEL TO POP LIKE A BUBBLE ────────────────────
+    let rightClick3DModel = null;
+    let rightClick3DProgress = 0;
+
+    window.addEventListener('contextmenu', (e) => {
+        // Prevent browser menu when interacting with 3D models
+        if (isHitPlayer(e.clientX, e.clientY) || isHitBust(e.clientX, e.clientY)) {
+            e.preventDefault();
+        }
+    });
+
+    window.addEventListener('pointerdown', (e) => {
+        if (e.button === 2) {
+            if (isHitPlayer(e.clientX, e.clientY)) {
+                rightClick3DModel = 'player';
+                rightClick3DProgress = 0;
+                e.preventDefault();
+                e.stopPropagation();
+            } else if (isHitBust(e.clientX, e.clientY)) {
+                rightClick3DModel = 'bust';
+                rightClick3DProgress = 0;
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+    });
+
+    window.addEventListener('pointerup', (e) => {
+        if (e.button === 2) {
+            if (rightClick3DModel === 'player' && playerGroup) playerGroup.scale.set(1, 1, 1);
+            if (rightClick3DModel === 'bust' && bustGroup) bustGroup.scale.set(1, 1, 1);
+            rightClick3DModel = null;
+            rightClick3DProgress = 0;
+        }
+    });
+
     // ── DRAG & DROP POINTER EVENTS ───────────────────────────────────────────
     window.addEventListener('pointerdown', (e) => {
         if (window.HydroItemsHidden) return;
@@ -283,15 +319,20 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         }
     });
 
+    let playerStartDropY = 0;
+    let bustStartDropY = 0;
+
     window.addEventListener('pointerup', () => {
         if (bustIsDragging) {
             bustIsDragging = false;
-            bustDropVy = 0.4; // gentle float down
+            bustDropVy = 0.3;
+            bustStartDropY = bustAirY;
             bustDepthRatio = 0.10 + Math.random() * 0.60;
         }
         if (playerIsDragging) {
             playerIsDragging = false;
-            playerDropVy = 0.4; // gentle float down
+            playerDropVy = 0.3;
+            playerStartDropY = playerAirY;
             playerDepthRatio = 0.08 + Math.random() * 0.65;
             playerBaseYaw = (Math.random() - 0.5) * 0.5;
             playerDriftSpeed = 0.28 + Math.random() * 0.22;
@@ -320,6 +361,38 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         const now = performance.now();
         let time = now * 0.001;
         if (window.HydroWater) time = window.HydroWater.getTime();
+
+                // Check 3D right-click bubble pop
+        if (rightClick3DModel === 'player' && playerGroup.visible) {
+            rightClick3DProgress += 0.05;
+            const wobble = 1 + rightClick3DProgress * 0.35 + Math.sin(now * 0.05) * 0.06;
+            playerGroup.scale.set(wobble, wobble, wobble);
+            if (rightClick3DProgress >= 1.0) {
+                if (window.HydroWater && window.HydroWater.createBubblePop) {
+                    window.HydroWater.createBubblePop(playerScreenX, playerRenderedY);
+                }
+                playerGroup.scale.set(1, 1, 1);
+                playerIsOffscreen = true;
+                playerNextSpawn = now + 16000 + Math.random() * 24000;
+                rightClick3DModel = null;
+                rightClick3DProgress = 0;
+            }
+        }
+        if (rightClick3DModel === 'bust' && bustGroup.visible) {
+            rightClick3DProgress += 0.05;
+            const wobble = 1 + rightClick3DProgress * 0.35 + Math.sin(now * 0.05) * 0.06;
+            bustGroup.scale.set(wobble, wobble, wobble);
+            if (rightClick3DProgress >= 1.0) {
+                if (window.HydroWater && window.HydroWater.createBubblePop) {
+                    window.HydroWater.createBubblePop(bustScreenX, bustRenderedY);
+                }
+                bustGroup.scale.set(1, 1, 1);
+                bustIsOffscreen = true;
+                bustNextSpawn = now + 18000 + Math.random() * 26000;
+                rightClick3DModel = null;
+                rightClick3DProgress = 0;
+            }
+        }
 
         const dims = window.HydroWater ? window.HydroWater.getDimensions() : { width, height };
 
@@ -360,13 +433,21 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
             playerAirY += playerDropVy;
             playerDropVy = Math.min(4.2, playerDropVy + 0.16);
             if (playerAirY >= playerTargetBaseY) {
-                const impact = Math.min(playerDropVy * 2.2, 10);
-                playerBounceVy = -impact * 0.45;
+                // Dynamic splash based on drop height (higher drop = bigger splash & deeper bounce!)
+                const fallDistance = Math.max(10, playerTargetBaseY - playerStartDropY);
+                const heightRatio = Math.min(3.5, Math.max(0.4, fallDistance / 120));
+                const impact = Math.min(playerDropVy * 2.0 * heightRatio, 24);
+                playerBounceVy = -impact * 0.42;
                 playerDropVy = 0;
                 playerAirY = playerTargetBaseY;
                 if (window.HydroWater) {
-                    window.HydroWater.createSplash(playerScreenX, playerSY, Math.round(impact * 1.5));
+                    const splashCount = Math.round(THREE.MathUtils.clamp(heightRatio * 12, 4, 32));
+                    window.HydroWater.createSplash(playerScreenX, playerSY, splashCount);
                     window.HydroWater.createRipple(playerScreenX, playerSY);
+                    if (heightRatio > 1.2) {
+                        window.HydroWater.createRipple(playerScreenX - 25, playerSY);
+                        window.HydroWater.createRipple(playerScreenX + 25, playerSY);
+                    }
                 }
             }
             finalPlayerY = playerAirY;
@@ -450,13 +531,20 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
             bustAirY += bustDropVy;
             bustDropVy = Math.min(4.2, bustDropVy + 0.16);
             if (bustAirY >= bustTargetBaseY) {
-                const impact = Math.min(bustDropVy * 2.2, 10);
-                bustBounceVy = -impact * 0.45;
+                const fallDistance = Math.max(10, bustTargetBaseY - bustStartDropY);
+                const heightRatio = Math.min(3.5, Math.max(0.4, fallDistance / 120));
+                const impact = Math.min(bustDropVy * 2.0 * heightRatio, 24);
+                bustBounceVy = -impact * 0.42;
                 bustDropVy = 0;
                 bustAirY = bustTargetBaseY;
                 if (window.HydroWater) {
-                    window.HydroWater.createSplash(bustScreenX, bustSY, Math.round(impact * 1.5));
+                    const splashCount = Math.round(THREE.MathUtils.clamp(heightRatio * 12, 4, 32));
+                    window.HydroWater.createSplash(bustScreenX, bustSY, splashCount);
                     window.HydroWater.createRipple(bustScreenX, bustSY);
+                    if (heightRatio > 1.2) {
+                        window.HydroWater.createRipple(bustScreenX - 25, bustSY);
+                        window.HydroWater.createRipple(bustScreenX + 25, bustSY);
+                    }
                 }
             }
             finalBustY = bustAirY;
