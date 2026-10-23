@@ -608,7 +608,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
                 } else {
                     bustHint.style.left = `${bustScreenX + 44}px`;
                 }
-                bustHint.style.top = `${bustRenderedY - 12}px`;
+                bustHint.style.top = `${bustRenderedY - 90}px`;
             } else {
                 bustHint.classList.remove('visible');
             }
