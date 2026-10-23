@@ -185,6 +185,34 @@
             padding-bottom: 10px;
         }
 
+        a.logo-brand,
+        a.logo-brand:link,
+        a.logo-brand:visited,
+        a.logo-brand:hover,
+        a.logo-brand:active {
+            display: inline-flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 10px !important;
+            text-decoration: none !important;
+            color: #5dade2 !important;
+            cursor: pointer !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+
+        a.logo-brand:hover {
+            opacity: 0.88;
+            filter: drop-shadow(0 0 6px rgba(93, 173, 226, 0.4));
+            transform: translateX(1px);
+        }
+
+        a.logo-brand .logo-title,
+        a.logo-brand:visited .logo-title {
+            text-decoration: none !important;
+            color: #5dade2 !important;
+        }
+
         .logo-badge {
             display: flex;
             align-items: center;

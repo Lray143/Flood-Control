@@ -13,10 +13,11 @@ import threading
 import gzip as _gzip
 import time as _time
 import json as _json
+import os as _os
 import numpy as np
 from fastapi import FastAPI, BackgroundTasks, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, RedirectResponse
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -886,13 +887,40 @@ def reset(request: Request = None):
     session.do_reset()
     return {"ok": True}
 
-# ── Static Files & Root ───────────────────────────────────────────────────────
+# ── Static Files & Routing ─────────────────────────────────────────────────────
+@app.get("/static/index.html")
+@app.get("/static")
+@app.get("/static/")
+@app.get("/index.html")
+def redirect_to_landing():
+    """Ensure any direct index.html or root static requests always route to landing page first."""
+    return RedirectResponse(url="/", status_code=307)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/landing", StaticFiles(directory="landing"), name="landing")
 
 @app.get("/")
 def root():
+    """1-page non-scrollable landing page with direct route to simulation."""
+    return FileResponse("landing/index.html")
+
+@app.get("/simulation")
+@app.get("/sim")
+def simulation_view():
+    """Main 3D WebGL Hydrodynamic Digital Twin simulation system."""
     return FileResponse("static/index.html")
 
 if __name__ == "__main__":
     import uvicorn
+    import webbrowser
+    import threading
+    import time
+
+    def _open_landing():
+        time.sleep(1.2)
+        webbrowser.open("http://localhost:8000/")
+
+    if _os.environ.get("NO_BROWSER", "").lower() not in ("1", "true"):
+        threading.Thread(target=_open_landing, daemon=True).start()
+
     uvicorn.run("src.server:app", host="0.0.0.0", port=8000, reload=False)

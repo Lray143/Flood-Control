@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Barangay 168 (Deparo) • 3D Dual-Domain Flood Simulation Digital Twin</title>
+    <meta name="description" content="See how rainwater may move across the streets of Deparo and through its storm drains. 368 manholes, 369 conduits and 8 subdivision zones run in one coupled model.">
+    
+    <!-- Design System Stylesheet -->
+    <link rel="stylesheet" href="/landing/css/style.css">
+</head>
+<body>
+
+    <!-- Dynamic Hydrodynamic Streamline Canvas -->
+    <canvas id="hydro-canvas"></canvas>
+
+    <!-- Ambient Glow & Topographic Grid Overlays -->
+    <div class="ambient-glow glow-top-left" aria-hidden="true"></div>
+    <div class="ambient-glow glow-bottom-right" aria-hidden="true"></div>
+    <div class="grid-overlay" aria-hidden="true"></div>
+
+    <!-- Strictly 100vh Non-Scrollable Shell -->
+    <div class="landing-shell">
+        
+        <!-- Header Strip -->
+        <header class="landing-header" id="landing-header">
+            <div class="brand-wrapper">
+                <div class="brand-text-col">
+                    <span class="brand-title">Hydrodynamics</span>
+                    <span class="brand-subtitle">Barangay 168 (Deparo) • Caloocan City</span>
+                </div>
+            </div>
+
+            <!-- Compact Launch Button Aligned with Logo in Header -->
+            <a href="/simulation" class="btn-launch-sim btn-header-sim" id="btn-enter-simulation" title="Launch Interactive 3D Simulation System">
+                <span>Enter Simulation</span>
+                <div class="btn-arrow-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </div>
+            </a>
+        </header>
+
+        <!-- Centerpiece Hero -->
+        <main class="landing-hero" id="landing-hero-content">
+
+            <h1 class="hero-title">
+                Urban Flood Simulation<br>
+                <span class="gradient-highlight">& Drainage Network Twin</span>
+            </h1>
+
+            <p class="hero-description">
+                See how rainwater may move across the streets of Deparo and through its storm drains. 368 manholes, 369 conduits and 8 subdivision zones run in one coupled model.
+            </p>
+
+        </main>
+
+        <!-- Contacts Footer Strip -->
+        <footer class="landing-footer" id="landing-footer">
+            <div class="footer-left">
+                <span class="footer-contact-title">This is our contacts</span>
+                <span class="contact-divider">|</span>
+                <div class="footer-contact-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                    </svg>
+                    <span><strong>LIKHA Innovations</strong></span>
+                </div>
+            </div>
+
+            <div class="footer-right">
+                <a href="mailto:likhainnovations.tech@gmail.com" class="footer-contact-item contact-email-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                    </svg>
+                    <span><strong>likhainnovations.tech@gmail.com</strong></span>
+                </a>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Hydrodynamic Wave Canvas Script -->
+    <script src="/landing/js/canvas.js"></script>
+    <script>
+        // Track landing page visit in session storage
+        document.getElementById('btn-enter-simulation')?.addEventListener('click', function () {
+            try {
+                sessionStorage.setItem('hydro_visited_landing', 'true');
+            } catch (e) { }
+        });
+    </script>
+</body>
+</html>

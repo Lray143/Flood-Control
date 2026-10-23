@@ -55,6 +55,7 @@ Then open **http://localhost:8000** in your browser.
 | New simulation parameters / state | `src/engine/state.py` |
 | Terrain / road / pipe generation | `src/utils/city_builder.py` |
 | New API endpoints | `src/server.py` |
+| Landing page (entry portal) | `landing/` |
 | Frontend (UI / 3D rendering) | `static/index.html` |
 | One-off scripts / data tools | `scripts/` |
 | Spatial data files (`.tif`, `.json`, `.geojson`) | `data/` |
