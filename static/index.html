@@ -20,7 +20,7 @@
         })();
     </script>
     <script src="/static/lucide.min.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=4">
+    <link rel="stylesheet" href="/static/css/style.css?v=5">
 </head>
 <body>
 
@@ -144,17 +144,19 @@
         <div class="ui-content">
             <!-- Header -->
             <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
-                <a href="/" class="logo-brand" id="logo-brand" title="Return to Landing Page" style="display:inline-flex; flex-direction:row; align-items:center; gap:10px; text-decoration:none !important; color:#5dade2 !important; cursor:pointer;">
-                    <div class="logo-badge" style="display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                        <i data-lucide="droplet"></i>
-                    </div>
-                    <div>
-                        <div class="logo-title" style="text-decoration:none !important;">HYDRODYNAMICS</div>
-                    </div>
-                </a>
-                <button id="btn-header-guide" class="header-guide-icon" title="Take Interactive Tour">
-                    <i data-lucide="compass"></i>
-                </button>
+                <div style="display:inline-flex; align-items:center; gap:8px;">
+                    <a href="/" class="logo-brand" id="logo-brand" title="Return to Landing Page" style="display:inline-flex; flex-direction:row; align-items:center; gap:10px; text-decoration:none !important; color:#5dade2 !important; cursor:pointer;">
+                        <div class="logo-badge" style="display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i data-lucide="droplet"></i>
+                        </div>
+                        <div>
+                            <div class="logo-title" style="text-decoration:none !important;">HYDRODYNAMICS</div>
+                        </div>
+                    </a>
+                    <button type="button" id="btn-header-guide" class="header-guide-icon" title="Interactive Guide (Click anytime to start tour)">
+                        <i data-lucide="compass"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- Telemetry Card -->
@@ -457,7 +459,7 @@
 </script>
 
     <!-- Interactive Guided Walkthrough -->
-    <script src="/static/js/tutorial.js?v=1"></script>
+    <script src="/static/js/tutorial.js?v=2"></script>
 
     <!-- Main Simulation Application -->
     <script type="module" src="/static/js/app.js?v=4"></script>

@@ -6,7 +6,7 @@
 (function () {
     'use strict';
 
-    // ── Tour Steps (17 total) ───────────────────────────────────────────────────
+    // ── Tour Steps Definition ───────────────────────────────────────────────────
     const TOUR_STEPS = [
         {
             id: 'welcome',
@@ -16,7 +16,17 @@
             title: '3D Flood Simulation Digital Twin',
             icon: 'droplet',
             desc: 'Welcome to the Barangay 168 (Deparo, Caloocan City) flood control simulation. This walkthrough guides you through every control, map mode, preset, and analytical layer in the interface.',
-            tip: 'Navigate with Next / Back or your keyboard arrow keys (→ / ←). You can restart this guide anytime by clicking the ⊙ compass icon next to the HYDRODYNAMICS logo.'
+            tip: 'Navigate with Next / Back below or your keyboard arrow keys (→ / ←). You can restart this guide at any time by clicking the compass icon ( ⊙ ) right beside the HYDRODYNAMICS logo.'
+        },
+        {
+            id: 'guide-button',
+            target: '#btn-header-guide',
+            placement: 'right',
+            badge: 'HELP & WALKTHROUGH',
+            title: 'Restart Guide Anytime',
+            icon: 'compass',
+            desc: 'Click this compass icon right beside the HYDRODYNAMICS title whenever you want to reopen or replay this interactive guide. It remains pinned here permanently.',
+            tip: 'Whenever you want a quick refresher on what any button does, just click this icon!'
         },
         {
             id: '3d-canvas',
@@ -25,8 +35,8 @@
             badge: 'THE 3D MAP VIEWPORT',
             title: 'Interactive 3D Flood Map',
             icon: 'map',
-            desc: 'The center of the screen is the 3D WebGL flood simulation map — a real-scale digital twin of Barangay 168 built from actual LiDAR terrain data and OpenStreetMap road geometry. Water flows across streets, buildings, and drainage channels based on real shallow water physics.',
-            tip: 'Left-click and drag to orbit the camera. Right-click to pan. Scroll wheel to zoom in and out. In 2D mode, drag to pan the overhead map.'
+            desc: 'The center of your screen is the 3D WebGL flood map — a real-scale digital twin of Barangay 168 built from actual LiDAR terrain data and OpenStreetMap road geometry. Water flows across streets, buildings, and drainage channels based on real shallow water hydrodynamic physics.',
+            tip: 'Left-click and drag to orbit the camera. Right-click to pan. Scroll wheel to zoom in and out. In 2D top-down mode, drag to pan the overhead map.'
         },
         {
             id: 'telemetry',
@@ -35,7 +45,7 @@
             badge: 'LIVE SENSORS & METRICS',
             title: 'Real-Time Telemetry Monitor',
             icon: 'activity',
-            desc: 'Displays the live analytical state of the watershed: elapsed simulation time, count of inundated grid cells, peak flood depth (m), total surface water volume (m³), and the numerical mass balance conservation error.',
+            desc: 'Displays the live analytical state of the watershed: elapsed simulation time, count of inundated grid cells, peak flood depth in meters, total surface water volume (m³), and the numerical mass balance conservation error.',
             tip: 'A mass balance error under 1.0% confirms the finite-volume shallow water solver is conserving liquid mass precisely.'
         },
         {
@@ -56,7 +66,7 @@
             title: 'Drainage Network Presets',
             icon: 'git-commit',
             desc: 'Test urban drainage resilience under different maintenance conditions: Optimal (0% clog), Minor (25%), Half Clogged (50%), Heavy Clog (75%), Total Jam (100%), or Assorted — a randomized realistic clog distribution across all 369 pipes.',
-            tip: 'Comparing "Optimal" vs "Heavy Clog" under the same rainfall reveals the true impact of unmaintained culverts.'
+            tip: 'Comparing "Optimal" vs "Heavy Clog" under the same rainfall reveals the true impact of unmaintained culverts on neighborhood flooding.'
         },
         {
             id: 'rainfall-slider',
@@ -65,8 +75,8 @@
             badge: 'PRECISION RAIN CONTROL',
             title: 'Manual Rainfall Intensity',
             icon: 'sliders',
-            desc: 'Fine-tune precipitation from 0 mm/h up to 1,000 mm/h in real-time using the continuous slider while the simulation runs.',
-            tip: 'The blue badge shows the active precipitation rate being applied across every terrain grid cell.'
+            desc: 'Fine-tune precipitation continuously from 0 mm/h up to 1,000 mm/h in real-time using this slider while the simulation runs.',
+            tip: 'The blue badge displays the active precipitation depth currently being applied across every terrain grid cell.'
         },
         {
             id: 'bulk-pipe',
@@ -75,8 +85,8 @@
             badge: 'REGIONAL ENGINEERING',
             title: 'Bulk Pipe & Culvert Controls',
             icon: 'share-2',
-            desc: 'Apply drainage changes across entire geographic sectors — All Pipes, North, South, East, or West Half. Set uniform blockage percentages or resize pipe diameters (0.3m to 3.0m) across a whole region.',
-            tip: 'Try selecting "North Half" and 100% blockage to observe isolated flooding in the northern subdivisions.'
+            desc: 'Apply drainage changes across entire geographic sectors — All Pipes, North, South, East, or West Half. Set uniform blockage percentages or resize pipe diameters (0.3m to 3.0m) across a whole region in bulk.',
+            tip: 'Try selecting "North Half" and 100% blockage to observe isolated pooling in the northern subdivisions.'
         },
         {
             id: 'sim-speed',
@@ -95,8 +105,8 @@
             badge: 'TIME-TRAVEL REWIND',
             title: 'Rewind to Snapshot',
             icon: 'history',
-            desc: 'The simulation engine automatically records historical state snapshots. Pick any previous timestamp from the dropdown and click "Go" to instantly rewind water levels and pipe flows to that moment.',
-            tip: 'Rewinding lets you test different drainage interventions from the exact same flood stage without starting over.'
+            desc: 'The simulation engine automatically records historical state snapshots. Pick any previous timestamp from the dropdown and click "Go" to instantly rewind water levels, flood extents, and pipe flows to that exact moment.',
+            tip: 'Rewinding lets you test different emergency drainage interventions from the exact same flood stage without starting over.'
         },
         {
             id: 'btn-reset',
@@ -105,8 +115,8 @@
             badge: 'ENVIRONMENT RESTORE',
             title: 'Reset Simulation',
             icon: 'rotate-ccw',
-            desc: 'Completely flushes all accumulated surface water, resets the simulation clock to 0s, and re-initializes the digital twin to a clean dry baseline.',
-            tip: 'Use this when you want to start a completely fresh experiment from scratch.'
+            desc: 'Completely flushes all accumulated surface water, resets the simulation clock to 0s, and re-initializes the digital twin to a clean dry baseline topography.',
+            tip: 'Use this whenever you want to start a completely fresh simulation run.'
         },
         {
             id: 'view-toggle',
@@ -125,8 +135,8 @@
             badge: 'TOPOGRAPHIC ANALYSIS',
             title: 'Digital Elevation Heatmap (DEM)',
             icon: 'mountain',
-            desc: 'Overlays a color gradient from real LiDAR terrain data (1.0m green valleys → 65.4m red ridges) to reveal natural runoff pathways and low-lying flood basins across Barangay 168.',
-            tip: 'Water flows naturally into the green corridors — the lowest-lying areas on the DEM.'
+            desc: 'Overlays a dynamic color gradient from real LiDAR terrain data (1.0m green valleys → 65.4m red ridges) to reveal natural runoff pathways and low-lying flood basins across Barangay 168.',
+            tip: 'Water naturally drains down the elevation slope into the emerald-green depression corridors.'
         },
         {
             id: 'xray-mode',
@@ -135,8 +145,8 @@
             badge: 'UNDERGROUND VISUALIZATION',
             title: 'Underground Pipe X-Ray Mode',
             icon: 'eye',
-            desc: 'Makes the terrain surface translucent, revealing the subterranean drainage network beneath the roads: 368 manhole nodes, 369 pipes, and 7 natural outfalls.',
-            tip: 'Animated flow pulses travel through the pipes toward downstream outfalls while runoff is active.'
+            desc: 'Makes the terrain surface translucent like glass, revealing the subterranean drainage network: 368 manhole nodes, 369 pipes, and 7 natural outfalls beneath the roads.',
+            tip: 'CRITICAL: You must turn on X-Ray Mode to see, hover over, and click underground pipes! In standard view, the solid terrain blocks pipe selection.'
         },
         {
             id: 'layers-btn',
@@ -145,8 +155,8 @@
             badge: 'LAYER VISIBILITY TOGGLE',
             title: 'Layer Visibility Button',
             icon: 'layers',
-            desc: 'Click this button to open the Layer Visibility panel — a popover where you can individually toggle each visual layer in the 3D scene.',
-            tip: 'This is how you access the layer controls. Click it anytime to show or hide specific map elements.'
+            desc: 'Click this button to open the Layer Visibility panel — where you can individually toggle each visual layer on and off in the 3D scene.',
+            tip: 'Click this button anytime to open the GIS layer filters popover.'
         },
         {
             id: 'map-controls-all',
@@ -155,8 +165,8 @@
             badge: 'LAYER FILTERS',
             title: 'Layer Visibility & GIS Filters',
             icon: 'layers',
-            desc: 'The Layer Visibility panel lets you toggle: 3D buildings, natural trees, OSM road network, water surface, Barangay 168 boundary, zone borders, 3D area labels, map labels, drain nodes, and grid overlay.',
-            tip: 'Turn off buildings and trees for a clean, unobstructed aerial flood depth view.'
+            desc: 'The Layer Visibility panel lets you toggle: 3D buildings, natural trees, OSM road networks, water surface, Barangay 168 boundary, zone borders, 3D area labels, map labels, drain nodes, and grid overlay.',
+            tip: 'Turn off buildings and trees for a clean, unobstructed aerial flood hazard map.'
         },
         {
             id: 'pipe-inspector',
@@ -165,8 +175,8 @@
             badge: 'INDIVIDUAL CULVERTS',
             title: 'Interactive 3D Pipe Inspector',
             icon: 'wrench',
-            desc: 'Hover over any pipe in the 3D viewport to see its live flow rate. Click it to open this panel — where you can clear clogs, set a precise blockage % (0–100%), or adjust its physical diameter.',
-            tip: 'Click any pipe cylinder in the 3D canvas after this tour to customize it directly.'
+            desc: 'Remember: Hovering and selecting pipes works ONLY when Underground X-Ray Mode is active! With X-Ray turned on, simply hover over any pipe in the 3D scene to inspect its live flow rate and diameter, or click it to open this inspector panel.',
+            tip: 'In this inspector, you can clear debris clogs, set custom blockage % (0–100%), or adjust physical culvert diameter (0.1m–5.0m).'
         },
         {
             id: 'sitrep-panel',
@@ -176,7 +186,7 @@
             title: 'SitRep & Subdivision Zone Stats',
             icon: 'triangle-alert',
             desc: 'Live situational report for Barangay 168. Shows rain duration, inundated area percentage, affected subdivisions, and peak flood depth. The zone table below tracks real-time flood status per subdivision.',
-            tip: 'Each zone is classified in real time: SAFE → ALERT → CRITICAL → DISASTER based on localized water depth.'
+            tip: 'Each subdivision is classified in real time: SAFE → ALERT → CRITICAL → DISASTER based on localized water depth.'
         },
         {
             id: 'completion',
@@ -185,8 +195,8 @@
             badge: 'READY TO EXPLORE',
             title: 'You Are All Set!',
             icon: 'check-circle-2',
-            desc: 'You now know every tool in the Hydrodynamics simulation. Start the rain, test pipe blockages, and watch how water responds across Barangay 168 in real time.',
-            tip: 'Need a refresher? Click the ⊙ compass icon next to the HYDRODYNAMICS logo in the top-left panel to restart this tour anytime.'
+            desc: 'You now know every tool in the Hydrodynamics simulation! Start the rain, test pipe blockages, and watch how water responds across Barangay 168 in real time. Remember: you can click the compass icon ( ⊙ ) right beside the HYDRODYNAMICS title at any time to reopen this guide!',
+            tip: 'Click "Finish Tour" below to start exploring.'
         }
     ];
 
@@ -266,7 +276,10 @@
     function bindTriggerButtons() {
         const btnHeaderGuide = document.getElementById('btn-header-guide');
         if (btnHeaderGuide && !btnHeaderGuide._tourBound) {
-            btnHeaderGuide.addEventListener('click', () => startTour(0));
+            btnHeaderGuide.addEventListener('click', (e) => {
+                e.stopPropagation();
+                startTour(0);
+            });
             btnHeaderGuide._tourBound = true;
         }
     }
@@ -343,7 +356,7 @@
         }, 220);
 
         if (skipped) {
-            showToast('Tour exited — click the ⊙ icon next to HYDRODYNAMICS to restart anytime.');
+            showToast('Tour exited — click the ⊙ compass icon beside HYDRODYNAMICS to open the guide again anytime.');
         }
     }
 
@@ -384,7 +397,7 @@
                 if (piSlider) piSlider.value = 25;
                 const piDiamInput = document.getElementById('pi-diam-input');
                 if (piDiamInput) piDiamInput.value = 0.9;
-                // Position in visible area of the canvas
+                
                 const canvasW = window.innerWidth;
                 pi.style.display = 'block';
                 pi.style.top = '120px';
@@ -397,7 +410,7 @@
             sampleInspectorShown = false;
         }
 
-        // Layer Visibility popover — open for both layers-btn and map-controls-all steps
+        // Layer Visibility popover — open for map-controls-all step
         const layersPopover = document.getElementById('layers-popover');
         if (step.id === 'map-controls-all') {
             if (layersPopover) {
@@ -405,7 +418,6 @@
                 layersPopover.style.display = 'block';
             }
         } else if (step.id === 'layers-btn') {
-            // For this step, close popover so we only spotlight the button itself
             if (layersPopover) {
                 layersPopoverWasOpen = layersPopover.style.display === 'block';
                 layersPopover.style.display = 'none';
@@ -479,7 +491,6 @@
 
     // ── Smart Positioning (responsive, collision-aware) ────────────────────────
     function positionStep(step) {
-        // Force reflow so offsetWidth/Height are accurate
         popoverEl.style.visibility = 'hidden';
         popoverEl.style.display = 'block';
         const popW = popoverEl.offsetWidth || 360;
@@ -488,10 +499,9 @@
 
         const vw = window.innerWidth;
         const vh = window.innerHeight;
-        const margin = 12;   // gap between spotlight edge and popover
-        const edge = 12;     // min distance from screen edges
+        const margin = 12;
+        const edge = 12;
 
-        // On very small screens always center
         if (vw < 500) {
             spotlightEl.style.opacity = '0';
             spotlightEl.classList.remove('pulse');
