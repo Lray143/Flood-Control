@@ -112,26 +112,41 @@
     };
 
     // ── MODULAR RANDOM FLOATING ITEMS ENGINE ─────────────────────────────────
-    // Preload random picture frame photos (all 5 user-uploaded images)
+    // Preload random picture frame photos (5 user-uploaded team photos)
     const frameImages = [1, 2, 3, 4, 5].map(i => {
         const img = new Image();
         img.src = `/landing/img/frame_${i}.jpg`;
         return img;
     });
 
-    const frameLabels = ['Bading ❤', 'LIKHA 🚀', 'Team Deparo', 'Brothers ⭐', 'Dev Squad 🔥'];
-    const frameTapes = [
+    const FRAME_COLORS = [
+        '#ffffff', // Crisp classic Polaroid
+        '#fef08a', // Pastel yellow
+        '#fed7aa', // Warm peach
+        '#fbcfe8', // Cute pastel pink
+        '#bbf7d0', // Mint green
+        '#bae6fd', // Soft baby blue
+        '#e9d5ff', // Pastel lavender
+        '#fed7d7', // Light coral
+        '#fef3c7', // Warm cream
+        '#ddd6fe', // Periwinkle
+        '#fed1d1'  // Blossom
+    ];
+
+    const FRAME_TAPES = [
         'rgba(244, 63, 94, 0.85)',   // Rose
         'rgba(14, 165, 233, 0.85)',  // Sky blue
         'rgba(168, 85, 247, 0.85)',  // Purple
         'rgba(34, 197, 94, 0.85)',   // Emerald
-        'rgba(245, 158, 11, 0.85)'   // Amber
+        'rgba(245, 158, 11, 0.85)',  // Amber
+        'rgba(236, 72, 153, 0.85)',  // Hot pink
+        'rgba(99, 102, 241, 0.85)'   // Indigo
     ];
 
-    // ── MODULAR ITEM RENDERERS REGISTRY ──────────────────────────────────────
+    // ── MODULAR ITEM RENDERERS REGISTRY (CRISP ABOVE-WATER RENDERING) ────────
     const ITEM_RENDERERS = {
         boat: function (ctx) {
-            // Folded paper boat hull
+            // Folded paper boat
             ctx.beginPath();
             ctx.moveTo(-22, 0);
             ctx.lineTo(-12, 8);
@@ -145,7 +160,6 @@
             ctx.lineWidth = 1;
             ctx.stroke();
 
-            // Hull shadow facet
             ctx.beginPath();
             ctx.moveTo(0, 3);
             ctx.lineTo(12, 8);
@@ -154,7 +168,6 @@
             ctx.fillStyle = '#d0d7de';
             ctx.fill();
 
-            // Big center triangular sail
             ctx.beginPath();
             ctx.moveTo(-6, 2);
             ctx.lineTo(0, -18);
@@ -164,18 +177,16 @@
             ctx.fill();
             ctx.stroke();
 
-            // Sail accent facet
             ctx.beginPath();
             ctx.moveTo(0, -18);
             ctx.lineTo(10, 2);
             ctx.lineTo(0, 2);
             ctx.closePath();
-            ctx.fillStyle = 'rgba(0, 210, 255, 0.28)';
+            ctx.fillStyle = 'rgba(0, 210, 255, 0.3)';
             ctx.fill();
         },
 
         duck: function (ctx) {
-            // Duck yellow body
             ctx.beginPath();
             ctx.ellipse(-2, 0, 13, 8, -0.05, 0, Math.PI * 2);
             ctx.fillStyle = '#ffd13b';
@@ -184,7 +195,6 @@
             ctx.lineWidth = 1;
             ctx.stroke();
 
-            // Tail bump
             ctx.beginPath();
             ctx.moveTo(-13, 0);
             ctx.lineTo(-17, -5);
@@ -193,20 +203,17 @@
             ctx.fillStyle = '#ffd13b';
             ctx.fill();
 
-            // Head
             ctx.beginPath();
             ctx.arc(8, -8, 7.5, 0, Math.PI * 2);
             ctx.fillStyle = '#ffe055';
             ctx.fill();
             ctx.stroke();
 
-            // Eye
             ctx.beginPath();
             ctx.arc(10, -9, 1.3, 0, Math.PI * 2);
             ctx.fillStyle = '#1a1a1a';
             ctx.fill();
 
-            // Beak
             ctx.beginPath();
             ctx.moveTo(14, -8);
             ctx.lineTo(20, -6);
@@ -250,7 +257,6 @@
         },
 
         tsinelas: function (ctx) {
-            // Sole
             ctx.beginPath();
             ctx.roundRect(-16, -2, 32, 6, 3);
             ctx.fillStyle = '#0ea5e9';
@@ -259,7 +265,6 @@
             ctx.lineWidth = 0.8;
             ctx.stroke();
 
-            // Y-strap
             ctx.beginPath();
             ctx.moveTo(-4, -2);
             ctx.lineTo(6, -8);
@@ -268,7 +273,6 @@
             ctx.lineWidth = 2.2;
             ctx.stroke();
 
-            // Toe plug
             ctx.beginPath();
             ctx.arc(6, -8, 1.5, 0, Math.PI * 2);
             ctx.fillStyle = '#0284c7';
@@ -289,13 +293,12 @@
             ctx.beginPath();
             ctx.moveTo(-14, 2);
             ctx.quadraticCurveTo(0, 0, 14, 0);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.lineWidth = 0.9;
             ctx.stroke();
         },
 
         soda: function (ctx) {
-            // Metallic red soda can floating tilted
             const w = 24, h = 13;
             ctx.beginPath();
             ctx.roundRect(-w / 2, -h + 2, w, h, 2.5);
@@ -310,12 +313,10 @@
             ctx.lineWidth = 0.8;
             ctx.stroke();
 
-            // Silver metallic rims
             ctx.fillStyle = '#cbd5e1';
             ctx.fillRect(-w / 2, -h + 2, 3, h);
             ctx.fillRect(w / 2 - 3, -h + 2, 3, h);
 
-            // Silver brand swoosh
             ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
             ctx.beginPath();
             ctx.ellipse(0, -h / 2 + 2, 5, 2, -0.2, 0, Math.PI * 2);
@@ -323,7 +324,6 @@
         },
 
         coconut: function (ctx) {
-            // Brown textured coconut bobbing heavily
             const r = 12;
             ctx.beginPath();
             ctx.arc(0, -2, r, 0, Math.PI * 2);
@@ -334,7 +334,6 @@
             ctx.fillStyle = grad;
             ctx.fill();
 
-            // 3 germination eyes
             ctx.fillStyle = '#1c0a00';
             ctx.beginPath();
             ctx.arc(-3, -6, 1.2, 0, Math.PI * 2);
@@ -342,7 +341,6 @@
             ctx.arc(-1, -3, 1.2, 0, Math.PI * 2);
             ctx.fill();
 
-            // Fiber highlights
             ctx.strokeStyle = 'rgba(254, 240, 138, 0.25)';
             ctx.lineWidth = 0.8;
             ctx.beginPath();
@@ -351,33 +349,28 @@
         },
 
         bottle: function (ctx) {
-            // Translucent mineral water bottle
             const w = 28, h = 11;
             ctx.beginPath();
             ctx.roundRect(-w / 2 + 5, -h + 2, w - 5, h, 2);
-            ctx.fillStyle = 'rgba(186, 230, 253, 0.65)';
+            ctx.fillStyle = 'rgba(186, 230, 253, 0.75)';
             ctx.fill();
-            ctx.strokeStyle = 'rgba(125, 211, 252, 0.8)';
+            ctx.strokeStyle = 'rgba(125, 211, 252, 0.9)';
             ctx.lineWidth = 0.8;
             ctx.stroke();
 
-            // Cyan paper label
             ctx.fillStyle = '#0284c7';
             ctx.fillRect(-w / 2 + 10, -h + 3, 10, h - 2);
 
-            // Neck & blue cap
-            ctx.fillStyle = 'rgba(186, 230, 253, 0.7)';
+            ctx.fillStyle = 'rgba(186, 230, 253, 0.8)';
             ctx.fillRect(-w / 2 + 2, -h / 2 - 1, 3, 4);
             ctx.fillStyle = '#0369a1';
             ctx.fillRect(-w / 2, -h / 2 - 2, 2.5, 6);
 
-            // Specular sheen
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
             ctx.fillRect(-w / 2 + 7, -h + 3.5, w - 8, 1.5);
         },
 
         plank: function (ctx) {
-            // Weathered wooden timber plank
             const w = 36, h = 9;
             ctx.beginPath();
             ctx.roundRect(-w / 2, -h + 2, w, h, 1.5);
@@ -391,7 +384,6 @@
             ctx.lineWidth = 0.8;
             ctx.stroke();
 
-            // Grain line & nail marks
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
             ctx.beginPath();
             ctx.moveTo(-w / 2 + 4, -h / 2 + 1);
@@ -403,25 +395,197 @@
             ctx.fillRect(w / 2 - 6, -h / 2, 1.5, 1.5);
         },
 
+        lifebuoy: function (ctx) {
+            const rOuter = 16, rInner = 8;
+            ctx.beginPath();
+            ctx.arc(0, 0, rOuter, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff3b30';
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 4; i++) {
+                const ang = (i * Math.PI) / 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, rOuter + 0.5, ang - 0.28, ang + 0.28);
+                ctx.arc(0, 0, rInner - 0.5, ang + 0.28, ang - 0.28, true);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.beginPath();
+            ctx.arc(0, 0, rInner, 0, Math.PI * 2);
+            ctx.fillStyle = '#062d4c';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 4]);
+            ctx.beginPath();
+            ctx.arc(0, 0, rOuter - 1.5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        },
+
+        soccer: function (ctx) {
+            const r = 11;
+            ctx.beginPath();
+            ctx.arc(0, -2, r, 0, Math.PI * 2);
+            ctx.fillStyle = '#f8fafc';
+            ctx.fill();
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const a = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+                const px = Math.cos(a) * 3.8;
+                const py = -2 + Math.sin(a) * 3.8;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            for (let i = 0; i < 5; i++) {
+                const a = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+                const px1 = Math.cos(a) * 3.8;
+                const py1 = -2 + Math.sin(a) * 3.8;
+                const px2 = Math.cos(a) * r;
+                const py2 = -2 + Math.sin(a) * r;
+                ctx.beginPath();
+                ctx.moveTo(px1, py1);
+                ctx.lineTo(px2, py2);
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 0.8;
+                ctx.stroke();
+            }
+        },
+
+        box: function (ctx) {
+            const w = 26, h = 20;
+            ctx.beginPath();
+            ctx.roundRect(-w / 2, -h + 4, w, h, 2);
+            const grad = ctx.createLinearGradient(0, -h, 0, 4);
+            grad.addColorStop(0, '#d97706');
+            grad.addColorStop(0.5, '#b45309');
+            grad.addColorStop(1, '#92400e');
+            ctx.fillStyle = grad;
+            ctx.fill();
+            ctx.strokeStyle = '#78350f';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(253, 230, 138, 0.7)';
+            ctx.fillRect(-4, -h + 4, 8, h);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-w / 2 + 3, -h + 7, 7, 5);
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(-w / 2 + 4, -h + 8, 5, 1);
+            ctx.fillRect(-w / 2 + 4, -h + 10, 5, 1);
+        },
+
+        cap: function (ctx) {
+            ctx.beginPath();
+            ctx.arc(0, -4, 9, Math.PI, 0);
+            ctx.fillStyle = '#2563eb';
+            ctx.fill();
+            ctx.strokeStyle = '#1d4ed8';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(4, -4);
+            ctx.quadraticCurveTo(14, -6, 17, -2);
+            ctx.quadraticCurveTo(11, -1, 3, -2);
+            ctx.fillStyle = '#1e40af';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(0, -13, 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+        },
+
+        watermelon: function (ctx) {
+            ctx.beginPath();
+            ctx.arc(0, -4, 15, 0.1, Math.PI - 0.1);
+            ctx.closePath();
+            ctx.fillStyle = '#15803d';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(0, -4, 13.5, 0.15, Math.PI - 0.15);
+            ctx.closePath();
+            ctx.fillStyle = '#bbf7d0';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(0, -4, 12, 0.18, Math.PI - 0.18);
+            ctx.closePath();
+            ctx.fillStyle = '#ef4444';
+            ctx.fill();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(-4, 0, 1, 0, Math.PI * 2);
+            ctx.arc(4, 0, 1, 0, Math.PI * 2);
+            ctx.arc(0, 3, 1, 0, Math.PI * 2);
+            ctx.fill();
+        },
+
+        branch: function (ctx) {
+            ctx.strokeStyle = '#78350f';
+            ctx.lineWidth = 2.2;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-18, 0);
+            ctx.quadraticCurveTo(-6, -6, 6, -2);
+            ctx.quadraticCurveTo(14, 2, 18, -3);
+            ctx.stroke();
+
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.moveTo(-4, -4);
+            ctx.lineTo(2, -9);
+            ctx.stroke();
+
+            ctx.fillStyle = '#22c55e';
+            ctx.beginPath();
+            ctx.ellipse(3, -10, 4, 2, -0.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(15, -4, 3.5, 1.8, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+        },
+
         frame: function (ctx, extra) {
-            // Enhanced, larger Polaroid-style picture frame (64px wide x 80px tall)
+            // Clean modern photo frame without text, dynamic color
             const imgIdx = (extra && extra.imageIndex !== undefined) ? extra.imageIndex : 0;
-            const fw = 32; // half-width (64px total width)
-            const fh = 80; // full height (80px total height)
+            const frameColor = (extra && extra.frameColor) ? extra.frameColor : '#ffffff';
+            const tapeColor = (extra && extra.tapeColor) ? extra.tapeColor : FRAME_TAPES[imgIdx % FRAME_TAPES.length];
+
+            const fw = 32; // half-width (64px wide)
+            const fh = 72; // clean height (72px tall without text)
             const topY = -fh + 16;
 
-            // Frame drop shadow on water
-            ctx.fillStyle = 'rgba(0, 20, 40, 0.35)';
+            // Frame drop shadow
+            ctx.fillStyle = 'rgba(0, 15, 30, 0.28)';
             ctx.beginPath();
-            ctx.roundRect(-fw - 3, topY - 2, (fw + 3) * 2, fh + 4, 4);
+            ctx.roundRect(-fw - 2.5, topY - 2, (fw + 2.5) * 2, fh + 4, 4);
             ctx.fill();
 
-            // Outer white Polaroid card
+            // Colored Polaroid card
             ctx.beginPath();
             ctx.roundRect(-fw, topY, fw * 2, fh, 4);
-            ctx.fillStyle = '#fdfefe';
+            ctx.fillStyle = frameColor;
             ctx.fill();
-            ctx.strokeStyle = '#cbd5e1';
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
             ctx.lineWidth = 1;
             ctx.stroke();
 
@@ -433,7 +597,7 @@
 
             ctx.save();
             ctx.beginPath();
-            ctx.rect(px, py, pw * 2, ph);
+            ctx.roundRect(px, py, pw * 2, ph, 2);
             ctx.clip();
 
             const img = frameImages[imgIdx % frameImages.length];
@@ -453,15 +617,14 @@
             ctx.fillRect(px, py, pw * 2, ph);
             ctx.restore();
 
-            // Handwritten caption label
-            const label = frameLabels[imgIdx % frameLabels.length];
-            ctx.font = 'bold 8px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-            ctx.fillStyle = '#1e293b';
-            ctx.textAlign = 'center';
-            ctx.fillText(label, 0, topY + fh - 6);
+            // Inner photo border
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.roundRect(px, py, pw * 2, ph, 2);
+            ctx.stroke();
 
-            // Decorative colored washi tape
-            const tapeColor = frameTapes[imgIdx % frameTapes.length];
+            // Decorative colored washi tape on top
             ctx.fillStyle = tapeColor;
             ctx.beginPath();
             ctx.roundRect(-10, topY - 3.5, 20, 6, 1.5);
@@ -469,7 +632,7 @@
         }
     };
 
-    // ── MODULAR FLOATING ITEM CLASS (MULTI-DEPTH WATER DISTRIBUTION) ─────────
+    // ── MODULAR FLOATING ITEM CLASS (DIFFERENT ORIENTATION EVERYTIME) ────────
     class FloatingItem {
         constructor(type, x, speed, scale = 1, extra = {}) {
             this.type = type;
@@ -477,8 +640,10 @@
             this.speed = speed;
             this.scale = scale;
             this.extra = extra;
-            // depthRatio: 0 = surface crest, 0.5 = middle of blue water, 0.85 = bottom of water
+            // depthRatio: 0 = surface crest, 0.5 = middle, 0.85 = bottom
             this.depthRatio = extra.depthRatio !== undefined ? extra.depthRatio : Math.random() * 0.78;
+            // Distinct random orientation / tilt angle everytime
+            this.baseAngle = (Math.random() - 0.5) * 0.45;
             this.bobPhase = Math.random() * Math.PI * 2;
             this.bobSpeed = 1.0 + Math.random() * 0.7;
             this.jumpY = 0;
@@ -490,10 +655,13 @@
             this.x += this.speed;
             if (this.x > width + 100) {
                 this.x = -100;
-                // Re-randomize depth across the entire blue water area when looping
+                // Re-randomize depth, orientation, and colors when looping around
                 this.depthRatio = 0.05 + Math.random() * 0.75;
+                this.baseAngle = (Math.random() - 0.5) * 0.55;
                 if (this.type === 'frame') {
                     this.extra.imageIndex = ((this.extra.imageIndex || 0) + 1) % frameImages.length;
+                    this.extra.frameColor = FRAME_COLORS[Math.floor(Math.random() * FRAME_COLORS.length)];
+                    this.extra.tapeColor = FRAME_TAPES[Math.floor(Math.random() * FRAME_TAPES.length)];
                 }
             }
 
@@ -501,20 +669,19 @@
                 this.hoverCooldown--;
             }
 
-            // Calculate current Y location inside the blue water volume
             const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
             const waterHeight = Math.max(30, height - surfaceY);
             const availableDepth = Math.max(10, waterHeight - 35);
             const currentBaseY = surfaceY + this.depthRatio * availableDepth;
 
-            // Mouse interaction anywhere across the water depth
+            // Mouse interaction across all depths
             if (mouse.active && this.hoverCooldown <= 0 && this.jumpY === 0) {
                 const dx = Math.abs(this.x - mouse.x);
                 const dy = Math.abs(currentBaseY - mouse.y);
-                const hitDist = this.type === 'frame' ? 52 : 38;
+                const hitDist = this.type === 'frame' ? 50 : 38;
                 if (dx < hitDist && dy < hitDist) {
-                    this.jumpVy = -3.4; // Soft buoyant hop
-                    this.hoverCooldown = 80; // Cooldown prevents jitter
+                    this.jumpVy = -3.4;
+                    this.hoverCooldown = 80;
                     createSplash(this.x, Math.max(surfaceY, currentBaseY - 10), 3);
                     createRipple(this.x, surfaceY);
                 }
@@ -522,7 +689,7 @@
 
             if (this.jumpVy !== 0 || this.jumpY !== 0) {
                 this.jumpY += this.jumpVy;
-                this.jumpVy += 0.16; // Buoyancy restoration
+                this.jumpVy += 0.16;
                 if (this.jumpY >= 0) {
                     this.jumpY = 0;
                     this.jumpVy = 0;
@@ -530,7 +697,6 @@
                 }
             }
 
-            // Ambient ripples on surface
             if (Math.random() < 0.012 && this.depthRatio < 0.25) {
                 createRipple(this.x - 8 * this.speed, surfaceY);
             }
@@ -540,7 +706,6 @@
             const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
             const dy = getWaterSurfaceY(this.x + 8, floodSurfaceY) - getWaterSurfaceY(this.x - 8, floodSurfaceY);
             
-            // Wave influence decreases slightly with depth for gentle organic sway
             const waveInfluence = Math.max(0.35, 1 - this.depthRatio * 0.65);
             const waveAngle = Math.atan2(dy, 16) * waveInfluence;
             const bob = (Math.sin(time * this.bobSpeed + this.bobPhase) * 2.6 + this.jumpY) * waveInfluence;
@@ -551,56 +716,50 @@
 
             ctx.save();
             ctx.translate(this.x, currentBaseY + bob);
-            ctx.rotate(waveAngle * 0.85);
+            // Dynamic orientation combining base angle and wave pitch
+            ctx.rotate(this.baseAngle + waveAngle * 0.85);
             ctx.scale(this.scale, this.scale);
 
-            // Water contact shadow / depth ambiance
-            const shadowW = this.type === 'frame' ? 28 : 16;
-            const shadowAlpha = Math.max(0.12, 0.32 - this.depthRatio * 0.18);
+            // Water shadow (clean, above-water look)
+            const shadowW = this.type === 'frame' ? 26 : 15;
+            const shadowAlpha = Math.max(0.12, 0.30 - this.depthRatio * 0.15);
             ctx.fillStyle = `rgba(1, 20, 42, ${shadowAlpha})`;
             ctx.beginPath();
             ctx.ellipse(0, 3, shadowW, 3.5, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // Render modular item
+            // Render modular item with 100% crisp true colors
             const renderer = ITEM_RENDERERS[this.type];
             if (renderer) {
                 renderer(ctx, this.extra);
-            }
-
-            // Subtle submerged water depth tint for deeper items
-            if (this.depthRatio > 0.15) {
-                const tintAlpha = Math.min(0.28, (this.depthRatio - 0.15) * 0.38);
-                ctx.fillStyle = `rgba(0, 160, 220, ${tintAlpha})`;
-                ctx.beginPath();
-                if (this.type === 'frame') {
-                    ctx.roundRect(-35, -70, 70, 84, 4);
-                } else {
-                    ctx.arc(0, -2, 18, 0, Math.PI * 2);
-                }
-                ctx.fill();
             }
 
             ctx.restore();
         }
     }
 
-    // Initialize rich, multi-depth floating items pool across top, middle, and bottom of water
+    // Rich, multi-item fleet with varied orientations, colors, and water depths
     const floatingItems = [
         new FloatingItem('boat', window.innerWidth * 0.04, 0.42, 1.05, { depthRatio: 0.05 }),
-        new FloatingItem('frame', window.innerWidth * 0.12, 0.35, 1.0, { imageIndex: 0, depthRatio: 0.42 }),
-        new FloatingItem('duck', window.innerWidth * 0.22, 0.52, 0.95, { depthRatio: 0.12 }),
-        new FloatingItem('soda', window.innerWidth * 0.32, 0.44, 1.0, { depthRatio: 0.72 }),
-        new FloatingItem('frame', window.innerWidth * 0.42, 0.34, 1.0, { imageIndex: 1, depthRatio: 0.18 }),
+        new FloatingItem('frame', window.innerWidth * 0.12, 0.35, 1.0, { imageIndex: 0, frameColor: '#ffffff', depthRatio: 0.42 }),
+        new FloatingItem('duck', window.innerWidth * 0.20, 0.52, 0.95, { depthRatio: 0.12 }),
+        new FloatingItem('lifebuoy', window.innerWidth * 0.28, 0.45, 1.0, { depthRatio: 0.68 }),
+        new FloatingItem('soda', window.innerWidth * 0.36, 0.44, 1.0, { depthRatio: 0.75 }),
+        new FloatingItem('frame', window.innerWidth * 0.44, 0.34, 1.0, { imageIndex: 1, frameColor: '#fef08a', depthRatio: 0.20 }),
         new FloatingItem('basketball', window.innerWidth * 0.52, 0.46, 0.9, { depthRatio: 0.52 }),
-        new FloatingItem('coconut', window.innerWidth * 0.62, 0.40, 0.95, { depthRatio: 0.78 }),
-        new FloatingItem('frame', window.innerWidth * 0.72, 0.36, 1.0, { imageIndex: 2, depthRatio: 0.35 }),
-        new FloatingItem('tsinelas', window.innerWidth * 0.82, 0.38, 0.95, { depthRatio: 0.08 }),
-        new FloatingItem('bottle', window.innerWidth * 0.18, 0.48, 1.0, { depthRatio: 0.62 }),
-        new FloatingItem('frame', window.innerWidth * 0.88, 0.33, 1.0, { imageIndex: 3, depthRatio: 0.82 }),
-        new FloatingItem('plank', window.innerWidth * 0.95, 0.36, 1.0, { depthRatio: 0.25 }),
-        new FloatingItem('leaf', window.innerWidth * 0.65, 0.32, 1.0, { depthRatio: 0.10 }),
-        new FloatingItem('frame', window.innerWidth * 0.02, 0.35, 1.0, { imageIndex: 4, depthRatio: 0.60 })
+        new FloatingItem('watermelon', window.innerWidth * 0.60, 0.42, 1.0, { depthRatio: 0.15 }),
+        new FloatingItem('coconut', window.innerWidth * 0.68, 0.40, 0.95, { depthRatio: 0.78 }),
+        new FloatingItem('frame', window.innerWidth * 0.76, 0.36, 1.0, { imageIndex: 2, frameColor: '#fbcfe8', depthRatio: 0.38 }),
+        new FloatingItem('soccer', window.innerWidth * 0.82, 0.48, 0.95, { depthRatio: 0.58 }),
+        new FloatingItem('tsinelas', window.innerWidth * 0.88, 0.38, 0.95, { depthRatio: 0.08 }),
+        new FloatingItem('bottle', window.innerWidth * 0.16, 0.48, 1.0, { depthRatio: 0.62 }),
+        new FloatingItem('frame', window.innerWidth * 0.94, 0.33, 1.0, { imageIndex: 3, frameColor: '#bbf7d0', depthRatio: 0.82 }),
+        new FloatingItem('cap', window.innerWidth * 0.24, 0.46, 1.0, { depthRatio: 0.30 }),
+        new FloatingItem('box', window.innerWidth * 0.48, 0.36, 1.0, { depthRatio: 0.70 }),
+        new FloatingItem('plank', window.innerWidth * 0.72, 0.36, 1.0, { depthRatio: 0.25 }),
+        new FloatingItem('branch', window.innerWidth * 0.56, 0.38, 1.0, { depthRatio: 0.45 }),
+        new FloatingItem('leaf', window.innerWidth * 0.64, 0.32, 1.0, { depthRatio: 0.10 }),
+        new FloatingItem('frame', window.innerWidth * 0.02, 0.35, 1.0, { imageIndex: 4, frameColor: '#bae6fd', depthRatio: 0.60 })
     ];
 
     class Raindrop {
