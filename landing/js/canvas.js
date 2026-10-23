@@ -1113,8 +1113,8 @@
                     this.extra.frameColor = FRAME_COLORS[Math.floor(Math.random() * FRAME_COLORS.length)];
                     this.extra.tapeColor = FRAME_TAPES[Math.floor(Math.random() * FRAME_TAPES.length)];
                 } else {
-                    // Balanced offscreen respawn keeping water consistently lively and varied
-                    this.x = -120 - Math.random() * (width * 1.2 + 200);
+                       // Shorter respawn delay so debris appears more frequently
+                    this.x = -120 - Math.random() * (width * 0.7 + 100);
                     // Morph into a new random debris type from our 23 diverse items!
                     this.type = DEBRIS_TYPES[Math.floor(Math.random() * DEBRIS_TYPES.length)];
                 }
@@ -1253,22 +1253,26 @@
 
     // Rich, multi-item fleet – frames are rare (only 2 frames among many items)
     const floatingItems = [
-        // 15 diverse active debris items for lively water with variety
-        new FloatingItem('boat',       window.innerWidth * 0.04, 0.40, 1.05, { depthRatio: 0.05 }),
-        new FloatingItem('tsinelas',   window.innerWidth * 0.18, 0.38, 0.95, { depthRatio: 0.12 }),
-        new FloatingItem('duck',       window.innerWidth * 0.32, 0.45, 1.0,  { depthRatio: 0.08 }),
+        // 19 diverse active debris items — lively, varied water at all times
+        new FloatingItem('boat',       window.innerWidth * 0.03, 0.40, 1.05, { depthRatio: 0.05 }),
+        new FloatingItem('leaf',       window.innerWidth * 0.14, 0.46, 0.90, { depthRatio: 0.10 }),
+        new FloatingItem('tsinelas',   window.innerWidth * 0.24, 0.38, 0.95, { depthRatio: 0.12 }),
+        new FloatingItem('duck',       window.innerWidth * 0.36, 0.45, 1.0,  { depthRatio: 0.08 }),
         new FloatingItem('basketball', window.innerWidth * 0.48, 0.42, 0.95, { depthRatio: 0.20 }),
-        new FloatingItem('tire',       window.innerWidth * 0.64, 0.42, 1.0,  { depthRatio: 0.72 }),
-        new FloatingItem('chair',      window.innerWidth * 0.80, 0.36, 1.0,  { depthRatio: 0.30 }),
-        new FloatingItem('lifebuoy',   window.innerWidth * 0.96, 0.38, 0.95, { depthRatio: 0.25 }),
-        new FloatingItem('branch',     window.innerWidth * 1.12, 0.43, 1.05, { depthRatio: 0.15 }),
-        new FloatingItem('gallon',     window.innerWidth * 1.28, 0.44, 0.95, { depthRatio: 0.65 }),
-        new FloatingItem('umbrella',   window.innerWidth * 1.44, 0.39, 1.0,  { depthRatio: 0.28 }),
-        new FloatingItem('log',        window.innerWidth * 1.60, 0.36, 1.0,  { depthRatio: 0.45 }),
-        new FloatingItem('cooler',     window.innerWidth * 1.76, 0.42, 0.95, { depthRatio: 0.22 }),
-        new FloatingItem('cone',       window.innerWidth * 1.94, 0.40, 1.0,  { depthRatio: 0.38 }),
-        new FloatingItem('coconut',    window.innerWidth * 2.12, 0.41, 0.90, { depthRatio: 0.18 }),
-        new FloatingItem('bamboo',     window.innerWidth * 2.30, 0.38, 1.0,  { depthRatio: 0.55 }),
+        new FloatingItem('bottle',     window.innerWidth * 0.58, 0.44, 0.90, { depthRatio: 0.35 }),
+        new FloatingItem('tire',       window.innerWidth * 0.70, 0.42, 1.0,  { depthRatio: 0.72 }),
+        new FloatingItem('chair',      window.innerWidth * 0.82, 0.36, 1.0,  { depthRatio: 0.30 }),
+        new FloatingItem('lifebuoy',   window.innerWidth * 0.94, 0.38, 0.95, { depthRatio: 0.25 }),
+        new FloatingItem('branch',     window.innerWidth * 1.06, 0.43, 1.05, { depthRatio: 0.15 }),
+        new FloatingItem('gallon',     window.innerWidth * 1.18, 0.44, 0.95, { depthRatio: 0.65 }),
+        new FloatingItem('umbrella',   window.innerWidth * 1.30, 0.39, 1.0,  { depthRatio: 0.28 }),
+        new FloatingItem('log',        window.innerWidth * 1.42, 0.36, 1.0,  { depthRatio: 0.45 }),
+        new FloatingItem('cooler',     window.innerWidth * 1.54, 0.42, 0.95, { depthRatio: 0.22 }),
+        new FloatingItem('soda',       window.innerWidth * 1.66, 0.44, 0.90, { depthRatio: 0.40 }),
+        new FloatingItem('cone',       window.innerWidth * 1.78, 0.40, 1.0,  { depthRatio: 0.38 }),
+        new FloatingItem('coconut',    window.innerWidth * 1.90, 0.41, 0.90, { depthRatio: 0.18 }),
+        new FloatingItem('plank',      window.innerWidth * 2.04, 0.37, 1.0,  { depthRatio: 0.50 }),
+        new FloatingItem('bamboo',     window.innerWidth * 2.18, 0.38, 1.0,  { depthRatio: 0.55 }),
 
         // 7 Photo Frames staggered for higher frequency (initial indices non-overlapping, no duplicates)
         new FloatingItem('frame',      window.innerWidth * 0.10, 0.34, 1.0,  { imageIndex: 0,  frameColor: '#ffffff', depthRatio: 0.38 }),
