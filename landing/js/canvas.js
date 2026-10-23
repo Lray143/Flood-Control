@@ -27,18 +27,73 @@
     window.addEventListener('resize', resize);
     resize();
 
+    // 2D item drag state
+    let dragged2DItem = null;
+    let drag2DOffsetX = 0;
+    let drag2DOffsetY = 0;
+    let drag2DCursor = { x: 0, y: 0 };
+    let drag2DDropping = false;
+    let drag2DDropVy = 0;
+
     window.addEventListener('pointermove', (e) => {
         mouse.x = e.clientX;
         mouse.y = e.clientY;
         mouse.active = true;
 
-        if (Math.random() < 0.25) {
+        if (dragged2DItem) {
+            // Move dragged item to cursor
+            dragged2DItem.dragX = e.clientX - drag2DOffsetX;
+            dragged2DItem.dragY = e.clientY - drag2DOffsetY;
+        } else if (Math.random() < 0.25) {
             createSplash(e.clientX, e.clientY, 2);
         }
     });
 
     window.addEventListener('pointerleave', () => {
         mouse.active = false;
+    });
+
+    window.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('a, button, input, [role="button"]')) return;
+        // Check if pointer is close to any 2D floating item
+        const hitRadius = 44;
+        for (let item of floatingItems) {
+            const ix = item.isDragging ? item.dragX : item.x;
+            const iy = item.isDragging ? item.dragY : item._lastDrawY;
+            if (ix === undefined || iy === undefined) continue;
+            const dx = Math.abs(e.clientX - ix);
+            const dy = Math.abs(e.clientY - iy);
+            if (dx < hitRadius && dy < hitRadius) {
+                dragged2DItem = item;
+                item.isDragging = true;
+                item.hoverCooldown = 999;
+                item.jumpY = 0;
+                item.jumpVy = 0;
+                drag2DOffsetX = e.clientX - ix;
+                drag2DOffsetY = e.clientY - iy;
+                item.dragX = ix;
+                item.dragY = iy;
+                document.body.style.cursor = 'grabbing';
+                e.stopPropagation();
+                break;
+            }
+        }
+    });
+
+    window.addEventListener('pointerup', () => {
+        if (dragged2DItem) {
+            const item = dragged2DItem;
+            dragged2DItem = null;
+            item.isDragging = false;
+            item.hoverCooldown = 60;
+            document.body.style.cursor = '';
+
+            // Begin drop physics from current air position toward water
+            item.dropX = item.dragX;
+            item.dropY = item.dragY;
+            item.dropVy = 4.0;
+            item.isDropping = true;
+        }
     });
 
     // ── SUBTLE RAINDROP PARTICLES (NOT SO VISIBLE) ──────────────────────────
@@ -649,9 +704,44 @@
             this.jumpY = 0;
             this.jumpVy = 0;
             this.hoverCooldown = 0;
+            // Drag & drop state
+            this.isDragging = false;
+            this.isDropping = false;
+            this.dragX = 0;
+            this.dragY = 0;
+            this.dropX = 0;
+            this.dropY = 0;
+            this.dropVy = 0;
+            this._lastDrawY = 0;
         }
 
         update(floodSurfaceY) {
+            // While being dragged or dropping, skip normal drift physics
+            if (this.isDragging) return;
+
+            if (this.isDropping) {
+                const surfaceY = getWaterSurfaceY(this.dropX, floodSurfaceY);
+                const waterH = Math.max(30, height - surfaceY);
+                const avail = Math.max(10, waterH - 35);
+                const targetY = surfaceY + this.depthRatio * avail;
+                this.dropY += this.dropVy;
+                this.dropVy += 0.55;
+                if (this.dropY >= targetY) {
+                    const impact = Math.min(this.dropVy, 20);
+                    createSplash(this.dropX, surfaceY, Math.round(impact * 1.4));
+                    createRipple(this.dropX, surfaceY);
+                    createRipple(this.dropX - 18, surfaceY);
+                    createRipple(this.dropX + 18, surfaceY);
+                    this.jumpVy = -impact * 0.45;
+                    this.x = this.dropX;
+                    this.baseAngle = (Math.random() - 0.5) * 0.55;
+                    this.depthRatio = 0.05 + Math.random() * 0.70;
+                    this.isDropping = false;
+                    this.hoverCooldown = 80;
+                }
+                return;
+            }
+
             this.x += this.speed;
             if (this.x > width + 100) {
                 this.x = -100;
@@ -703,32 +793,54 @@
         }
 
         draw(ctx, floodSurfaceY) {
-            const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
-            const dy = getWaterSurfaceY(this.x + 8, floodSurfaceY) - getWaterSurfaceY(this.x - 8, floodSurfaceY);
-            
-            const waveInfluence = Math.max(0.35, 1 - this.depthRatio * 0.65);
-            const waveAngle = Math.atan2(dy, 16) * waveInfluence;
-            const bob = (Math.sin(time * this.bobSpeed + this.bobPhase) * 2.6 + this.jumpY) * waveInfluence;
+            let drawX, drawY, drawAngle;
 
-            const waterHeight = Math.max(30, height - surfaceY);
-            const availableDepth = Math.max(10, waterHeight - 35);
-            const currentBaseY = surfaceY + this.depthRatio * availableDepth;
+            if (this.isDragging) {
+                drawX = this.dragX;
+                drawY = this.dragY;
+                drawAngle = this.baseAngle;
+            } else if (this.isDropping) {
+                drawX = this.dropX;
+                drawY = this.dropY;
+                // Tumble slightly while falling
+                drawAngle = this.baseAngle + time * 1.8;
+            } else {
+                const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
+                const dy = getWaterSurfaceY(this.x + 8, floodSurfaceY) - getWaterSurfaceY(this.x - 8, floodSurfaceY);
+                const waveInfluence = Math.max(0.35, 1 - this.depthRatio * 0.65);
+                const waveAngle = Math.atan2(dy, 16) * waveInfluence;
+                const bob = (Math.sin(time * this.bobSpeed + this.bobPhase) * 2.6 + this.jumpY) * waveInfluence;
+                const waterHeight = Math.max(30, height - surfaceY);
+                const availableDepth = Math.max(10, waterHeight - 35);
+                drawX = this.x;
+                drawY = surfaceY + this.depthRatio * availableDepth + bob;
+                drawAngle = this.baseAngle + waveAngle * 0.85;
+            }
+
+            // Store Y so pointerdown can do hit testing
+            this._lastDrawY = drawY;
 
             ctx.save();
-            ctx.translate(this.x, currentBaseY + bob);
-            // Dynamic orientation combining base angle and wave pitch
-            ctx.rotate(this.baseAngle + waveAngle * 0.85);
+            ctx.translate(drawX, drawY);
+            ctx.rotate(drawAngle);
             ctx.scale(this.scale, this.scale);
 
-            // Water shadow (clean, above-water look)
-            const shadowW = this.type === 'frame' ? 26 : 15;
-            const shadowAlpha = Math.max(0.12, 0.30 - this.depthRatio * 0.15);
-            ctx.fillStyle = `rgba(1, 20, 42, ${shadowAlpha})`;
-            ctx.beginPath();
-            ctx.ellipse(0, 3, shadowW, 3.5, 0, 0, Math.PI * 2);
-            ctx.fill();
+            // Shadow (lift shadow when dragging for "held" look)
+            if (!this.isDragging && !this.isDropping) {
+                const shadowW = this.type === 'frame' ? 26 : 15;
+                const shadowAlpha = Math.max(0.12, 0.30 - this.depthRatio * 0.15);
+                ctx.fillStyle = `rgba(1, 20, 42, ${shadowAlpha})`;
+                ctx.beginPath();
+                ctx.ellipse(0, 3, shadowW, 3.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (this.isDragging) {
+                // Larger diffuse shadow below to show it's lifted
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+                ctx.beginPath();
+                ctx.ellipse(0, 8, 22, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
-            // Render modular item with 100% crisp true colors
             const renderer = ITEM_RENDERERS[this.type];
             if (renderer) {
                 renderer(ctx, this.extra);
