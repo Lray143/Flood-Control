@@ -345,7 +345,10 @@
         const sitrepPanelCleanup = document.getElementById('sitrep-panel');
         if (sitrepPanelCleanup) sitrepPanelCleanup.classList.remove('tour-panel-elevated');
         const layersPopover = document.getElementById('layers-popover');
-        if (layersPopover && !layersPopoverWasOpen) layersPopover.style.display = 'none';
+        if (layersPopover) {
+            layersPopover.classList.remove('tour-panel-elevated');
+            if (!layersPopoverWasOpen) layersPopover.style.display = 'none';
+        }
         const btnLayers = document.getElementById('btn-layers');
         if (btnLayers) btnLayers.classList.remove('active');
 
@@ -417,11 +420,13 @@
             if (layersPopover) {
                 layersPopoverWasOpen = layersPopover.style.display === 'block';
                 layersPopover.style.display = 'block';
+                layersPopover.classList.add('tour-panel-elevated');
             }
             if (btnLayers) btnLayers.classList.add('active');
         } else {
-            if (layersPopover && !layersPopoverWasOpen) {
-                layersPopover.style.display = 'none';
+            if (layersPopover) {
+                layersPopover.classList.remove('tour-panel-elevated');
+                if (!layersPopoverWasOpen) layersPopover.style.display = 'none';
             }
             if (btnLayers) btnLayers.classList.remove('active');
         }
@@ -499,7 +504,10 @@
         }
 
         if (window.lucide) lucide.createIcons();
-        positionStep(step);
+
+        // Defer positioning so elements made visible in prepareTarget()
+        // (e.g. #layers-popover) have been laid out by the browser first.
+        requestAnimationFrame(() => positionStep(step));
     }
 
     // ── Smart Positioning (responsive, collision-aware) ────────────────────────
@@ -531,28 +539,35 @@
                 const bRect = btnLayers.getBoundingClientRect();
                 const pRect = layersPop.getBoundingClientRect();
 
-                const spotLeft = Math.max(0, Math.min(bRect.left, pRect.left) - 6);
-                const spotTop = Math.max(0, Math.min(bRect.top, pRect.top) - 6);
-                const spotRight = Math.max(bRect.right, pRect.right) + 6;
-                const spotBottom = Math.max(bRect.bottom, pRect.bottom) + 6;
-                const spotWidth = spotRight - spotLeft;
-                const spotHeight = spotBottom - spotTop;
+                // If the popover hasn't been laid out yet (zero dimensions), retry next frame
+                if (pRect.width === 0 || pRect.height === 0) {
+                    requestAnimationFrame(() => positionStep(step));
+                    return;
+                }
 
-                spotlightEl.style.left = spotLeft + 'px';
-                spotlightEl.style.top = spotTop + 'px';
-                spotlightEl.style.width = spotWidth + 'px';
+                // Spotlight only the layers-popover panel itself (cleaner focus)
+                const spotLeft = Math.max(0, pRect.left - 8);
+                const spotTop  = Math.max(0, pRect.top  - 8);
+                const spotWidth  = pRect.width  + 16;
+                const spotHeight = pRect.height + 16;
+                const spotRight  = spotLeft + spotWidth;
+
+                spotlightEl.style.left   = spotLeft   + 'px';
+                spotlightEl.style.top    = spotTop    + 'px';
+                spotlightEl.style.width  = spotWidth  + 'px';
                 spotlightEl.style.height = spotHeight + 'px';
                 spotlightEl.style.opacity = '1';
                 spotlightEl.classList.add('pulse');
 
+                // Try to place popover to the right of the spotlight; fall back left
                 let popLeft = spotRight + margin;
-                let popTop = spotTop + (spotHeight - popH) / 2;
+                let popTop  = spotTop + (spotHeight - popH) / 2;
 
                 if (popLeft + popW > vw - edge) {
                     popLeft = Math.max(edge, spotLeft - popW - margin);
                 }
 
-                popoverEl.setAttribute('data-placement', popLeft > spotLeft ? 'right' : 'left');
+                popoverEl.setAttribute('data-placement', popLeft >= spotLeft ? 'right' : 'left');
                 place(clampH(popLeft, popW, vw, edge), clampV(popTop, popH, vh, edge));
                 return;
             }

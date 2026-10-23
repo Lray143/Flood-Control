@@ -1838,6 +1838,11 @@ button#btn-header-guide:active,
 }
 
 
+/* ── Elevate layers popover above tour overlay ───────────────────── */
+#layers-popover.tour-panel-elevated {
+    z-index: 8460 !important;
+}
+
 /* ── Secondary Tour Button Pulse Highlight ───────────────────────── */
 .tour-pulse-highlight {
     position: relative;
