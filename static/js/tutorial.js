@@ -583,8 +583,16 @@
                     let popLeft = spotRight + margin;
                     let popTop  = spotTop + (spotHeight - popH) / 2;
 
+                    // Responsive fallback if right placement overflows screen width
                     if (popLeft + popW > vw - edge) {
-                        popLeft = Math.max(edge, spotLeft - popW - margin);
+                        if (spotLeft - popW - margin >= edge) {
+                            popLeft = spotLeft - popW - margin;
+                        } else {
+                            popLeft = clampH((vw - popW) / 2, popW, vw, edge);
+                            if (spotTop - popH - margin >= edge) {
+                                popTop = spotTop - popH - margin;
+                            }
+                        }
                     }
 
                     popoverEl.setAttribute('data-placement', popLeft > spotLeft ? 'right' : 'left');
@@ -594,25 +602,22 @@
             }
         }
 
-        // Special case: 3D Canvas step highlights the central map viewport
+        // Special case: 3D Canvas step highlights the entire visible map viewport (including floating controls)
         if (step.id === '3d-canvas') {
             const uiPanel = document.getElementById('ui');
             const uiRight = (uiPanel && !uiPanel.classList.contains('panel-hidden') && vw >= 768)
                 ? uiPanel.getBoundingClientRect().right
                 : 0;
 
-            const mapCtrl = document.getElementById('map-controls');
-            const leftBound = (mapCtrl && vw >= 768)
-                ? Math.max(uiRight + 16, mapCtrl.getBoundingClientRect().right + 16)
-                : (uiRight > 0 ? uiRight + 16 : 16);
-
-            const rightBound = vw - 24;
-            const topBound = 20;
-            const bottomBound = vh - 20;
+            // Extend highlight cleanly from sidebar edge across the whole visible map
+            const leftBound = uiRight > 0 ? uiRight + 6 : 8;
+            const rightBound = vw - 8;
+            const topBound = 8;
+            const bottomBound = vh - 8;
 
             const spotLeft = leftBound;
             const spotTop = topBound;
-            const spotWidth = Math.max(300, rightBound - leftBound);
+            const spotWidth = Math.max(200, rightBound - leftBound);
             const spotHeight = Math.max(200, bottomBound - topBound);
 
             spotlightEl.style.left = spotLeft + 'px';
