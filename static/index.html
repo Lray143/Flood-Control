@@ -20,7 +20,7 @@
         })();
     </script>
     <script src="/static/lucide.min.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=3">
+    <link rel="stylesheet" href="/static/css/style.css?v=4">
 </head>
 <body>
 
@@ -143,7 +143,7 @@
     <div id="ui">
         <div class="ui-content">
             <!-- Header -->
-            <div class="panel-header">
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
                 <a href="/" class="logo-brand" id="logo-brand" title="Return to Landing Page" style="display:inline-flex; flex-direction:row; align-items:center; gap:10px; text-decoration:none !important; color:#5dade2 !important; cursor:pointer;">
                     <div class="logo-badge" style="display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                         <i data-lucide="droplet"></i>
@@ -152,6 +152,9 @@
                         <div class="logo-title" style="text-decoration:none !important;">HYDRODYNAMICS</div>
                     </div>
                 </a>
+                <button id="btn-header-guide" class="header-guide-pill" title="Start Interactive Tour">
+                    <i data-lucide="compass"></i> Guide
+                </button>
             </div>
 
             <!-- Telemetry Card -->
@@ -383,6 +386,9 @@
         <button id="btn-layers" class="map-ctrl-btn" data-tooltip="Layer Visibility">
             <i data-lucide="layers"></i>
         </button>
+        <button id="btn-tutorial" class="map-ctrl-btn" data-tooltip="Interactive Guide">
+            <i data-lucide="help-circle"></i>
+        </button>
     </div>
 
     <!-- Layer Visibility Expandable Popover -->
@@ -453,8 +459,11 @@
 }}
 </script>
 
+    <!-- Interactive Guided Walkthrough -->
+    <script src="/static/js/tutorial.js?v=1"></script>
+
     <!-- Main Simulation Application -->
-    <script type="module" src="/static/js/app.js?v=3"></script>
+    <script type="module" src="/static/js/app.js?v=4"></script>
 </body>
 
 
