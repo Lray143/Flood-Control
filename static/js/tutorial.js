@@ -149,6 +149,16 @@
             tip: 'CRITICAL: You must turn on X-Ray Mode to see, hover over, and click underground pipes! In standard view, the solid terrain blocks pipe selection.'
         },
         {
+            id: 'viewport-controls',
+            target: '#hint',
+            placement: 'top',
+            badge: 'VIEWPORT NAVIGATION & SELECTION',
+            title: 'Camera & Pipe Controls Reference',
+            icon: 'keyboard',
+            desc: 'The control reference bar at the bottom of the viewport always shows you the active camera bindings and pipe-selection shortcuts. In 3D mode, left-drag orbits the camera. In 2D top-down mode, left-drag pans the map. Right-drag pans in either view and scroll zooms smoothly.',
+            tip: 'Pipe selection shortcuts (Click, Shift+Click, Shift+Drag) only appear when Underground X-Ray mode is active — this is intentional, since pipes cannot be interacted with in standard solid-terrain view.'
+        },
+        {
             id: 'layers-visibility',
             target: '#layers-popover',
             placement: 'right',
@@ -599,6 +609,29 @@
                     place(clampH(popLeft, popW, vw, edge), clampV(popTop, popH, vh, edge));
                     return;
                 }
+            }
+        }
+
+        // Special case: Viewport Controls step spotlights the HUD bar at the bottom
+        if (step.id === 'viewport-controls') {
+            const hudBar = document.getElementById('hint');
+            if (hudBar) {
+                const hRect = hudBar.getBoundingClientRect();
+                const pad = 10;
+                spotlightEl.style.left   = Math.max(0, hRect.left - pad) + 'px';
+                spotlightEl.style.top    = Math.max(0, hRect.top - pad) + 'px';
+                spotlightEl.style.width  = (hRect.width + pad * 2) + 'px';
+                spotlightEl.style.height = (hRect.height + pad * 2) + 'px';
+                spotlightEl.style.opacity = '1';
+                spotlightEl.classList.add('pulse');
+
+                // Position popover above the HUD bar
+                const popLeft = clampH(hRect.left + (hRect.width - popW) / 2, popW, vw, edge);
+                const popTopAbove = hRect.top - popH - margin;
+                const popTop = popTopAbove >= edge ? popTopAbove : hRect.bottom + margin;
+                popoverEl.setAttribute('data-placement', popTopAbove >= edge ? 'top' : 'bottom');
+                place(popLeft, clampV(popTop, popH, vh, edge));
+                return;
             }
         }
 
