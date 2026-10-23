@@ -469,7 +469,7 @@
         }
     };
 
-    // ── MODULAR FLOATING ITEM CLASS ──────────────────────────────────────────
+    // ── MODULAR FLOATING ITEM CLASS (MULTI-DEPTH WATER DISTRIBUTION) ─────────
     class FloatingItem {
         constructor(type, x, speed, scale = 1, extra = {}) {
             this.type = type;
@@ -477,8 +477,10 @@
             this.speed = speed;
             this.scale = scale;
             this.extra = extra;
+            // depthRatio: 0 = surface crest, 0.5 = middle of blue water, 0.85 = bottom of water
+            this.depthRatio = extra.depthRatio !== undefined ? extra.depthRatio : Math.random() * 0.78;
             this.bobPhase = Math.random() * Math.PI * 2;
-            this.bobSpeed = 1.1 + Math.random() * 0.7;
+            this.bobSpeed = 1.0 + Math.random() * 0.7;
             this.jumpY = 0;
             this.jumpVy = 0;
             this.hoverCooldown = 0;
@@ -488,7 +490,8 @@
             this.x += this.speed;
             if (this.x > width + 100) {
                 this.x = -100;
-                // Cycle picture index when wrapping around so all photos appear
+                // Re-randomize depth across the entire blue water area when looping
+                this.depthRatio = 0.05 + Math.random() * 0.75;
                 if (this.type === 'frame') {
                     this.extra.imageIndex = ((this.extra.imageIndex || 0) + 1) % frameImages.length;
                 }
@@ -498,34 +501,37 @@
                 this.hoverCooldown--;
             }
 
-            // Smooth single buoyant hop when cursor passes over item
+            // Calculate current Y location inside the blue water volume
+            const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
+            const waterHeight = Math.max(30, height - surfaceY);
+            const availableDepth = Math.max(10, waterHeight - 35);
+            const currentBaseY = surfaceY + this.depthRatio * availableDepth;
+
+            // Mouse interaction anywhere across the water depth
             if (mouse.active && this.hoverCooldown <= 0 && this.jumpY === 0) {
                 const dx = Math.abs(this.x - mouse.x);
-                const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
-                const dy = Math.abs(surfaceY - mouse.y);
-                const hitDist = this.type === 'frame' ? 48 : 36;
+                const dy = Math.abs(currentBaseY - mouse.y);
+                const hitDist = this.type === 'frame' ? 52 : 38;
                 if (dx < hitDist && dy < hitDist) {
-                    this.jumpVy = -3.2; // Soft buoyant hop
-                    this.hoverCooldown = 80; // ~1.4s cooldown prevents rapid spam bouncing
-                    createSplash(this.x, surfaceY, 3);
+                    this.jumpVy = -3.4; // Soft buoyant hop
+                    this.hoverCooldown = 80; // Cooldown prevents jitter
+                    createSplash(this.x, Math.max(surfaceY, currentBaseY - 10), 3);
                     createRipple(this.x, surfaceY);
                 }
             }
 
             if (this.jumpVy !== 0 || this.jumpY !== 0) {
                 this.jumpY += this.jumpVy;
-                this.jumpVy += 0.16; // Soft gentle water buoyancy restoration
+                this.jumpVy += 0.16; // Buoyancy restoration
                 if (this.jumpY >= 0) {
                     this.jumpY = 0;
                     this.jumpVy = 0;
-                    const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
                     createRipple(this.x, surfaceY);
                 }
             }
 
-            // Occasional ambient wake ripple
-            if (Math.random() < 0.015) {
-                const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
+            // Ambient ripples on surface
+            if (Math.random() < 0.012 && this.depthRatio < 0.25) {
                 createRipple(this.x - 8 * this.speed, surfaceY);
             }
         }
@@ -533,44 +539,68 @@
         draw(ctx, floodSurfaceY) {
             const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
             const dy = getWaterSurfaceY(this.x + 8, floodSurfaceY) - getWaterSurfaceY(this.x - 8, floodSurfaceY);
-            const waveAngle = Math.atan2(dy, 16);
-            const bob = Math.sin(time * this.bobSpeed + this.bobPhase) * 2.8 + this.jumpY;
+            
+            // Wave influence decreases slightly with depth for gentle organic sway
+            const waveInfluence = Math.max(0.35, 1 - this.depthRatio * 0.65);
+            const waveAngle = Math.atan2(dy, 16) * waveInfluence;
+            const bob = (Math.sin(time * this.bobSpeed + this.bobPhase) * 2.6 + this.jumpY) * waveInfluence;
+
+            const waterHeight = Math.max(30, height - surfaceY);
+            const availableDepth = Math.max(10, waterHeight - 35);
+            const currentBaseY = surfaceY + this.depthRatio * availableDepth;
 
             ctx.save();
-            ctx.translate(this.x, surfaceY + bob);
+            ctx.translate(this.x, currentBaseY + bob);
             ctx.rotate(waveAngle * 0.85);
             ctx.scale(this.scale, this.scale);
 
-            // Water reflection / contact shadow
-            const shadowW = this.type === 'frame' ? 26 : 16;
-            ctx.fillStyle = 'rgba(2, 32, 60, 0.28)';
+            // Water contact shadow / depth ambiance
+            const shadowW = this.type === 'frame' ? 28 : 16;
+            const shadowAlpha = Math.max(0.12, 0.32 - this.depthRatio * 0.18);
+            ctx.fillStyle = `rgba(1, 20, 42, ${shadowAlpha})`;
             ctx.beginPath();
             ctx.ellipse(0, 3, shadowW, 3.5, 0, 0, Math.PI * 2);
             ctx.fill();
 
+            // Render modular item
             const renderer = ITEM_RENDERERS[this.type];
             if (renderer) {
                 renderer(ctx, this.extra);
+            }
+
+            // Subtle submerged water depth tint for deeper items
+            if (this.depthRatio > 0.15) {
+                const tintAlpha = Math.min(0.28, (this.depthRatio - 0.15) * 0.38);
+                ctx.fillStyle = `rgba(0, 160, 220, ${tintAlpha})`;
+                ctx.beginPath();
+                if (this.type === 'frame') {
+                    ctx.roundRect(-35, -70, 70, 84, 4);
+                } else {
+                    ctx.arc(0, -2, 18, 0, Math.PI * 2);
+                }
+                ctx.fill();
             }
 
             ctx.restore();
         }
     }
 
-    // Initialize rich, modular floating items pool
+    // Initialize rich, multi-depth floating items pool across top, middle, and bottom of water
     const floatingItems = [
-        new FloatingItem('boat', window.innerWidth * 0.04, 0.42, 1.05),
-        new FloatingItem('frame', window.innerWidth * 0.16, 0.35, 1.0, { imageIndex: 0 }),
-        new FloatingItem('duck', window.innerWidth * 0.28, 0.52, 0.95),
-        new FloatingItem('soda', window.innerWidth * 0.38, 0.44, 1.0),
-        new FloatingItem('frame', window.innerWidth * 0.50, 0.34, 1.0, { imageIndex: 1 }),
-        new FloatingItem('basketball', window.innerWidth * 0.62, 0.46, 0.9),
-        new FloatingItem('coconut', window.innerWidth * 0.72, 0.40, 0.95),
-        new FloatingItem('frame', window.innerWidth * 0.82, 0.36, 1.0, { imageIndex: 2 }),
-        new FloatingItem('tsinelas', window.innerWidth * 0.92, 0.38, 0.95),
-        new FloatingItem('bottle', window.innerWidth * 0.22, 0.48, 1.0),
-        new FloatingItem('plank', window.innerWidth * 0.58, 0.36, 1.0),
-        new FloatingItem('leaf', window.innerWidth * 0.68, 0.32, 1.0)
+        new FloatingItem('boat', window.innerWidth * 0.04, 0.42, 1.05, { depthRatio: 0.05 }),
+        new FloatingItem('frame', window.innerWidth * 0.12, 0.35, 1.0, { imageIndex: 0, depthRatio: 0.42 }),
+        new FloatingItem('duck', window.innerWidth * 0.22, 0.52, 0.95, { depthRatio: 0.12 }),
+        new FloatingItem('soda', window.innerWidth * 0.32, 0.44, 1.0, { depthRatio: 0.72 }),
+        new FloatingItem('frame', window.innerWidth * 0.42, 0.34, 1.0, { imageIndex: 1, depthRatio: 0.18 }),
+        new FloatingItem('basketball', window.innerWidth * 0.52, 0.46, 0.9, { depthRatio: 0.52 }),
+        new FloatingItem('coconut', window.innerWidth * 0.62, 0.40, 0.95, { depthRatio: 0.78 }),
+        new FloatingItem('frame', window.innerWidth * 0.72, 0.36, 1.0, { imageIndex: 2, depthRatio: 0.35 }),
+        new FloatingItem('tsinelas', window.innerWidth * 0.82, 0.38, 0.95, { depthRatio: 0.08 }),
+        new FloatingItem('bottle', window.innerWidth * 0.18, 0.48, 1.0, { depthRatio: 0.62 }),
+        new FloatingItem('frame', window.innerWidth * 0.88, 0.33, 1.0, { imageIndex: 3, depthRatio: 0.82 }),
+        new FloatingItem('plank', window.innerWidth * 0.95, 0.36, 1.0, { depthRatio: 0.25 }),
+        new FloatingItem('leaf', window.innerWidth * 0.65, 0.32, 1.0, { depthRatio: 0.10 }),
+        new FloatingItem('frame', window.innerWidth * 0.02, 0.35, 1.0, { imageIndex: 4, depthRatio: 0.60 })
     ];
 
     class Raindrop {
