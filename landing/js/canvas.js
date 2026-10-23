@@ -1068,7 +1068,7 @@
                     this.x = -150 - Math.random() * (width * 1.6 + 400);
                     this.depthRatio = 0.05 + Math.random() * 0.75;
                     if (this.type === 'frame') {
-                        this.extra.imageIndex = Math.floor(Math.random() * frameImages.length);
+                        this.extra.imageIndex = pickUniqueFrameIndex(this);
                     }
                     return;
                 }
@@ -1108,12 +1108,8 @@
                 if (this.type === 'frame') {
                     // Stagger offscreen respawn (1.4 to 3.0 screen widths away) so frames never arrive in a cluster
                     this.x = -120 - (width * (1.4 + Math.random() * 1.6));
-                    // 35% chance: normal group photo; 65% chance: one of the 13 funny photos
-                    if (Math.random() < 0.35) {
-                        this.extra.imageIndex = 0;
-                    } else {
-                        this.extra.imageIndex = 1 + Math.floor(Math.random() * (frameImages.length - 1));
-                    }
+                    // Pick a unique photo not shown by any other visible frame
+                    this.extra.imageIndex = pickUniqueFrameIndex(this);
                     this.extra.frameColor = FRAME_COLORS[Math.floor(Math.random() * FRAME_COLORS.length)];
                     this.extra.tapeColor = FRAME_TAPES[Math.floor(Math.random() * FRAME_TAPES.length)];
                 } else {
@@ -1228,6 +1224,33 @@
         }
     }
 
+    // ── UNIQUE FRAME PHOTO PICKER ────────────────────────────────────────
+    // Returns a photo index not currently shown by any other near-screen frame,
+    // so the same picture never appears twice (or more) on screen at once.
+    function pickUniqueFrameIndex(excludeSelf) {
+        const inUse = new Set();
+        for (const item of floatingItems) {
+            if (item === excludeSelf) continue;
+            if (item.type !== 'frame') continue;
+            // Consider "near screen": not buried far offscreen to the left
+            if (item.x > -300 && item.x < width + 300) {
+                inUse.add(item.extra.imageIndex);
+            }
+        }
+        // Build pool of indices not already visible
+        const pool = [];
+        for (let i = 0; i < frameImages.length; i++) {
+            if (!inUse.has(i)) pool.push(i);
+        }
+        // Fallback: full pool if every slot is somehow taken (14 photos vs 3 frames)
+        const candidates = pool.length > 0 ? pool : Array.from({ length: frameImages.length }, (_, i) => i);
+        // ~30% bias toward group photo (index 0) if available
+        if (Math.random() < 0.30 && candidates.includes(0)) return 0;
+        const others = candidates.filter(i => i !== 0);
+        if (others.length > 0) return others[Math.floor(Math.random() * others.length)];
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
     // Rich, multi-item fleet – frames are rare (only 2 frames among many items)
     const floatingItems = [
         // 7 diverse active debris items (spaced out widely: only ~3-4 visible at once)
@@ -1240,9 +1263,10 @@
         new FloatingItem('cooler',     window.innerWidth * 2.10, 0.42, 0.95, { depthRatio: 0.22 }),
 
         // 3 Photo Frames (spaced ~1.2 widths apart: sometimes 0, 1, 2, or 3 visible)
+        // Initial indices guaranteed distinct: frame 0 = group photo, frames 1-2 pick from non-overlapping halves
         new FloatingItem('frame',      window.innerWidth * 0.48, 0.33, 1.0,  { imageIndex: 0, frameColor: '#ffffff', depthRatio: 0.38 }),
         new FloatingItem('frame',      window.innerWidth * 1.85, 0.34, 1.0,  { imageIndex: 1 + Math.floor(Math.random() * 6), frameColor: '#fef08a', depthRatio: 0.42 }),
-        new FloatingItem('frame',      window.innerWidth * 3.10, 0.31, 1.0,  { imageIndex: 7 + Math.floor(Math.random() * 6), frameColor: '#fed7aa', depthRatio: 0.32 })
+        new FloatingItem('frame',      window.innerWidth * 3.10, 0.31, 1.0,  { imageIndex: 8 + Math.floor(Math.random() * 6), frameColor: '#fed7aa', depthRatio: 0.32 })
     ];
 
     class Raindrop {
