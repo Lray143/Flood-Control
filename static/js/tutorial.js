@@ -179,6 +179,16 @@
             tip: 'Each subdivision is classified in real time: SAFE → ALERT → CRITICAL → DISASTER based on localized water depth.'
         },
         {
+            id: 'collapsible-panels',
+            target: '#panel-toggle',
+            placement: 'right',
+            badge: 'FULLSCREEN VIEW',
+            title: 'Minimize & Expand Side Panels',
+            icon: 'maximize-2',
+            desc: 'Need more screen space to explore flood dynamics? Both side panels can be minimized anytime:\n• Left Controls: Click this tab button (<) on the edge to collapse or slide out the sidebar.\n• Right SitRep: Click the (+ / −) button on the top-right header to collapse or expand the flood report.',
+            tip: 'Minimizing both panels gives you an unobstructed, edge-to-edge view of the 3D flood model on any display.'
+        },
+        {
             id: 'completion',
             target: null,
             placement: 'center',
@@ -332,6 +342,8 @@
         }
         const sitrepBtnCleanup = document.getElementById('sitrep-toggle-btn');
         if (sitrepBtnCleanup) sitrepBtnCleanup.classList.remove('tour-pulse-highlight');
+        const sitrepPanelCleanup = document.getElementById('sitrep-panel');
+        if (sitrepPanelCleanup) sitrepPanelCleanup.classList.remove('tour-panel-elevated');
         const layersPopover = document.getElementById('layers-popover');
         if (layersPopover && !layersPopoverWasOpen) layersPopover.style.display = 'none';
         const btnLayers = document.getElementById('btn-layers');
@@ -414,13 +426,16 @@
             if (btnLayers) btnLayers.classList.remove('active');
         }
 
-        // Highlight sitrep-toggle-btn during collapsible-panels step
+        // Highlight sitrep-toggle-btn and elevate panel during collapsible-panels step
         const sitrepBtn = document.getElementById('sitrep-toggle-btn');
+        const sitrepPanel = document.getElementById('sitrep-panel');
         if (sitrepBtn) {
             if (step.id === 'collapsible-panels') {
                 sitrepBtn.classList.add('tour-pulse-highlight');
+                if (sitrepPanel) sitrepPanel.classList.add('tour-panel-elevated');
             } else {
                 sitrepBtn.classList.remove('tour-pulse-highlight');
+                if (sitrepPanel) sitrepPanel.classList.remove('tour-panel-elevated');
             }
         }
 
