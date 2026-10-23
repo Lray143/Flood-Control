@@ -1701,7 +1701,7 @@
     height: 12px;
 }
 
-/* Bare icon-only guide button beside HYDRODYNAMICS title — no background, no border, no full-width */
+/* Bare icon-only guide button on the far-right of panel-header */
 #ui .panel-header #btn-header-guide,
 #ui button#btn-header-guide,
 #ui .header-guide-icon,
@@ -1719,13 +1719,13 @@ button#btn-header-guide,
     box-shadow: none !important;
     padding: 0 !important;
     margin: 0 !important;
-    color: #5dade2 !important;
+    color: #85929e !important;
     cursor: pointer !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     border-radius: 0 !important;
-    transition: color 0.2s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    transition: color 0.18s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
 #ui .panel-header #btn-header-guide:hover,
@@ -1739,7 +1739,7 @@ button#btn-header-guide:hover,
     outline: none !important;
     box-shadow: none !important;
     color: #ffffff !important;
-    transform: rotate(35deg) scale(1.18) !important;
+    transform: rotate(35deg) scale(1.15) !important;
 }
 
 #ui .panel-header #btn-header-guide:active,
@@ -1754,11 +1754,11 @@ button#btn-header-guide:active,
 #ui button#btn-header-guide .lucide,
 #ui .header-guide-icon .lucide,
 .header-guide-icon .lucide {
-    width: 17px !important;
-    height: 17px !important;
-    color: #5dade2 !important;
+    width: 16px !important;
+    height: 16px !important;
+    color: #85929e !important;
     stroke: currentColor !important;
-    transition: color 0.2s ease, stroke 0.2s ease !important;
+    transition: color 0.18s ease, stroke 0.18s ease !important;
 }
 
 #ui .panel-header #btn-header-guide:hover .lucide,

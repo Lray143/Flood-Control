@@ -16,7 +16,7 @@
             title: '3D Flood Simulation Digital Twin',
             icon: 'droplet',
             desc: 'Welcome to the Barangay 168 (Deparo, Caloocan City) flood control simulation. This walkthrough guides you through every control, map mode, preset, and analytical layer in the interface.',
-            tip: 'Navigate with Next / Back below or your keyboard arrow keys (→ / ←). You can restart this guide at any time by clicking the compass icon ( ⊙ ) right beside the HYDRODYNAMICS logo.'
+            tip: 'Navigate with Next / Back below or your keyboard arrow keys (→ / ←). You can restart this guide at any time by clicking the compass icon ( ⊙ ) in the top-right corner of the header.'
         },
         {
             id: 'guide-button',
@@ -25,7 +25,7 @@
             badge: 'HELP & WALKTHROUGH',
             title: 'Restart Guide Anytime',
             icon: 'compass',
-            desc: 'Click this compass icon right beside the HYDRODYNAMICS title whenever you want to reopen or replay this interactive guide. It remains pinned here permanently.',
+            desc: 'Click this compass icon in the top-right of the header whenever you want to reopen or replay this interactive guide. It remains pinned here permanently.',
             tip: 'Whenever you want a quick refresher on what any button does, just click this icon!'
         },
         {
@@ -195,7 +195,7 @@
             badge: 'READY TO EXPLORE',
             title: 'You Are All Set!',
             icon: 'check-circle-2',
-            desc: 'You now know every tool in the Hydrodynamics simulation! Start the rain, test pipe blockages, and watch how water responds across Barangay 168 in real time. Remember: you can click the compass icon ( ⊙ ) right beside the HYDRODYNAMICS title at any time to reopen this guide!',
+            desc: 'You now know every tool in the Hydrodynamics simulation! Start the rain, test pipe blockages, and watch how water responds across Barangay 168 in real time. Remember: you can click the compass icon ( ⊙ ) in the top-right corner of the header at any time to reopen this guide!',
             tip: 'Click "Finish Tour" below to start exploring.'
         }
     ];
@@ -356,7 +356,7 @@
         }, 220);
 
         if (skipped) {
-            showToast('Tour exited — click the ⊙ compass icon beside HYDRODYNAMICS to open the guide again anytime.');
+            showToast('Tour exited — click the ⊙ compass icon in the top-right corner of the header to open the guide again anytime.');
         }
     }
 
