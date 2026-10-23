@@ -145,6 +145,7 @@ html, body {
     justify-content: space-between;
     align-items: center;
     width: 100%;
+    opacity: 1;
     animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     pointer-events: auto;
 }
@@ -290,6 +291,7 @@ html, body {
     margin: 0 auto;
     padding: 0 1.5rem clamp(2.5rem, 6vh, 4.5rem);
     flex: 1;
+    opacity: 1;
     animation: fadeInUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
     pointer-events: none;
     user-select: none;
@@ -686,4 +688,16 @@ html, body {
 @keyframes hint-nudge {
     0%, 100% { transform: translateX(0); }
     50% { transform: translateX(3px); }
+}
+
+
+/* ── Fallback for Reduced Motion & Instant Render Safety ── */
+@media (prefers-reduced-motion: reduce) {
+    .landing-header,
+    .landing-hero,
+    .landing-footer {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
 }
