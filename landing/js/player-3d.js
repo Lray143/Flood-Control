@@ -16,7 +16,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     const canvas = document.getElementById('floating-3d-canvas');
     if (!canvas) return;
 
-    const hintElem = document.getElementById('bust-hint');
+    const playerHint = document.getElementById('player-hint');
+    const bustHint = document.getElementById('bust-hint');
 
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -594,15 +595,34 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
             bustGroup.rotation.y = THREE.MathUtils.clamp(bustYaw, -0.26, 0.26);
         }
 
-        // ── 3. UPDATE FLOATING "DOUBLE CLICK ME" HINT ─────────────────────────
-        if (hintElem) {
-            const showHint = bustGroup.visible && !bustIsOffscreen && !bustIsDragging && !window.HydroItemsHidden && bustScreenX > 60 && bustScreenX < width - 60;
-            if (showHint) {
-                hintElem.classList.add('visible');
-                hintElem.style.left = `${bustScreenX}px`;
-                hintElem.style.top = `${bustRenderedY - 95}px`;
+        // ── 3. UPDATE FLOATING "DOUBLE CLICK ME" HINTS (BESIDE MODELS, AMPLE CLEARANCE) ──
+        if (playerHint) {
+            const showPlayerHint = playerGroup.visible && !playerIsOffscreen && !playerIsDragging && !window.HydroItemsHidden && playerScreenX > 50 && playerScreenX < width - 70;
+            if (showPlayerHint) {
+                playerHint.classList.add('visible');
+                if (playerScreenX > width - 180) {
+                    playerHint.style.left = `${playerScreenX - 110}px`;
+                } else {
+                    playerHint.style.left = `${playerScreenX + 64}px`;
+                }
+                playerHint.style.top = `${playerRenderedY - 18}px`;
             } else {
-                hintElem.classList.remove('visible');
+                playerHint.classList.remove('visible');
+            }
+        }
+
+        if (bustHint) {
+            const showBustHint = bustGroup.visible && !bustIsOffscreen && !bustIsDragging && !window.HydroItemsHidden && bustScreenX > 50 && bustScreenX < width - 70;
+            if (showBustHint) {
+                bustHint.classList.add('visible');
+                if (bustScreenX > width - 180) {
+                    bustHint.style.left = `${bustScreenX - 110}px`;
+                } else {
+                    bustHint.style.left = `${bustScreenX + 60}px`;
+                }
+                bustHint.style.top = `${bustRenderedY - 12}px`;
+            } else {
+                bustHint.classList.remove('visible');
             }
         }
 

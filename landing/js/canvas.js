@@ -271,6 +271,13 @@
     };
 
     // ── MODULAR RANDOM FLOATING ITEMS ENGINE ─────────────────────────────────
+        // 23 distinct authentic urban flood debris types
+    const DEBRIS_TYPES = [
+        'boat', 'duck', 'basketball', 'tsinelas', 'leaf', 'soda', 'coconut',
+        'bottle', 'plank', 'lifebuoy', 'soccer', 'box', 'cap', 'watermelon',
+        'branch', 'log', 'chair', 'tire', 'gallon', 'cooler', 'cone', 'umbrella', 'bamboo'
+    ];
+
     // Preload random picture frame photos (14 user-uploaded team photos)
     const FRAME_PHOTO_COUNT = 14;
     const frameImages = [];
@@ -725,6 +732,224 @@
             ctx.fill();
         },
 
+        log: function (ctx) {
+            // Heavy floating driftwood / tree trunk with bark and stump
+            ctx.fillStyle = '#5c3a21';
+            ctx.beginPath();
+            ctx.roundRect(-26, -5, 52, 10, 4);
+            ctx.fill();
+
+            // Bark grooves
+            ctx.strokeStyle = '#3d2412';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(-20, -2);
+            ctx.lineTo(16, -2);
+            ctx.moveTo(-14, 2);
+            ctx.lineTo(22, 2);
+            ctx.stroke();
+
+            // Cut stump sticking out
+            ctx.fillStyle = '#6e4428';
+            ctx.beginPath();
+            ctx.ellipse(-8, -7, 4, 3, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#8c5935';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Green moss spot
+            ctx.fillStyle = '#4d7c0f';
+            ctx.beginPath();
+            ctx.ellipse(8, -5, 5, 2, 0.1, 0, Math.PI * 2);
+            ctx.fill();
+        },
+
+        chair: function (ctx) {
+            // Iconic plastic Monobloc patio chair floating on its side
+            ctx.fillStyle = '#f8fafc';
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.2;
+
+            // Seat base
+            ctx.beginPath();
+            ctx.roundRect(-10, -3, 20, 6, 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Curved backrest
+            ctx.beginPath();
+            ctx.moveTo(-10, -3);
+            ctx.quadraticCurveTo(-14, -16, -6, -20);
+            ctx.lineTo(6, -20);
+            ctx.quadraticCurveTo(14, -16, 10, -3);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Backrest slats
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 0.9;
+            ctx.beginPath();
+            ctx.moveTo(-3, -7); ctx.lineTo(-2, -17);
+            ctx.moveTo(3, -7); ctx.lineTo(2, -17);
+            ctx.stroke();
+
+            // Splayed legs
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-8, 3); ctx.lineTo(-12, 14);
+            ctx.moveTo(-4, 3); ctx.lineTo(-5, 12);
+            ctx.moveTo(4, 3); ctx.lineTo(5, 12);
+            ctx.moveTo(8, 3); ctx.lineTo(12, 14);
+            ctx.stroke();
+        },
+
+        tire: function (ctx) {
+            // Floating rubber vehicle tire
+            ctx.fillStyle = '#1e2229';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 16, 9, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Inner hollow rim hole
+            ctx.fillStyle = '#061320';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 8, 4.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Tread rubber highlights
+            ctx.strokeStyle = '#3f4756';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 13, 7.2, 0, 0, Math.PI * 2);
+            ctx.stroke();
+        },
+
+        gallon: function (ctx) {
+            // Blue 5-gallon water container / jug
+            ctx.fillStyle = '#0284c7';
+            ctx.beginPath();
+            ctx.roundRect(-8, -14, 16, 26, 3);
+            ctx.fill();
+
+            // Ribbed barrel grooves
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-7, -7); ctx.lineTo(7, -7);
+            ctx.moveTo(-7, -1); ctx.lineTo(7, -1);
+            ctx.moveTo(-7, 5); ctx.lineTo(7, 5);
+            ctx.stroke();
+
+            // White neck & screw cap
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.rect(-3.5, -18, 7, 4);
+            ctx.fill();
+        },
+
+        cooler: function (ctx) {
+            // Red picnic cooler / ice chest
+            ctx.fillStyle = '#dc2626';
+            ctx.beginPath();
+            ctx.roundRect(-14, -6, 28, 14, 2);
+            ctx.fill();
+
+            // White insulated lid
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.roundRect(-15, -11, 30, 5, 2);
+            ctx.fill();
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+
+            // White side handle
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(-14, -2); ctx.lineTo(-17, -2); ctx.lineTo(-17, 3);
+            ctx.stroke();
+        },
+
+        cone: function (ctx) {
+            // Bright orange safety traffic cone
+            ctx.fillStyle = '#ff5722';
+            ctx.beginPath();
+            ctx.moveTo(0, -18);
+            ctx.lineTo(8, 2);
+            ctx.lineTo(-8, 2);
+            ctx.closePath();
+            ctx.fill();
+
+            // White reflective collar band
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(-4, -8);
+            ctx.lineTo(4, -8);
+            ctx.lineTo(5.5, -3);
+            ctx.lineTo(-5.5, -3);
+            ctx.closePath();
+            ctx.fill();
+
+            // Square base plate
+            ctx.fillStyle = '#e64a19';
+            ctx.beginPath();
+            ctx.roundRect(-12, 2, 24, 3, 1);
+            ctx.fill();
+        },
+
+        umbrella: function (ctx) {
+            // Broken/tilted floating umbrella
+            ctx.fillStyle = '#2563eb';
+            ctx.beginPath();
+            ctx.arc(0, -2, 16, Math.PI, 0, false);
+            ctx.closePath();
+            ctx.fill();
+
+            // Alternating cyan panel
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.moveTo(-5, -2);
+            ctx.lineTo(5, -2);
+            ctx.lineTo(0, -18);
+            ctx.closePath();
+            ctx.fill();
+
+            // Curved metal hook tip sticking up
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.moveTo(0, -18);
+            ctx.lineTo(0, -23);
+            ctx.arc(3, -23, 3, Math.PI, 0, false);
+            ctx.stroke();
+        },
+
+        bamboo: function (ctx) {
+            // Segmented floating bamboo stalk
+            ctx.fillStyle = '#84cc16';
+            ctx.beginPath();
+            ctx.roundRect(-22, -4, 44, 8, 3);
+            ctx.fill();
+
+            // Node rings
+            ctx.strokeStyle = '#4d7c0f';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(-8, -4); ctx.lineTo(-8, 4);
+            ctx.moveTo(8, -4); ctx.lineTo(8, 4);
+            ctx.stroke();
+
+            // Tiny sprout leaf
+            ctx.fillStyle = '#65a30d';
+            ctx.beginPath();
+            ctx.ellipse(9, -7, 4, 1.8, -0.4, 0, Math.PI * 2);
+            ctx.fill();
+        },
+
         frame: function (ctx, extra) {
             // Clean modern photo frame without text, dynamic color
             const imgIdx = (extra && extra.imageIndex !== undefined) ? extra.imageIndex : 0;
@@ -880,13 +1105,9 @@
 
             this.x += this.speed;
             if (this.x > width + 100) {
-                // Natural random delay before looping around so items don't march constantly
-                this.x = -100 - Math.random() * (width * 0.75 + 150);
-                this.depthRatio = 0.05 + Math.random() * 0.75;
-                this.baseAngle = (Math.random() - 0.5) * 0.55;
                 if (this.type === 'frame') {
-                    // Stagger offscreen respawn (1.2 to 2.8 screen widths away) so frames never appear at the same time
-                    this.x = -120 - (width * (1.2 + Math.random() * 1.6));
+                    // Stagger offscreen respawn (1.4 to 3.0 screen widths away) so frames never arrive in a cluster
+                    this.x = -120 - (width * (1.4 + Math.random() * 1.6));
                     // 35% chance: normal group photo; 65% chance: one of the 13 funny photos
                     if (Math.random() < 0.35) {
                         this.extra.imageIndex = 0;
@@ -895,7 +1116,14 @@
                     }
                     this.extra.frameColor = FRAME_COLORS[Math.floor(Math.random() * FRAME_COLORS.length)];
                     this.extra.tapeColor = FRAME_TAPES[Math.floor(Math.random() * FRAME_TAPES.length)];
+                } else {
+                    // Generous offscreen delay (1.0 to 2.2 screen widths) keeping water clean and uncluttered
+                    this.x = -120 - Math.random() * (width * 1.4 + 300);
+                    // Morph into a new random debris type from our 23 diverse items!
+                    this.type = DEBRIS_TYPES[Math.floor(Math.random() * DEBRIS_TYPES.length)];
                 }
+                this.depthRatio = 0.05 + Math.random() * 0.75;
+                this.baseAngle = (Math.random() - 0.5) * 0.55;
             }
 
             if (this.hoverCooldown > 0) {
@@ -1002,30 +1230,19 @@
 
     // Rich, multi-item fleet – frames are rare (only 2 frames among many items)
     const floatingItems = [
-        new FloatingItem('boat',       window.innerWidth * 0.04, 0.42, 1.05, { depthRatio: 0.05 }),
-        new FloatingItem('duck',       window.innerWidth * 0.12, 0.52, 0.95, { depthRatio: 0.12 }),
-        new FloatingItem('lifebuoy',   window.innerWidth * 0.20, 0.45, 1.0,  { depthRatio: 0.68 }),
-        new FloatingItem('soda',       window.innerWidth * 0.28, 0.44, 1.0,  { depthRatio: 0.75 }),
-        new FloatingItem('basketball', window.innerWidth * 0.36, 0.46, 0.9,  { depthRatio: 0.52 }),
-        new FloatingItem('watermelon', window.innerWidth * 0.44, 0.42, 1.0,  { depthRatio: 0.15 }),
-        new FloatingItem('coconut',    window.innerWidth * 0.52, 0.40, 0.95, { depthRatio: 0.78 }),
-        // Photo Frame 1 (visible on water)
-        new FloatingItem('frame',      window.innerWidth * 0.58, 0.33, 1.0,  { imageIndex: 0, frameColor: '#ffffff', depthRatio: 0.38 }),
-        new FloatingItem('soccer',     window.innerWidth * 0.68, 0.48, 0.95, { depthRatio: 0.58 }),
-        new FloatingItem('tsinelas',   window.innerWidth * 0.74, 0.38, 0.95, { depthRatio: 0.08 }),
-        new FloatingItem('bottle',     window.innerWidth * 0.80, 0.48, 1.0,  { depthRatio: 0.62 }),
-        new FloatingItem('cap',        window.innerWidth * 0.86, 0.46, 1.0,  { depthRatio: 0.30 }),
-        new FloatingItem('box',        window.innerWidth * 0.92, 0.36, 1.0,  { depthRatio: 0.70 }),
-        new FloatingItem('plank',      window.innerWidth * 0.16, 0.36, 1.0,  { depthRatio: 0.25 }),
-        new FloatingItem('branch',     window.innerWidth * 0.24, 0.38, 1.0,  { depthRatio: 0.45 }),
-        new FloatingItem('leaf',       window.innerWidth * 0.32, 0.32, 1.0,  { depthRatio: 0.10 }),
-        new FloatingItem('leaf',       window.innerWidth * 0.96, 0.30, 0.9,  { depthRatio: 0.22 }),
-        new FloatingItem('coconut',    window.innerWidth * 0.08, 0.38, 0.85, { depthRatio: 0.60 }),
-        new FloatingItem('soda',       window.innerWidth * 0.40, 0.42, 0.9,  { depthRatio: 0.48 }),
-        // Photo Frame 2 (staggered ~15s away)
-        new FloatingItem('frame',      window.innerWidth * 1.55, 0.34, 1.0,  { imageIndex: 1 + Math.floor(Math.random() * 6), frameColor: '#fef08a', depthRatio: 0.42 }),
-        // Photo Frame 3 (staggered ~35s away)
-        new FloatingItem('frame',      window.innerWidth * 2.65, 0.31, 1.0,  { imageIndex: 7 + Math.floor(Math.random() * 6), frameColor: '#fed7aa', depthRatio: 0.32 })
+        // 7 diverse active debris items (spaced out widely: only ~3-4 visible at once)
+        new FloatingItem('boat',       window.innerWidth * 0.08, 0.40, 1.05, { depthRatio: 0.05 }),
+        new FloatingItem('tsinelas',   window.innerWidth * 0.35, 0.38, 0.95, { depthRatio: 0.12 }),
+        new FloatingItem('tire',       window.innerWidth * 0.65, 0.42, 1.0,  { depthRatio: 0.72 }),
+        new FloatingItem('chair',      window.innerWidth * 0.95, 0.36, 1.0,  { depthRatio: 0.30 }),
+        new FloatingItem('gallon',     window.innerWidth * 1.30, 0.44, 0.95, { depthRatio: 0.65 }),
+        new FloatingItem('log',        window.innerWidth * 1.70, 0.36, 1.0,  { depthRatio: 0.45 }),
+        new FloatingItem('cooler',     window.innerWidth * 2.10, 0.42, 0.95, { depthRatio: 0.22 }),
+
+        // 3 Photo Frames (spaced ~1.2 widths apart: sometimes 0, 1, 2, or 3 visible)
+        new FloatingItem('frame',      window.innerWidth * 0.48, 0.33, 1.0,  { imageIndex: 0, frameColor: '#ffffff', depthRatio: 0.38 }),
+        new FloatingItem('frame',      window.innerWidth * 1.85, 0.34, 1.0,  { imageIndex: 1 + Math.floor(Math.random() * 6), frameColor: '#fef08a', depthRatio: 0.42 }),
+        new FloatingItem('frame',      window.innerWidth * 3.10, 0.31, 1.0,  { imageIndex: 7 + Math.floor(Math.random() * 6), frameColor: '#fed7aa', depthRatio: 0.32 })
     ];
 
     class Raindrop {
