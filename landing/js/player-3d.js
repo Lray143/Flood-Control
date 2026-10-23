@@ -133,12 +133,15 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
                 }
             });
 
-            // Model height is normalized ~1.0 unit. Scale to 180px on screen.
-            const modelScale = 180;
+            // Model height is normalized ~1.0 unit (Y: -0.5 to +0.5).
+            // New model is wider (X ±0.29). Scale to 185px so it looks full-bodied.
+            const modelScale = 185;
             playerModel.scale.set(modelScale, modelScale, modelScale);
 
-            // Center waist at y = 0 inside the group
-            playerModel.position.set(0, 36, 0);
+            // Sit the model so the waist/lower torso rests on the swim ring.
+            // Head at +0.5 → at modelScale=185, head is 92px above center.
+            // We raise by 40px so feet don't dip below the water surface.
+            playerModel.position.set(0, 40, 0);
 
             playerGroup.add(playerModel);
             isLoaded = true;

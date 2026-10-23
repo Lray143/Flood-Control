@@ -738,28 +738,30 @@
         }
     }
 
-    // Rich, multi-item fleet with varied orientations, colors, and water depths
+    // Rich, multi-item fleet – frames are rare (only 2 frames among many items)
     const floatingItems = [
-        new FloatingItem('boat', window.innerWidth * 0.04, 0.42, 1.05, { depthRatio: 0.05 }),
-        new FloatingItem('frame', window.innerWidth * 0.12, 0.35, 1.0, { imageIndex: 0, frameColor: '#ffffff', depthRatio: 0.42 }),
-        new FloatingItem('duck', window.innerWidth * 0.20, 0.52, 0.95, { depthRatio: 0.12 }),
-        new FloatingItem('lifebuoy', window.innerWidth * 0.28, 0.45, 1.0, { depthRatio: 0.68 }),
-        new FloatingItem('soda', window.innerWidth * 0.36, 0.44, 1.0, { depthRatio: 0.75 }),
-        new FloatingItem('frame', window.innerWidth * 0.44, 0.34, 1.0, { imageIndex: 1, frameColor: '#fef08a', depthRatio: 0.20 }),
-        new FloatingItem('basketball', window.innerWidth * 0.52, 0.46, 0.9, { depthRatio: 0.52 }),
-        new FloatingItem('watermelon', window.innerWidth * 0.60, 0.42, 1.0, { depthRatio: 0.15 }),
-        new FloatingItem('coconut', window.innerWidth * 0.68, 0.40, 0.95, { depthRatio: 0.78 }),
-        new FloatingItem('frame', window.innerWidth * 0.76, 0.36, 1.0, { imageIndex: 2, frameColor: '#fbcfe8', depthRatio: 0.38 }),
-        new FloatingItem('soccer', window.innerWidth * 0.82, 0.48, 0.95, { depthRatio: 0.58 }),
-        new FloatingItem('tsinelas', window.innerWidth * 0.88, 0.38, 0.95, { depthRatio: 0.08 }),
-        new FloatingItem('bottle', window.innerWidth * 0.16, 0.48, 1.0, { depthRatio: 0.62 }),
-        new FloatingItem('frame', window.innerWidth * 0.94, 0.33, 1.0, { imageIndex: 3, frameColor: '#bbf7d0', depthRatio: 0.82 }),
-        new FloatingItem('cap', window.innerWidth * 0.24, 0.46, 1.0, { depthRatio: 0.30 }),
-        new FloatingItem('box', window.innerWidth * 0.48, 0.36, 1.0, { depthRatio: 0.70 }),
-        new FloatingItem('plank', window.innerWidth * 0.72, 0.36, 1.0, { depthRatio: 0.25 }),
-        new FloatingItem('branch', window.innerWidth * 0.56, 0.38, 1.0, { depthRatio: 0.45 }),
-        new FloatingItem('leaf', window.innerWidth * 0.64, 0.32, 1.0, { depthRatio: 0.10 }),
-        new FloatingItem('frame', window.innerWidth * 0.02, 0.35, 1.0, { imageIndex: 4, frameColor: '#bae6fd', depthRatio: 0.60 })
+        new FloatingItem('boat',       window.innerWidth * 0.04, 0.42, 1.05, { depthRatio: 0.05 }),
+        new FloatingItem('duck',       window.innerWidth * 0.12, 0.52, 0.95, { depthRatio: 0.12 }),
+        new FloatingItem('lifebuoy',   window.innerWidth * 0.20, 0.45, 1.0,  { depthRatio: 0.68 }),
+        new FloatingItem('soda',       window.innerWidth * 0.28, 0.44, 1.0,  { depthRatio: 0.75 }),
+        new FloatingItem('basketball', window.innerWidth * 0.36, 0.46, 0.9,  { depthRatio: 0.52 }),
+        new FloatingItem('watermelon', window.innerWidth * 0.44, 0.42, 1.0,  { depthRatio: 0.15 }),
+        new FloatingItem('coconut',    window.innerWidth * 0.52, 0.40, 0.95, { depthRatio: 0.78 }),
+        // First rare photo frame
+        new FloatingItem('frame',      window.innerWidth * 0.60, 0.33, 1.0,  { imageIndex: 0, frameColor: '#ffffff', depthRatio: 0.38 }),
+        new FloatingItem('soccer',     window.innerWidth * 0.68, 0.48, 0.95, { depthRatio: 0.58 }),
+        new FloatingItem('tsinelas',   window.innerWidth * 0.74, 0.38, 0.95, { depthRatio: 0.08 }),
+        new FloatingItem('bottle',     window.innerWidth * 0.80, 0.48, 1.0,  { depthRatio: 0.62 }),
+        new FloatingItem('cap',        window.innerWidth * 0.86, 0.46, 1.0,  { depthRatio: 0.30 }),
+        new FloatingItem('box',        window.innerWidth * 0.92, 0.36, 1.0,  { depthRatio: 0.70 }),
+        new FloatingItem('plank',      window.innerWidth * 0.16, 0.36, 1.0,  { depthRatio: 0.25 }),
+        new FloatingItem('branch',     window.innerWidth * 0.24, 0.38, 1.0,  { depthRatio: 0.45 }),
+        new FloatingItem('leaf',       window.innerWidth * 0.32, 0.32, 1.0,  { depthRatio: 0.10 }),
+        new FloatingItem('leaf',       window.innerWidth * 0.96, 0.30, 0.9,  { depthRatio: 0.22 }),
+        new FloatingItem('coconut',    window.innerWidth * 0.08, 0.38, 0.85, { depthRatio: 0.60 }),
+        new FloatingItem('soda',       window.innerWidth * 0.40, 0.42, 0.9,  { depthRatio: 0.48 }),
+        // Second rare photo frame (far away from first)
+        new FloatingItem('frame',      window.innerWidth * 1.40, 0.34, 1.0,  { imageIndex: 1, frameColor: '#fef08a', depthRatio: 0.42 })
     ];
 
     class Raindrop {
