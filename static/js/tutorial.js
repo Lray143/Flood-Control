@@ -149,24 +149,14 @@
             tip: 'CRITICAL: You must turn on X-Ray Mode to see, hover over, and click underground pipes! In standard view, the solid terrain blocks pipe selection.'
         },
         {
-            id: 'layers-btn',
-            target: '#btn-layers',
+            id: 'layers-visibility',
+            target: '#layers-popover',
             placement: 'right',
-            badge: 'LAYER VISIBILITY TOGGLE',
-            title: 'Layer Visibility Button',
-            icon: 'layers',
-            desc: 'Click this button to open the Layer Visibility panel — where you can individually toggle each visual layer on and off in the 3D scene.',
-            tip: 'Click this button anytime to open the GIS layer filters popover.'
-        },
-        {
-            id: 'map-controls-all',
-            target: '#map-controls',
-            placement: 'right',
-            badge: 'LAYER FILTERS',
+            badge: 'GIS LAYER FILTERS',
             title: 'Layer Visibility & GIS Filters',
             icon: 'layers',
-            desc: 'The Layer Visibility panel lets you toggle: 3D buildings, natural trees, OSM road networks, water surface, Barangay 168 boundary, zone borders, 3D area labels, map labels, drain nodes, and grid overlay.',
-            tip: 'Turn off buildings and trees for a clean, unobstructed aerial flood hazard map.'
+            desc: 'Clicking the Layer Visibility button opens this panel where you can toggle individual scene layers: 3D buildings, natural trees, OSM roads, flood water, Barangay 168 boundary, zone boundaries, area labels, drain nodes, and grid overlay.',
+            tip: 'Turn off buildings and trees anytime you want a clean, unobstructed aerial view of flood hazards.'
         },
         {
             id: 'pipe-inspector',
@@ -344,6 +334,8 @@
         if (sitrepBtnCleanup) sitrepBtnCleanup.classList.remove('tour-pulse-highlight');
         const layersPopover = document.getElementById('layers-popover');
         if (layersPopover && !layersPopoverWasOpen) layersPopover.style.display = 'none';
+        const btnLayers = document.getElementById('btn-layers');
+        if (btnLayers) btnLayers.classList.remove('active');
 
         if (popoverEl) popoverEl.classList.remove('visible');
         if (spotlightEl) { spotlightEl.style.opacity = '0'; spotlightEl.classList.remove('pulse'); }
@@ -406,20 +398,20 @@
             sampleInspectorShown = false;
         }
 
-        // Layer Visibility popover — open for map-controls-all step
+        // Layer Visibility popover and button state
         const layersPopover = document.getElementById('layers-popover');
-        if (step.id === 'map-controls-all') {
+        const btnLayers = document.getElementById('btn-layers');
+        if (step.id === 'layers-visibility') {
             if (layersPopover) {
                 layersPopoverWasOpen = layersPopover.style.display === 'block';
                 layersPopover.style.display = 'block';
             }
-        } else if (step.id === 'layers-btn') {
-            if (layersPopover) {
-                layersPopoverWasOpen = layersPopover.style.display === 'block';
+            if (btnLayers) btnLayers.classList.add('active');
+        } else {
+            if (layersPopover && !layersPopoverWasOpen) {
                 layersPopover.style.display = 'none';
             }
-        } else if (layersPopover && !layersPopoverWasOpen) {
-            layersPopover.style.display = 'none';
+            if (btnLayers) btnLayers.classList.remove('active');
         }
 
         // Highlight sitrep-toggle-btn during collapsible-panels step
@@ -514,6 +506,41 @@
             popoverEl.setAttribute('data-placement', 'center');
             place(Math.max(edge, (vw - popW) / 2), Math.max(edge, (vh - popH) / 2));
             return;
+        }
+
+        // Special case: Layer Visibility step highlights both button and open popover modal
+        if (step.id === 'layers-visibility') {
+            const btnLayers = document.getElementById('btn-layers');
+            const layersPop = document.getElementById('layers-popover');
+            if (btnLayers && layersPop && layersPop.style.display === 'block') {
+                const bRect = btnLayers.getBoundingClientRect();
+                const pRect = layersPop.getBoundingClientRect();
+
+                const spotLeft = Math.max(0, Math.min(bRect.left, pRect.left) - 6);
+                const spotTop = Math.max(0, Math.min(bRect.top, pRect.top) - 6);
+                const spotRight = Math.max(bRect.right, pRect.right) + 6;
+                const spotBottom = Math.max(bRect.bottom, pRect.bottom) + 6;
+                const spotWidth = spotRight - spotLeft;
+                const spotHeight = spotBottom - spotTop;
+
+                spotlightEl.style.left = spotLeft + 'px';
+                spotlightEl.style.top = spotTop + 'px';
+                spotlightEl.style.width = spotWidth + 'px';
+                spotlightEl.style.height = spotHeight + 'px';
+                spotlightEl.style.opacity = '1';
+                spotlightEl.classList.add('pulse');
+
+                let popLeft = spotRight + margin;
+                let popTop = spotTop + (spotHeight - popH) / 2;
+
+                if (popLeft + popW > vw - edge) {
+                    popLeft = Math.max(edge, spotLeft - popW - margin);
+                }
+
+                popoverEl.setAttribute('data-placement', popLeft > spotLeft ? 'right' : 'left');
+                place(clampH(popLeft, popW, vw, edge), clampV(popTop, popH, vh, edge));
+                return;
+            }
         }
 
         // Special case: 3D Canvas step highlights the central map viewport
