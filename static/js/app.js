@@ -473,12 +473,12 @@ import { SelectionBox } from 'three/addons/interactive/SelectionBox.js';
                 const isOutlet = n.is_outlet;
                 const mGeo = isOutlet ? nGeoOutlet : nGeoNormal;
                 const nMat = new THREE.MeshStandardMaterial({
-                    // Outlets: luminous electric violet/magenta discharge beacons; Normal manholes: polished chrome with emerald intake core
-                    color: isOutlet ? 0xf472b6 : 0xf1f5f9,
-                    emissive: isOutlet ? 0xd946ef : 0x10b981,
-                    emissiveIntensity: isOutlet ? 1.25 : 0.65,
-                    roughness: isOutlet ? 0.15 : 0.22,
-                    metalness: isOutlet ? 0.75 : 0.85,
+                    // Outlets: luminous electric violet/magenta discharge beacons; Normal manholes: polished titanium chrome / platinum steel cap
+                    color: isOutlet ? 0xf472b6 : 0xf8fafc,
+                    emissive: isOutlet ? 0xd946ef : 0x94a3b8,
+                    emissiveIntensity: isOutlet ? 1.25 : 0.35,
+                    roughness: isOutlet ? 0.15 : 0.20,
+                    metalness: isOutlet ? 0.75 : 0.90,
                 });
                 const m = new THREE.Mesh(mGeo, nMat);
                 const nodeY = terrainElev[n.y * nx + n.x] - 0.4;   // sit crisp & proud on surface
