@@ -2444,6 +2444,20 @@ import { SelectionBox } from 'three/addons/interactive/SelectionBox.js';
             triggerImmediatePoll();
         };
 
+        // Viewport HUD indicator (Navigation & Pipe selection cues)
+        function updateViewportHud() {
+            const navAction = document.getElementById('hud-nav-action');
+            if (navAction) {
+                navAction.textContent = is2DView ? 'Pan' : 'Rotate';
+            }
+            const xrayGroup = document.getElementById('hud-group-xray');
+            const hintBar = document.getElementById('hint');
+            if (xrayGroup && hintBar) {
+                xrayGroup.classList.toggle('active', !!glassMode);
+                hintBar.classList.toggle('xray-active', !!glassMode);
+            }
+        }
+
         // View Toggles (Floating Google Maps Style Toolbar)
         const btnView = document.getElementById('btn-view');
         // Helper: swap the lucide icon on btn-view by replacing its <i> and forcing re-render
@@ -2463,7 +2477,7 @@ import { SelectionBox } from 'three/addons/interactive/SelectionBox.js';
                 setBtnViewIcon('map');
                 btnView.setAttribute('data-tooltip', 'Switch to 2D View');
                 btnView.classList.add('active');
-                document.getElementById('hint').textContent = 'Drag: rotate | Right-drag: pan | Scroll: zoom | Click pipe to configure (Shift+Click: multi-select)';
+                updateViewportHud();
             } else {
                 // ── 2D mode: top-down, pan-only ──────────────────────────────
                 camera.position.set(345, 400, 190.1);
@@ -2474,9 +2488,10 @@ import { SelectionBox } from 'three/addons/interactive/SelectionBox.js';
                 setBtnViewIcon('box');
                 btnView.setAttribute('data-tooltip', 'Switch to 3D View');
                 btnView.classList.remove('active');
-                document.getElementById('hint').textContent = 'Drag: pan | Scroll: zoom | Click pipe to inspect (Shift+Click: multi-select)';
+                updateViewportHud();
             }
         };
+        updateViewportHud();
 
 
 
@@ -2561,6 +2576,7 @@ import { SelectionBox } from 'three/addons/interactive/SelectionBox.js';
             treeMeshes.forEach(m => { m.visible = showTrees; });
 
             if (window.lucide) lucide.createIcons();
+            updateViewportHud();
         };
 
         // ─── LAYER FILTER EXPAND / COLLAPSE ──────────────────────────────────

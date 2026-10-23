@@ -396,6 +396,26 @@
         </button>
     </div>
 
+    <!-- Viewport Navigation & Selection HUD -->
+    <div id="hint" class="viewport-hud">
+        <div class="hud-group hud-group-nav">
+            <span class="hud-item"><kbd class="hud-kbd">Left Drag</kbd> <span id="hud-nav-action">Rotate</span></span>
+            <span class="hud-sep">•</span>
+            <span class="hud-item"><kbd class="hud-kbd">Right Drag</kbd> Pan</span>
+            <span class="hud-sep">•</span>
+            <span class="hud-item"><kbd class="hud-kbd">Scroll</kbd> Zoom</span>
+        </div>
+        <div class="hud-divider"></div>
+        <div class="hud-group hud-group-xray" id="hud-group-xray">
+            <span class="hud-label"><i data-lucide="eye"></i> X-RAY:</span>
+            <span class="hud-item"><kbd class="hud-kbd">Click</kbd> Select Pipe</span>
+            <span class="hud-sep">•</span>
+            <span class="hud-item"><kbd class="hud-kbd">Shift + Click</kbd> Multi-Select</span>
+            <span class="hud-sep">•</span>
+            <span class="hud-item"><kbd class="hud-kbd">Shift + Drag</kbd> Box Select</span>
+        </div>
+    </div>
+
     <!-- Layer Visibility Expandable Popover -->
     <div id="layers-popover">
         <div class="popover-header">
@@ -468,7 +488,7 @@
     <script src="/static/js/tutorial.js?v=13"></script>
 
     <!-- Main Simulation Application -->
-    <script type="module" src="/static/js/app.js?v=14"></script>
+    <script type="module" src="/static/js/app.js?v=15"></script>
 </body>
 
 

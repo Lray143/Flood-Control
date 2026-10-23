@@ -634,15 +634,133 @@
 
 
 
+        /* ── Viewport Navigation & Selection HUD ───────────────────────────── */
         #hint {
             position: absolute;
-            bottom: 14px;
-            left: 50%;
+            bottom: 20px;
+            left: calc(50% + 170px);
             transform: translateX(-50%);
-            color: rgba(255, 255, 255, 0.7);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(14, 20, 27, 0.88);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+            border-radius: 9999px;
+            padding: 7px 16px;
             font-size: 11px;
-            text-shadow: 0 1px 2px #000;
+            font-weight: 500;
+            color: #cbd5e1;
             pointer-events: none;
+            user-select: none;
+            -webkit-user-select: none;
+            z-index: 400;
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+            white-space: nowrap;
+        }
+
+        #ui.panel-hidden ~ #hint {
+            left: 50%;
+        }
+
+        .hud-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .hud-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #cbd5e1;
+            letter-spacing: 0.1px;
+        }
+
+        .hud-kbd {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.24);
+            border-radius: 5px;
+            padding: 1px 6px;
+            font-family: inherit;
+            font-size: 10px;
+            font-weight: 600;
+            color: #f1f5f9;
+            letter-spacing: 0.2px;
+            line-height: 1.3;
+        }
+
+        .hud-sep {
+            color: rgba(255, 255, 255, 0.20);
+            font-size: 9px;
+        }
+
+        .hud-divider {
+            width: 1px;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.12);
+            margin: 0 4px;
+        }
+
+        .hud-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        .hud-label .lucide {
+            width: 12px;
+            height: 12px;
+            color: #64748b;
+        }
+
+        /* Highlight state when Underground X-Ray mode is active */
+        #hint.xray-active {
+            border-color: rgba(93, 173, 226, 0.35);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(93, 173, 226, 0.15);
+        }
+
+        .hud-group-xray.active .hud-label {
+            color: #38bdf8;
+        }
+
+        .hud-group-xray.active .hud-label .lucide {
+            color: #38bdf8;
+        }
+
+        .hud-group-xray.active .hud-kbd {
+            background: rgba(56, 189, 248, 0.14);
+            border-color: rgba(56, 189, 248, 0.35);
+            border-bottom-color: rgba(56, 189, 248, 0.55);
+            color: #bae6fd;
+        }
+
+        @media (max-width: 1200px) {
+            #hint {
+                font-size: 10px;
+                padding: 6px 12px;
+                gap: 6px;
+            }
+            .hud-kbd {
+                font-size: 9px;
+                padding: 1px 4px;
+            }
+        }
+
+        @media (max-width: 960px) {
+            #hint {
+                display: none;
+            }
         }
 
         #loading {
