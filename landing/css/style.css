@@ -530,15 +530,24 @@ html, body {
 }
 
 .contact-email-link,
-.contact-facebook-link {
+.contact-facebook-link,
+.contact-facebook-link:hover,
+.contact-facebook-link:focus,
+.contact-facebook-link:active,
+.contact-facebook-link:visited {
     cursor: pointer;
+    text-decoration: none !important;
+}
+
+.contact-email-link *,
+.contact-facebook-link * {
+    text-decoration: none !important;
 }
 
 .contact-email-link:hover strong,
 .contact-facebook-link:hover strong {
     color: var(--primary);
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration: none !important;
 }
 
 .contact-facebook-link:hover svg {

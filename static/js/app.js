@@ -1370,29 +1370,53 @@ import * as THREE from 'three';
 
         // ── Box Selection (Shift + left-click drag in X-Ray mode) ────────────
         const boxRect = document.getElementById('box-select-rect');
+        let isBoxCandidate = false;
         let boxSelectActive = false;
         let boxStart = { x: 0, y: 0 };
         let boxPreviewIds = new Set(); // pipes currently highlighted during drag
         const _bsTmp = new THREE.Vector3();
 
-        // Find all pipes whose screen position falls inside the selection box (exact screen-space projection)
+        // Project a world position to screen pixel coordinates with frustum clipping
+        function _projectToScreen(v3, canvasRect) {
+            _bsTmp.copy(v3);
+            _bsTmp.project(camera);
+            // Must be within camera view frustum (near..far)
+            if (_bsTmp.z < -1.0 || _bsTmp.z > 1.0) return null;
+            return {
+                x: (_bsTmp.x *  0.5 + 0.5) * canvasRect.width  + canvasRect.left,
+                y: (_bsTmp.y * -0.5 + 0.5) * canvasRect.height + canvasRect.top,
+            };
+        }
+
+        // Find all pipes whose physical midpoint falls inside the selection box (exact screen-space projection)
         function _pipesInBox(x1, y1, x2, y2) {
+            camera.updateMatrixWorld(true);
             const inside = new Set();
             const canvasRect = renderer.domElement.getBoundingClientRect();
-            const _tmpVec = new THREE.Vector3();
-            const pad = 4; // slight picking margin for clean border selection
-            const bx1 = x1 - pad, by1 = y1 - pad, bx2 = x2 + pad, by2 = y2 + pad;
+            const bx1 = Math.min(x1, x2);
+            const bx2 = Math.max(x1, x2);
+            const by1 = Math.min(y1, y2);
+            const by2 = Math.max(y1, y2);
 
             Object.entries(pipeMeshMap).forEach(([pid, entry]) => {
-                _tmpVec.copy(entry.mesh.position);
-                _tmpVec.project(camera);
+                if (!entry.mesh.visible) return;
+                const idNum = Number(pid);
 
-                // Convert NDC -> screen pixels
-                const sx = (_tmpVec.x *  0.5 + 0.5) * canvasRect.width  + canvasRect.left;
-                const sy = (_tmpVec.y * -0.5 + 0.5) * canvasRect.height + canvasRect.top;
+                // Check pipe midpoint
+                const pMid = _projectToScreen(entry.mesh.position, canvasRect);
+                if (pMid && pMid.x >= bx1 && pMid.x <= bx2 && pMid.y >= by1 && pMid.y <= by2) {
+                    inside.add(idNum);
+                    return;
+                }
 
-                if (sx >= bx1 && sx <= bx2 && sy >= by1 && sy <= by2) {
-                    inside.add(Number(pid));
+                // Check if BOTH endpoints are inside the box (fully enclosed pipe)
+                const p1 = _projectToScreen(entry.v1, canvasRect);
+                const p2 = _projectToScreen(entry.v2, canvasRect);
+                if (p1 && p2) {
+                    if (p1.x >= bx1 && p1.x <= bx2 && p1.y >= by1 && p1.y <= by2 &&
+                        p2.x >= bx1 && p2.x <= bx2 && p2.y >= by1 && p2.y <= by2) {
+                        inside.add(idNum);
+                    }
                 }
             });
             return inside;
@@ -1412,28 +1436,32 @@ import * as THREE from 'three';
         }
 
         renderer.domElement.addEventListener('pointerdown', e => {
-            // Only activate when Shift is held, in X-Ray mode, primary button
+            // Only prime box selection candidate when Shift is held, in X-Ray mode, primary button
             if (!e.shiftKey || !glassMode || e.button !== 0) return;
-            boxSelectActive = true;
-            // Reset previous selection on new drag so only the current box is selected
-            const prev = Array.from(selectedPipeIds);
-            selectedPipeIds.clear();
-            prev.forEach(id => updatePipeVisual(id));
-            boxPreviewIds = new Set();
+            isBoxCandidate = true;
             boxStart.x = e.clientX;
             boxStart.y = e.clientY;
-            boxRect.style.left   = e.clientX + 'px';
-            boxRect.style.top    = e.clientY + 'px';
-            boxRect.style.width  = '0px';
-            boxRect.style.height = '0px';
-            boxRect.style.display = 'block';
-            // Hide inspector panel while box-selecting
-            shiftInspectorHidden = true;
-            piPanel.style.display = 'none';
-            e.stopPropagation();
+            // Temporarily disable OrbitControls panning during Shift drag
+            controls.enabled = false;
         });
 
         window.addEventListener('pointermove', e => {
+            if (isBoxCandidate && !boxSelectActive) {
+                const dist = Math.hypot(e.clientX - boxStart.x, e.clientY - boxStart.y);
+                if (dist > 5) {
+                    // Confirmed mouse drag: activate box select
+                    boxSelectActive = true;
+                    // Reset previous selection on fresh drag
+                    const prev = Array.from(selectedPipeIds);
+                    selectedPipeIds.clear();
+                    prev.forEach(id => updatePipeVisual(id));
+                    boxPreviewIds = new Set();
+                    shiftInspectorHidden = true;
+                    piPanel.style.display = 'none';
+                    boxRect.style.display = 'block';
+                }
+            }
+
             if (!boxSelectActive) return;
             const x1 = Math.min(e.clientX, boxStart.x);
             const y1 = Math.min(e.clientY, boxStart.y);
@@ -1445,45 +1473,47 @@ import * as THREE from 'three';
             boxRect.style.height = (y2 - y1) + 'px';
 
             // Live preview: highlight all pipes touching the box in real-time
-            if ((x2 - x1) > 4 || (y2 - y1) > 4) {
-                _applyBoxPreview(_pipesInBox(x1, y1, x2, y2));
-            }
+            _applyBoxPreview(_pipesInBox(x1, y1, x2, y2));
         });
 
         window.addEventListener('pointerup', e => {
-            if (!boxSelectActive) return;
-            boxSelectActive = false;
-            boxRect.style.display = 'none';
+            // Re-enable camera controls
+            controls.enabled = true;
 
-            const x1 = Math.min(e.clientX, boxStart.x);
-            const y1 = Math.min(e.clientY, boxStart.y);
-            const x2 = Math.max(e.clientX, boxStart.x);
-            const y2 = Math.max(e.clientY, boxStart.y);
+            if (isBoxCandidate) {
+                isBoxCandidate = false;
+                if (boxSelectActive) {
+                    boxSelectActive = false;
+                    boxRect.style.display = 'none';
 
-            // Clean up preview highlights and transition to committed selection
-            const prevPreview = new Set(boxPreviewIds);
-            boxPreviewIds = new Set();
-            prevPreview.forEach(id => updatePipeVisual(id));
+                    const x1 = Math.min(e.clientX, boxStart.x);
+                    const y1 = Math.min(e.clientY, boxStart.y);
+                    const x2 = Math.max(e.clientX, boxStart.x);
+                    const y2 = Math.max(e.clientY, boxStart.y);
 
-            // Minimum drag threshold — ignore accidental micro-drags
-            if ((x2 - x1) < 8 && (y2 - y1) < 8) return;
+                    // Clean up preview highlights and transition to committed selection
+                    const prevPreview = new Set(boxPreviewIds);
+                    boxPreviewIds = new Set();
+                    prevPreview.forEach(id => updatePipeVisual(id));
 
-            // Commit all pipes touched by the box
-            const committed = _pipesInBox(x1, y1, x2, y2);
-            committed.forEach(id => selectedPipeIds.add(id));
+                    // Commit all pipes touched by the box
+                    const committed = _pipesInBox(x1, y1, x2, y2);
+                    committed.forEach(id => selectedPipeIds.add(id));
 
-            if (selectedPipeIds.size > 0) {
-                lastPipeInteractionPos = { x: x2, y: y1 };
-                selectedPipeIds.forEach(id => updatePipeVisual(id));
+                    if (selectedPipeIds.size > 0) {
+                        lastPipeInteractionPos = { x: x2, y: y1 };
+                        selectedPipeIds.forEach(id => updatePipeVisual(id));
 
-                // If user has already released Shift, show inspector immediately!
-                if (!e.shiftKey) {
-                    shiftInspectorHidden = false;
-                    updateInspectorContent();
-                    showInspectorAt(x2, y1);
-                } else {
-                    shiftInspectorHidden = true;
-                    piPanel.style.display = 'none';
+                        // If user has already released Shift, show inspector immediately!
+                        if (!e.shiftKey) {
+                            shiftInspectorHidden = false;
+                            updateInspectorContent();
+                            showInspectorAt(x2, y1);
+                        } else {
+                            shiftInspectorHidden = true;
+                            piPanel.style.display = 'none';
+                        }
+                    }
                 }
             }
         });
