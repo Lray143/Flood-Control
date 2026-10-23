@@ -229,6 +229,14 @@
             fill: rgba(93, 173, 226, 0.3);
         }
 
+        .logo-badge .brand-logo-img {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 6px rgba(93, 173, 226, 0.55));
+            display: block;
+        }
+
         .logo-title {
             font-size: 13.5px;
             font-weight: 800;

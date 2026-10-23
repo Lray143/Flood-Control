@@ -179,6 +179,15 @@ html, body {
     filter: drop-shadow(0 0 8px var(--primary-glow));
 }
 
+.brand-logo-img {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    position: relative;
+    z-index: 2;
+    filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.5));
+}
+
 .brand-text-col {
     display: flex;
     flex-direction: column;

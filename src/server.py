@@ -899,6 +899,10 @@ def redirect_to_landing():
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/landing", StaticFiles(directory="landing"), name="landing")
 
+@app.get("/favicon.ico")
+def favicon():
+    return FileResponse("static/img/favicon.ico")
+
 @app.get("/")
 def root():
     """1-page non-scrollable landing page with direct route to simulation."""
