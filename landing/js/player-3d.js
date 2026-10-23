@@ -3,7 +3,7 @@
  * - No swim ring: model floats freely like a statue across the full water body
  * - Multi-depth: spawns at random Y depth within the blue water
  * - Random orientation angle each lap
- * - Click-and-hold to drag anywhere; release drops with splash
+ * - Click-and-hold to drag anywhere; release gently drops with splash
  */
 
 import * as THREE from 'three';
@@ -82,7 +82,6 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
             // Model Y: -0.5 (feet) to +0.5 (head). Scale to 185px.
             const modelScale = 185;
             playerModel.scale.set(modelScale, modelScale, modelScale);
-            // Position so center of mass (~waist) aligns with group origin
             playerModel.position.set(0, 0, 0);
 
             playerGroup.add(playerModel);
@@ -90,7 +89,6 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
             // Opening splash
             if (window.HydroWater) {
-                const dims = window.HydroWater.getDimensions();
                 const sY = window.HydroWater.getSurfaceY(playerScreenX);
                 window.HydroWater.createSplash(playerScreenX, sY, 10);
             }
@@ -116,13 +114,11 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
     // ── DRAG STATE ────────────────────────────────────────────────────────────
     let isDragging = false;
-    let dragScreenX = 0;
-    let dragScreenY = 0;
     let dragOffsetX = 0;
     let dragOffsetY = 0;
-    // While dragging: model floats free in air (above water)
-    let airY = 0;         // current Y in screen coords while in air
+    let airY = 0;         // current Y in screen coords while held/falling
     let dropVy = 0;       // gravity while falling after release
+    let currentRenderedY = height * 0.82; // live tracked Y for screen hit testing
 
     let rippleTick = 0;
 
@@ -139,7 +135,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     }
     window.addEventListener('resize', resize);
 
-    // ── RAYCASTER FOR CLICK DETECTION ─────────────────────────────────────────
+    // ── RAYCASTER & HIT DETECTION ─────────────────────────────────────────────
     const raycaster = new THREE.Raycaster();
     const mouseCoord = new THREE.Vector2(-9999, -9999);
 
@@ -151,37 +147,35 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     }
 
     function isHit(ex, ey) {
+        if (!isLoaded) return false;
+        // 1. Screen proximity check: player is ~100px wide x 185px tall
+        const dx = Math.abs(ex - playerScreenX);
+        const dy = Math.abs(ey - currentRenderedY);
+        if (dx < 70 && dy < 100) {
+            return true;
+        }
+        // 2. Three.js raycasting fallback
         const ndc = screenToNDC(ex, ey);
         mouseCoord.set(ndc.x, ndc.y);
         raycaster.setFromCamera(mouseCoord, camera);
         return raycaster.intersectObjects(playerGroup.children, true).length > 0;
     }
 
-    // ── POINTER EVENTS ────────────────────────────────────────────────────────
-    canvas.style.pointerEvents = 'auto';
-
-    canvas.addEventListener('pointerdown', (e) => {
+    // ── POINTER EVENTS (Global Window Listeners) ──────────────────────────────
+    window.addEventListener('pointerdown', (e) => {
         if (e.target.closest('a, button, input, [role="button"]')) return;
         if (!isLoaded) return;
+        if (window._2dItemDragging) return;
 
         if (isHit(e.clientX, e.clientY)) {
             isDragging = true;
-            canvas.setPointerCapture(e.pointerId);
-            dragScreenX = e.clientX;
-            dragScreenY = e.clientY;
-
-            // Compute current rendered Y so offset feels natural
-            const dims = window.HydroWater ? window.HydroWater.getDimensions() : { width, height };
-            const sY = window.HydroWater ? window.HydroWater.getSurfaceY(playerScreenX) : height * 0.83;
-            const wH = Math.max(30, dims.height - sY);
-            const avail = Math.max(10, wH - 35);
-            const curBaseY = sY + depthRatio * avail;
-
+            window._3dPlayerDragging = true;
             dragOffsetX = e.clientX - playerScreenX;
-            dragOffsetY = e.clientY - curBaseY;
-            airY = curBaseY;
+            dragOffsetY = e.clientY - currentRenderedY;
+            airY = currentRenderedY;
             dropVy = 0;
             document.body.style.cursor = 'grabbing';
+            e.preventDefault();
             e.stopPropagation();
         }
     });
@@ -190,31 +184,35 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         if (isDragging) {
             playerScreenX = e.clientX - dragOffsetX;
             airY = e.clientY - dragOffsetY;
-        } else {
-            // Hover cursor
-            if (!isLoaded) return;
-            const ndc = screenToNDC(e.clientX, e.clientY);
-            mouseCoord.set(ndc.x, ndc.y);
-            raycaster.setFromCamera(mouseCoord, camera);
-            const hit = raycaster.intersectObjects(playerGroup.children, true).length > 0;
-            canvas.style.cursor = hit ? 'grab' : '';
+            e.preventDefault();
+        } else if (!window._2dItemDragging) {
+            if (isHit(e.clientX, e.clientY)) {
+                document.body.style.cursor = 'grab';
+            } else if (document.body.style.cursor === 'grab' && !window._2dItemHovered) {
+                document.body.style.cursor = '';
+            }
         }
     });
 
-    window.addEventListener('pointerup', (e) => {
+    window.addEventListener('pointerup', () => {
         if (!isDragging) return;
         isDragging = false;
-        canvas.style.cursor = '';
+        window._3dPlayerDragging = false;
         document.body.style.cursor = '';
 
-        // Calculate where the model landed relative to the water surface
-        const sY = window.HydroWater ? window.HydroWater.getSurfaceY(playerScreenX) : height * 0.83;
-        // Start the drop with current air velocity + a small downward kick
-        dropVy = 4.5;
-        // Re-randomize depth and orientation when dropped at new location
+        // Gentle initial downward speed (NOT dropping like a rock)
+        dropVy = 0.4;
         depthRatio = 0.05 + Math.random() * 0.70;
         baseYaw = (Math.random() - 0.5) * 0.5;
         driftSpeed = 0.28 + Math.random() * 0.22;
+    });
+
+    window.addEventListener('pointercancel', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        window._3dPlayerDragging = false;
+        document.body.style.cursor = '';
+        dropVy = 0.4;
     });
 
     // ── ANIMATION LOOP ────────────────────────────────────────────────────────
@@ -225,7 +223,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         let time = now * 0.001;
         if (window.HydroWater) time = window.HydroWater.getTime();
 
-        // Drift across the screen unless dragged
+        // Drift across the screen unless held or falling
         if (!isDragging && dropVy === 0) {
             playerScreenX += driftSpeed;
             if (playerScreenX > width + 120) {
@@ -250,40 +248,43 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
             // While held: follow cursor exactly
             finalScreenY = airY;
         } else if (dropVy > 0) {
-            // Falling after release: simulate gravity until it hits target depth
+            // Gentle, floaty descent after release (NOT dropping too fast)
             airY += dropVy;
-            dropVy += 0.6; // gravity
+            dropVy = Math.min(4.2, dropVy + 0.16); // soft gravity, capped terminal speed
             if (airY >= targetBaseY) {
-                // Landed
-                const impactForce = Math.min(dropVy, 18);
-                bounceVy = -impactForce * 0.55;
+                // Landed in water with splash & ripples
+                const impactForce = Math.min(dropVy * 2.2, 10);
+                bounceVy = -impactForce * 0.45;
                 dropVy = 0;
                 airY = targetBaseY;
                 if (window.HydroWater) {
-                    window.HydroWater.createSplash(playerScreenX, sY, Math.round(impactForce * 1.2));
+                    window.HydroWater.createSplash(playerScreenX, sY, Math.round(impactForce * 1.5));
                     window.HydroWater.createRipple(playerScreenX, sY);
-                    window.HydroWater.createRipple(playerScreenX - 20, sY);
-                    window.HydroWater.createRipple(playerScreenX + 20, sY);
+                    window.HydroWater.createRipple(playerScreenX - 25, sY);
+                    window.HydroWater.createRipple(playerScreenX + 25, sY);
                 }
             }
             finalScreenY = airY;
         } else {
-            // Normal floating with buoyancy bounce
+            // Normal floating with soft buoyancy bob
             if (bounceVy !== 0 || bounceY !== 0) {
                 bounceY += bounceVy;
-                bounceVy += 0.38;
+                bounceVy += 0.22; // smooth spring return
                 if (bounceY >= 0) {
                     if (window.HydroWater) {
-                        window.HydroWater.createSplash(playerScreenX, sY, 5);
+                        window.HydroWater.createSplash(playerScreenX, sY, 3);
                         window.HydroWater.createRipple(playerScreenX, sY);
                     }
                     bounceY = 0;
                     bounceVy = 0;
                 }
             }
-            const naturalBob = Math.sin(time * 2.2) * 3.2 * waveInfluence;
+            const naturalBob = Math.sin(time * 2.0) * 3.0 * waveInfluence;
             finalScreenY = targetBaseY + naturalBob + bounceY;
         }
+
+        // Keep currentRenderedY synchronized for hit testing
+        currentRenderedY = finalScreenY;
 
         // Wobble spring
         if (clickWobbleVy !== 0 || clickWobble !== 0) {
@@ -301,15 +302,15 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         playerGroup.position.y = height / 2 - finalScreenY;
 
         if (isDragging) {
-            // While dragging: no wave tilt, just slight tilt in drag direction
+            // While dragging: keep front-facing with slight tilt
             playerGroup.rotation.z = 0;
             playerGroup.rotation.x = 0;
             playerGroup.rotation.y = THREE.MathUtils.clamp(baseYaw + clickWobble, -0.55, 0.55);
         } else if (dropVy > 0) {
-            // Tumble gently while falling
-            playerGroup.rotation.z = Math.sin(time * 3) * 0.22;
-            playerGroup.rotation.x = Math.cos(time * 2.5) * 0.12;
-            playerGroup.rotation.y = baseYaw + time * 0.4;
+            // Tumble gently while floating down
+            playerGroup.rotation.z = Math.sin(time * 2.5) * 0.18;
+            playerGroup.rotation.x = Math.cos(time * 2) * 0.10;
+            playerGroup.rotation.y = baseYaw + time * 0.3;
         } else {
             // Normal float: wave tilt + gentle sway, locked within ±25° yaw
             const waveZ = waveAngle * waveInfluence * 0.85;
@@ -321,7 +322,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
         // Periodic wake ripples only when calmly drifting near surface
         rippleTick++;
-        if (rippleTick % 40 === 0 && !isDragging && dropVy === 0 && depthRatio < 0.35 && window.HydroWater) {
+        if (rippleTick % 45 === 0 && !isDragging && dropVy === 0 && depthRatio < 0.35 && window.HydroWater) {
             window.HydroWater.createRipple(playerScreenX, sY);
         }
 

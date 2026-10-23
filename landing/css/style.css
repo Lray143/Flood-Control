@@ -29,6 +29,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    pointer-events: none;
 }
 
 html, body {
@@ -135,6 +136,7 @@ html, body {
     justify-content: space-between;
     padding: clamp(1rem, 2.5vh, 2rem) clamp(1.5rem, 4vw, 4rem);
     box-sizing: border-box;
+    pointer-events: none;
 }
 
 /* ── Top Header Navigation ── */
@@ -284,6 +286,8 @@ html, body {
     padding: 0 1.5rem clamp(2.5rem, 6vh, 4.5rem);
     flex: 1;
     animation: fadeInUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+    pointer-events: none;
+    user-select: none;
 }
 
 .hero-title {

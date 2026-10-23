@@ -31,9 +31,6 @@
     let dragged2DItem = null;
     let drag2DOffsetX = 0;
     let drag2DOffsetY = 0;
-    let drag2DCursor = { x: 0, y: 0 };
-    let drag2DDropping = false;
-    let drag2DDropVy = 0;
 
     window.addEventListener('pointermove', (e) => {
         mouse.x = e.clientX;
@@ -41,11 +38,32 @@
         mouse.active = true;
 
         if (dragged2DItem) {
-            // Move dragged item to cursor
             dragged2DItem.dragX = e.clientX - drag2DOffsetX;
             dragged2DItem.dragY = e.clientY - drag2DOffsetY;
-        } else if (Math.random() < 0.25) {
-            createSplash(e.clientX, e.clientY, 2);
+            e.preventDefault();
+        } else if (!window._3dPlayerDragging) {
+            // Check hover over 2D floating items
+            let hovered = false;
+            for (let item of floatingItems) {
+                const ix = item.x;
+                const iy = item._lastDrawY;
+                if (ix !== undefined && iy !== undefined) {
+                    if (Math.abs(e.clientX - ix) < 50 && Math.abs(e.clientY - iy) < 50) {
+                        hovered = true;
+                        break;
+                    }
+                }
+            }
+            window._2dItemHovered = hovered;
+            if (hovered && document.body.style.cursor !== 'grabbing') {
+                document.body.style.cursor = 'grab';
+            } else if (!hovered && !window._3dPlayerDragging && document.body.style.cursor === 'grab') {
+                document.body.style.cursor = '';
+            }
+
+            if (Math.random() < 0.25) {
+                createSplash(e.clientX, e.clientY, 2);
+            }
         }
     });
 
@@ -55,8 +73,10 @@
 
     window.addEventListener('pointerdown', (e) => {
         if (e.target.closest('a, button, input, [role="button"]')) return;
-        // Check if pointer is close to any 2D floating item
-        const hitRadius = 44;
+        if (window._3dPlayerDragging) return;
+
+        // Generous hit test for 2D floating items
+        const hitRadius = 55;
         for (let item of floatingItems) {
             const ix = item.isDragging ? item.dragX : item.x;
             const iy = item.isDragging ? item.dragY : item._lastDrawY;
@@ -65,6 +85,7 @@
             const dy = Math.abs(e.clientY - iy);
             if (dx < hitRadius && dy < hitRadius) {
                 dragged2DItem = item;
+                window._2dItemDragging = true;
                 item.isDragging = true;
                 item.hoverCooldown = 999;
                 item.jumpY = 0;
@@ -74,6 +95,7 @@
                 item.dragX = ix;
                 item.dragY = iy;
                 document.body.style.cursor = 'grabbing';
+                e.preventDefault();
                 e.stopPropagation();
                 break;
             }
@@ -84,14 +106,29 @@
         if (dragged2DItem) {
             const item = dragged2DItem;
             dragged2DItem = null;
+            window._2dItemDragging = false;
             item.isDragging = false;
             item.hoverCooldown = 60;
             document.body.style.cursor = '';
 
-            // Begin drop physics from current air position toward water
+            // Gentle float-down drop physics (smooth, natural, not dropping too fast)
             item.dropX = item.dragX;
             item.dropY = item.dragY;
-            item.dropVy = 4.0;
+            item.dropVy = 0.4;
+            item.isDropping = true;
+        }
+    });
+
+    window.addEventListener('pointercancel', () => {
+        if (dragged2DItem) {
+            const item = dragged2DItem;
+            dragged2DItem = null;
+            window._2dItemDragging = false;
+            item.isDragging = false;
+            document.body.style.cursor = '';
+            item.dropX = item.dragX;
+            item.dropY = item.dragY;
+            item.dropVy = 0.4;
             item.isDropping = true;
         }
     });
@@ -167,12 +204,14 @@
     };
 
     // ── MODULAR RANDOM FLOATING ITEMS ENGINE ─────────────────────────────────
-    // Preload random picture frame photos (5 user-uploaded team photos)
-    const frameImages = [1, 2, 3, 4, 5].map(i => {
+    // Preload random picture frame photos (14 user-uploaded team photos)
+    const FRAME_PHOTO_COUNT = 14;
+    const frameImages = [];
+    for (let i = 1; i <= FRAME_PHOTO_COUNT; i++) {
         const img = new Image();
         img.src = `/landing/img/frame_${i}.jpg`;
-        return img;
-    });
+        frameImages.push(img);
+    }
 
     const FRAME_COLORS = [
         '#ffffff', // Crisp classic Polaroid
@@ -725,17 +764,20 @@
                 const avail = Math.max(10, waterH - 35);
                 const targetY = surfaceY + this.depthRatio * avail;
                 this.dropY += this.dropVy;
-                this.dropVy += 0.55;
+                this.dropVy = Math.min(4.2, this.dropVy + 0.16); // Gentle float-down gravity
                 if (this.dropY >= targetY) {
-                    const impact = Math.min(this.dropVy, 20);
-                    createSplash(this.dropX, surfaceY, Math.round(impact * 1.4));
+                    const impact = Math.min(this.dropVy * 2.2, 10);
+                    createSplash(this.dropX, surfaceY, Math.round(impact * 1.5));
                     createRipple(this.dropX, surfaceY);
-                    createRipple(this.dropX - 18, surfaceY);
-                    createRipple(this.dropX + 18, surfaceY);
+                    createRipple(this.dropX - 20, surfaceY);
+                    createRipple(this.dropX + 20, surfaceY);
                     this.jumpVy = -impact * 0.45;
                     this.x = this.dropX;
                     this.baseAngle = (Math.random() - 0.5) * 0.55;
                     this.depthRatio = 0.05 + Math.random() * 0.70;
+                    if (this.type === 'frame') {
+                        this.extra.imageIndex = Math.floor(Math.random() * frameImages.length);
+                    }
                     this.isDropping = false;
                     this.hoverCooldown = 80;
                 }
@@ -749,7 +791,7 @@
                 this.depthRatio = 0.05 + Math.random() * 0.75;
                 this.baseAngle = (Math.random() - 0.5) * 0.55;
                 if (this.type === 'frame') {
-                    this.extra.imageIndex = ((this.extra.imageIndex || 0) + 1) % frameImages.length;
+                    this.extra.imageIndex = Math.floor(Math.random() * frameImages.length);
                     this.extra.frameColor = FRAME_COLORS[Math.floor(Math.random() * FRAME_COLORS.length)];
                     this.extra.tapeColor = FRAME_TAPES[Math.floor(Math.random() * FRAME_TAPES.length)];
                 }
@@ -860,7 +902,7 @@
         new FloatingItem('watermelon', window.innerWidth * 0.44, 0.42, 1.0,  { depthRatio: 0.15 }),
         new FloatingItem('coconut',    window.innerWidth * 0.52, 0.40, 0.95, { depthRatio: 0.78 }),
         // First rare photo frame
-        new FloatingItem('frame',      window.innerWidth * 0.60, 0.33, 1.0,  { imageIndex: 0, frameColor: '#ffffff', depthRatio: 0.38 }),
+        new FloatingItem('frame',      window.innerWidth * 0.60, 0.33, 1.0,  { imageIndex: Math.floor(Math.random() * 14), frameColor: '#ffffff', depthRatio: 0.38 }),
         new FloatingItem('soccer',     window.innerWidth * 0.68, 0.48, 0.95, { depthRatio: 0.58 }),
         new FloatingItem('tsinelas',   window.innerWidth * 0.74, 0.38, 0.95, { depthRatio: 0.08 }),
         new FloatingItem('bottle',     window.innerWidth * 0.80, 0.48, 1.0,  { depthRatio: 0.62 }),
@@ -873,7 +915,7 @@
         new FloatingItem('coconut',    window.innerWidth * 0.08, 0.38, 0.85, { depthRatio: 0.60 }),
         new FloatingItem('soda',       window.innerWidth * 0.40, 0.42, 0.9,  { depthRatio: 0.48 }),
         // Second rare photo frame (far away from first)
-        new FloatingItem('frame',      window.innerWidth * 1.40, 0.34, 1.0,  { imageIndex: 1, frameColor: '#fef08a', depthRatio: 0.42 })
+        new FloatingItem('frame',      window.innerWidth * 1.40, 0.34, 1.0,  { imageIndex: Math.floor(Math.random() * 14), frameColor: '#fef08a', depthRatio: 0.42 })
     ];
 
     class Raindrop {
