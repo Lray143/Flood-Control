@@ -1827,3 +1827,23 @@ button#btn-header-guide:active,
         line-height: 1.5;
     }
 }
+
+
+/* ── Secondary Tour Button Pulse Highlight ───────────────────────── */
+.tour-pulse-highlight {
+    box-shadow: 0 0 16px 2px rgba(93, 173, 226, 0.85) !important;
+    border-color: #5dade2 !important;
+    color: #ffffff !important;
+    animation: tourButtonPulse 1.8s infinite ease-in-out !important;
+}
+
+@keyframes tourButtonPulse {
+    0%, 100% {
+        box-shadow: 0 0 10px 2px rgba(93, 173, 226, 0.6);
+        border-color: #5dade2;
+    }
+    50% {
+        box-shadow: 0 0 22px 5px rgba(93, 173, 226, 0.95);
+        border-color: #7ecef4;
+    }
+}

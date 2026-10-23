@@ -340,6 +340,8 @@
             if (pi) pi.style.display = 'none';
             sampleInspectorShown = false;
         }
+        const sitrepBtnCleanup = document.getElementById('sitrep-toggle-btn');
+        if (sitrepBtnCleanup) sitrepBtnCleanup.classList.remove('tour-pulse-highlight');
         const layersPopover = document.getElementById('layers-popover');
         if (layersPopover && !layersPopoverWasOpen) layersPopover.style.display = 'none';
 
@@ -418,6 +420,16 @@
             }
         } else if (layersPopover && !layersPopoverWasOpen) {
             layersPopover.style.display = 'none';
+        }
+
+        // Highlight sitrep-toggle-btn during collapsible-panels step
+        const sitrepBtn = document.getElementById('sitrep-toggle-btn');
+        if (sitrepBtn) {
+            if (step.id === 'collapsible-panels') {
+                sitrepBtn.classList.add('tour-pulse-highlight');
+            } else {
+                sitrepBtn.classList.remove('tour-pulse-highlight');
+            }
         }
 
         // SitRep — expand table body
