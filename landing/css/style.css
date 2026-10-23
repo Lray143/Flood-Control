@@ -529,14 +529,21 @@ html, body {
     align-items: center;
 }
 
-.contact-email-link {
+.contact-email-link,
+.contact-facebook-link {
     cursor: pointer;
 }
 
-.contact-email-link:hover strong {
+.contact-email-link:hover strong,
+.contact-facebook-link:hover strong {
     color: var(--primary);
     text-decoration: underline;
     text-underline-offset: 3px;
+}
+
+.contact-facebook-link:hover svg {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px var(--primary));
 }
 
 /* ── Keyframe Animations ── */
