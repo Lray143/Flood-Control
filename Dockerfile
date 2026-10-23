@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application source code and assets
 COPY src/ ./src/
 COPY static/ ./static/
+COPY landing/ ./landing/
 COPY data/ ./data/
 COPY main.py .
 
