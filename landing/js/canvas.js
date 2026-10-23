@@ -81,6 +81,305 @@
         return baseWaterY + wave;
     }
 
+    // Expose water surface API for 3D synchronization
+    window.HydroWater = {
+        getSurfaceY: function (x) {
+            const fHeight = getFloodHeight(performance.now());
+            const fSurfaceY = height - fHeight;
+            return getWaterSurfaceY(x, fSurfaceY);
+        },
+        getSurfaceAngle: function (x) {
+            const fHeight = getFloodHeight(performance.now());
+            const fSurfaceY = height - fHeight;
+            const dy = getWaterSurfaceY(x + 12, fSurfaceY) - getWaterSurfaceY(x - 12, fSurfaceY);
+            return Math.atan2(dy, 24);
+        },
+        createSplash: function (x, y, count = 5) {
+            createSplash(x, y, count);
+        },
+        createRipple: function (x, y) {
+            createRipple(x, y);
+        },
+        getTime: function () {
+            return time;
+        },
+        getFloodHeight: function () {
+            return getFloodHeight(performance.now());
+        },
+        getDimensions: function () {
+            return { width, height };
+        }
+    };
+
+    // ── RANDOM FLOATING ITEMS ENGINE ─────────────────────────────────────────
+    class FloatingItem {
+        constructor(type, x, speed, scale = 1) {
+            this.type = type;
+            this.x = x;
+            this.speed = speed;
+            this.scale = scale;
+            this.bobPhase = Math.random() * Math.PI * 2;
+            this.bobSpeed = 1.4 + Math.random() * 1.2;
+            this.jumpY = 0;
+            this.jumpVy = 0;
+        }
+
+        update(floodSurfaceY) {
+            this.x += this.speed;
+            if (this.x > width + 80) {
+                this.x = -80;
+            }
+
+            // Mouse interaction (pop up when cursor gets close)
+            if (mouse.active) {
+                const dx = Math.abs(this.x - mouse.x);
+                const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
+                const dy = Math.abs(surfaceY - mouse.y);
+                if (dx < 45 && dy < 45 && this.jumpY === 0) {
+                    this.jumpVy = -4.5;
+                    createSplash(this.x, surfaceY, 4);
+                    createRipple(this.x, surfaceY);
+                }
+            }
+
+            if (this.jumpVy !== 0 || this.jumpY !== 0) {
+                this.jumpY += this.jumpVy;
+                this.jumpVy += 0.22; // gravity
+                if (this.jumpY >= 0) {
+                    this.jumpY = 0;
+                    this.jumpVy = 0;
+                    const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
+                    createSplash(this.x, surfaceY, 3);
+                    createRipple(this.x, surfaceY);
+                }
+            }
+
+            // Occasional wake ripple
+            if (Math.random() < 0.02) {
+                const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
+                createRipple(this.x - 10 * this.speed, surfaceY);
+            }
+        }
+
+        draw(ctx, floodSurfaceY) {
+            const surfaceY = getWaterSurfaceY(this.x, floodSurfaceY);
+            const dy = getWaterSurfaceY(this.x + 8, floodSurfaceY) - getWaterSurfaceY(this.x - 8, floodSurfaceY);
+            const waveAngle = Math.atan2(dy, 16);
+            const bob = Math.sin(time * this.bobSpeed + this.bobPhase) * 2.8 + this.jumpY;
+
+            ctx.save();
+            ctx.translate(this.x, surfaceY + bob);
+            ctx.rotate(waveAngle * 0.85);
+            ctx.scale(this.scale, this.scale);
+
+            // Water reflection / contact shadow
+            ctx.fillStyle = 'rgba(2, 32, 60, 0.28)';
+            ctx.beginPath();
+            ctx.ellipse(0, 3, 16, 3.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            switch (this.type) {
+                case 'boat':
+                    this.drawOrigamiBoat(ctx);
+                    break;
+                case 'duck':
+                    this.drawRubberDuck(ctx);
+                    break;
+                case 'basketball':
+                    this.drawBasketball(ctx);
+                    break;
+                case 'tsinelas':
+                    this.drawFlipFlop(ctx);
+                    break;
+                case 'leaf':
+                    this.drawLeaf(ctx);
+                    break;
+            }
+
+            ctx.restore();
+        }
+
+        drawOrigamiBoat(ctx) {
+            // Folded paper boat hull
+            ctx.beginPath();
+            ctx.moveTo(-22, 0);
+            ctx.lineTo(-12, 8);
+            ctx.lineTo(12, 8);
+            ctx.lineTo(22, 0);
+            ctx.lineTo(0, 3);
+            ctx.closePath();
+            ctx.fillStyle = '#f0f6fc';
+            ctx.fill();
+            ctx.strokeStyle = '#c9d1d9';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Hull shadow facet
+            ctx.beginPath();
+            ctx.moveTo(0, 3);
+            ctx.lineTo(12, 8);
+            ctx.lineTo(22, 0);
+            ctx.closePath();
+            ctx.fillStyle = '#d0d7de';
+            ctx.fill();
+
+            // Big center triangular sail
+            ctx.beginPath();
+            ctx.moveTo(-6, 2);
+            ctx.lineTo(0, -18);
+            ctx.lineTo(10, 2);
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.stroke();
+
+            // Sail accent facet
+            ctx.beginPath();
+            ctx.moveTo(0, -18);
+            ctx.lineTo(10, 2);
+            ctx.lineTo(0, 2);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(0, 210, 255, 0.28)';
+            ctx.fill();
+        }
+
+        drawRubberDuck(ctx) {
+            // Duck yellow body
+            ctx.beginPath();
+            ctx.ellipse(-2, 0, 13, 8, -0.05, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffd13b';
+            ctx.fill();
+            ctx.strokeStyle = '#e6b31e';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Duck tail bump
+            ctx.beginPath();
+            ctx.moveTo(-13, 0);
+            ctx.lineTo(-17, -5);
+            ctx.lineTo(-10, -2);
+            ctx.closePath();
+            ctx.fillStyle = '#ffd13b';
+            ctx.fill();
+
+            // Duck head
+            ctx.beginPath();
+            ctx.arc(8, -8, 7.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffe055';
+            ctx.fill();
+            ctx.stroke();
+
+            // Eye
+            ctx.beginPath();
+            ctx.arc(10, -9, 1.3, 0, Math.PI * 2);
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fill();
+
+            // Beak
+            ctx.beginPath();
+            ctx.moveTo(14, -8);
+            ctx.lineTo(20, -6);
+            ctx.lineTo(14, -4);
+            ctx.closePath();
+            ctx.fillStyle = '#ff6b35';
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        drawBasketball(ctx) {
+            // Orange rubber ball
+            const r = 11;
+            ctx.beginPath();
+            ctx.arc(0, -2, r, 0, Math.PI * 2);
+            const grad = ctx.createRadialGradient(-3, -5, 2, 0, -2, r);
+            grad.addColorStop(0, '#ff8a3d');
+            grad.addColorStop(0.85, '#d9530f');
+            grad.addColorStop(1, '#9e3500');
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Black seams
+            ctx.strokeStyle = '#2b1408';
+            ctx.lineWidth = 1.1;
+
+            // Horizontal seam
+            ctx.beginPath();
+            ctx.ellipse(0, -2, r, r * 0.25, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Curved side ribs
+            ctx.beginPath();
+            ctx.arc(-r * 0.45, -2, r * 0.7, -Math.PI / 2, Math.PI / 2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(r * 0.45, -2, r * 0.7, Math.PI / 2, (3 * Math.PI) / 2);
+            ctx.stroke();
+
+            // Specular sheen
+            ctx.beginPath();
+            ctx.arc(-4, -6, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            ctx.fill();
+        }
+
+        drawFlipFlop(ctx) {
+            // Sole
+            ctx.beginPath();
+            ctx.roundRect(-16, -2, 32, 6, 3);
+            ctx.fillStyle = '#0ea5e9';
+            ctx.fill();
+            ctx.strokeStyle = '#0284c7';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+
+            // Y-strap
+            ctx.beginPath();
+            ctx.moveTo(-4, -2);
+            ctx.lineTo(6, -8);
+            ctx.lineTo(10, -2);
+            ctx.strokeStyle = '#f8fafc';
+            ctx.lineWidth = 2.2;
+            ctx.stroke();
+
+            // Toe plug
+            ctx.beginPath();
+            ctx.arc(6, -8, 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#0284c7';
+            ctx.fill();
+        }
+
+        drawLeaf(ctx) {
+            // Tropical green leaf
+            ctx.beginPath();
+            ctx.moveTo(-16, 2);
+            ctx.quadraticCurveTo(0, -10, 16, 0);
+            ctx.quadraticCurveTo(0, 10, -16, 2);
+            ctx.fillStyle = '#22c55e';
+            ctx.fill();
+            ctx.strokeStyle = '#15803d';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+
+            // Center vein
+            ctx.beginPath();
+            ctx.moveTo(-14, 2);
+            ctx.quadraticCurveTo(0, 0, 14, 0);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.lineWidth = 0.9;
+            ctx.stroke();
+        }
+    }
+
+    // Initialize random floating items pool
+    const floatingItems = [
+        new FloatingItem('boat', window.innerWidth * 0.12, 0.42, 1.05),
+        new FloatingItem('duck', window.innerWidth * 0.38, 0.58, 0.95),
+        new FloatingItem('basketball', window.innerWidth * 0.62, 0.48, 0.9),
+        new FloatingItem('tsinelas', window.innerWidth * 0.82, 0.38, 0.95),
+        new FloatingItem('leaf', window.innerWidth * 0.22, 0.32, 1.0)
+    ];
+
     class Raindrop {
         constructor() {
             this.reset(true);
@@ -302,6 +601,11 @@
             ctx.stroke();
 
             // Subtle surface foam reflection dots
+            // D. Draw floating water items
+            for (let item of floatingItems) {
+                item.update(floodSurfaceY);
+                item.draw(ctx, floodSurfaceY);
+            }
             ctx.fillStyle = 'rgba(220, 245, 255, 0.4)';
             for (let k = 0; k < 6; k++) {
                 const foamX = ((time * 30 + k * (width / 6)) % width);

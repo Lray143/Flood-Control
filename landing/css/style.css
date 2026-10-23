@@ -55,6 +55,17 @@ html, body {
     pointer-events: none;
 }
 
+/* 3D Floating Objects Canvas (Three.js) */
+#floating-3d-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+    pointer-events: none;
+}
+
 /* ── Ambient Glow Background Overlays ── */
 .ambient-glow {
     position: fixed;

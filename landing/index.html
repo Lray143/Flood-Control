@@ -19,6 +19,9 @@
     <!-- Dynamic Hydrodynamic Streamline Canvas -->
     <canvas id="hydro-canvas"></canvas>
 
+    <!-- 3D Floating Objects Canvas (Three.js) -->
+    <canvas id="floating-3d-canvas"></canvas>
+
     <!-- Ambient Glow & Topographic Grid Overlays -->
     <div class="ambient-glow glow-top-left" aria-hidden="true"></div>
     <div class="ambient-glow glow-bottom-right" aria-hidden="true"></div>
@@ -92,7 +95,21 @@
     </div>
 
     <!-- Hydrodynamic Wave Canvas Script -->
+    <!-- Three.js Module Importmap -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/"
+      }
+    }
+    </script>
+
+    <!-- Hydrodynamic Wave Canvas Script -->
     <script src="/landing/js/canvas.js"></script>
+
+    <!-- 3D Floating Player Hero Script -->
+    <script type="module" src="/landing/js/player-3d.js"></script>
     <script>
         // Track landing page visit in session storage
         document.getElementById('btn-enter-simulation')?.addEventListener('click', function () {
